@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Management</title>
+</head>
+<body>
+    <h1>File Management System</h1>
+    <form action="/upload{{ '/' + path if path else '' }}" method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" multiple>
+        <button type="submit">Upload</button>
+    </form>
+    <form action="/create_folder{{ '/' + path if path else '' }}" method="POST">
+        <input type="text" name="folder_name" placeholder="New Folder Name">
+        <button type="submit">Create Folder</button>
+    </form>
+    <h2>Files and Folders:</h2>
+    <ul>
+        {% if path %}
+            <li><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></li>
+        {% endif %}
+        {% for file in files %}
+            <li>
+                {% if file.is_dir %}
+                    <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+                    <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;">
+                        <button type="submit">Delete Folder</button>
+                    </form>
+                {% else %}
+                    <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+                    <a href="{{ url_for('download_file', path=path, filename=file.name) }}">Download</a>
+                    <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;">
+                        <button type="submit">Delete</button>
+                    </form>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('logout') }}">Logout</a>
+</body>
+</html>

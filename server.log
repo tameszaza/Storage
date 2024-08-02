@@ -1,0 +1,31 @@
+2024-08-03 01:27:31,333 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 01:27:31,333 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 01:27:31,335 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 01:27:31,464 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 01:27:31,467 INFO werkzeug MainThread :  * Debugger PIN: 785-478-424
+2024-08-03 01:27:56,645 INFO werkzeug Thread-2 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:27:56] "GET /index HTTP/1.1" 200 -
+2024-08-03 01:28:14,333 INFO werkzeug Thread-3 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:28:14] "GET /index/Tu HTTP/1.1" 200 -
+2024-08-03 01:28:27,229 INFO werkzeug Thread-4 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:28:27] "GET /index/Tu/Irpc HTTP/1.1" 200 -
+2024-08-03 01:28:28,297 INFO werkzeug Thread-5 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:28:28] "GET /index/Tu HTTP/1.1" 200 -
+2024-08-03 01:28:29,164 INFO werkzeug Thread-6 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:28:29] "GET /index/Tu/Tames HTTP/1.1" 200 -
+2024-08-03 01:28:29,847 INFO werkzeug Thread-7 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:28:29] "GET /index/Tu/Tames/Simsat HTTP/1.1" 200 -
+2024-08-03 01:28:30,447 INFO werkzeug Thread-8 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:28:30] "GET /uploads/Tu/Tames/Simsat/IMG_1503.png HTTP/1.1" 200 -
+2024-08-03 01:28:44,848 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 01:28:44,848 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 01:28:44,851 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 01:28:44,982 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 01:28:44,984 INFO werkzeug MainThread :  * Debugger PIN: 785-478-424
+2024-08-03 01:33:59,337 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 01:33:59,337 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 01:33:59,339 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 01:33:59,466 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 01:33:59,468 INFO werkzeug MainThread :  * Debugger PIN: 144-169-867
+2024-08-03 01:35:15,128 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 01:35:15,128 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 01:35:15,130 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 01:35:15,254 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 01:35:15,257 INFO werkzeug MainThread :  * Debugger PIN: 144-169-867

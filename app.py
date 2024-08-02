@@ -31,6 +31,10 @@ def login():
             session['username'] = username
             logging.info(f"User {username} logged in.")
             return redirect(url_for('index'))
+        if bcrypt.check_password_hash(users[username], password):
+            session['logged_in'] = True
+            logging.info(f"User {username} logged in.")
+            return redirect(url_for('index'))
         else:
             logging.warning(f"Failed login attempt for username: {username}")
             return "Invalid username or password!"
@@ -150,4 +154,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)

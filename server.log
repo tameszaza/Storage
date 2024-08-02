@@ -29,3 +29,59 @@
 2024-08-03 01:35:15,130 INFO werkzeug MainThread :  * Restarting with stat
 2024-08-03 01:35:15,254 WARNING werkzeug MainThread :  * Debugger is active!
 2024-08-03 01:35:15,257 INFO werkzeug MainThread :  * Debugger PIN: 144-169-867
+2024-08-03 01:58:27,881 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 01:58:27,881 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 01:58:27,884 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 01:58:28,007 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 01:58:28,009 INFO werkzeug MainThread :  * Debugger PIN: 110-847-535
+2024-08-03 01:58:45,211 INFO werkzeug Thread-2 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:58:45] "GET /index/Tu/Tames/Simsat HTTP/1.1" 200 -
+2024-08-03 01:58:46,131 INFO werkzeug Thread-3 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:58:46] "GET /index/Tu/Tames/Simsat HTTP/1.1" 200 -
+2024-08-03 01:58:48,756 INFO werkzeug Thread-4 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:58:48] "GET /index/Tu/Tames HTTP/1.1" 200 -
+2024-08-03 01:58:49,213 INFO werkzeug Thread-5 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:58:49] "GET /index/Tu HTTP/1.1" 200 -
+2024-08-03 01:58:49,744 INFO werkzeug Thread-6 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:58:49] "GET /index HTTP/1.1" 200 -
+2024-08-03 01:59:35,279 INFO werkzeug Thread-7 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 01:59:35] "GET /index HTTP/1.1" 200 -
+2024-08-03 02:02:50,190 INFO werkzeug Thread-8 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:02:50] "GET / HTTP/1.1" 200 -
+2024-08-03 02:02:50,399 INFO werkzeug Thread-9 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:02:50] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2024-08-03 02:03:14,768 INFO werkzeug Thread-10 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:03:14] "[35m[1mPOST / HTTP/1.1[0m" 500 -
+2024-08-03 02:03:15,183 INFO werkzeug Thread-11 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:03:15] "GET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2024-08-03 02:03:15,202 INFO werkzeug Thread-12 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:03:15] "GET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2024-08-03 02:03:15,319 INFO werkzeug Thread-13 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:03:15] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2024-08-03 02:05:09,772 INFO werkzeug MainThread :  * Detected change in '/home/tameszaza/Documents/Storage/app.py', reloading
+2024-08-03 02:05:09,822 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 02:05:09,961 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 02:05:09,963 INFO werkzeug MainThread :  * Debugger PIN: 110-847-535
+2024-08-03 02:05:15,899 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 02:05:15,900 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 02:05:15,902 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 02:05:16,022 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 02:05:16,025 INFO werkzeug MainThread :  * Debugger PIN: 110-847-535
+2024-08-03 02:05:26,866 INFO werkzeug Thread-2 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:26] "GET /index HTTP/1.1" 200 -
+2024-08-03 02:05:34,847 INFO werkzeug Thread-3 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:34] "[35m[1mPOST / HTTP/1.1[0m" 500 -
+2024-08-03 02:05:35,672 INFO werkzeug Thread-5 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:35] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2024-08-03 02:05:35,689 INFO werkzeug Thread-4 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:35] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2024-08-03 02:05:35,865 INFO werkzeug Thread-6 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:35] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2024-08-03 02:05:52,560 INFO werkzeug Thread-7 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:52] "[35m[1mPOST / HTTP/1.1[0m" 500 -
+2024-08-03 02:05:52,865 INFO werkzeug Thread-8 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:52] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2024-08-03 02:05:52,866 INFO werkzeug Thread-9 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:52] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2024-08-03 02:05:53,170 INFO werkzeug Thread-10 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:05:53] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2024-08-03 02:07:46,700 INFO werkzeug MainThread :  * Detected change in '/home/tameszaza/Documents/Storage/app.py', reloading
+2024-08-03 02:07:46,722 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 02:07:46,843 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 02:07:46,846 INFO werkzeug MainThread :  * Debugger PIN: 110-847-535
+2024-08-03 02:07:49,989 INFO werkzeug MainThread : [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2024-08-03 02:07:49,989 INFO werkzeug MainThread : [33mPress CTRL+C to quit[0m
+2024-08-03 02:07:49,991 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 02:07:50,113 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 02:07:50,116 INFO werkzeug MainThread :  * Debugger PIN: 110-847-535
+2024-08-03 02:07:51,957 INFO werkzeug Thread-2 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:07:51] "GET / HTTP/1.1" 200 -
+2024-08-03 02:08:04,243 INFO werkzeug Thread-3 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:08:04] "[35m[1mPOST / HTTP/1.1[0m" 500 -
+2024-08-03 02:08:04,412 INFO werkzeug Thread-4 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:08:04] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2024-08-03 02:08:04,414 INFO werkzeug Thread-5 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:08:04] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2024-08-03 02:08:04,512 INFO werkzeug Thread-6 (process_request_thread) : 127.0.0.1 - - [03/Aug/2024 02:08:04] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2024-08-03 02:08:32,326 INFO werkzeug MainThread :  * Detected change in '/home/tameszaza/Documents/Storage/app.py', reloading
+2024-08-03 02:08:32,351 INFO werkzeug MainThread :  * Restarting with stat
+2024-08-03 02:08:32,478 WARNING werkzeug MainThread :  * Debugger is active!
+2024-08-03 02:08:32,481 INFO werkzeug MainThread :  * Debugger PIN: 110-847-535

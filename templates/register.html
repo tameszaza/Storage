@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Register</title>
 </head>
 <body>
-    <h1>Login</h1>
-    <form action="/" method="POST">
+    <h1>Register</h1>
+    <form action="/register" method="POST">
         <p>Username</p>
         <input type="text" name="username" required>
         <p>Password</p>
         <input type="password" name="password" required>
-        <button type="submit">Login</button>
+        <button type="submit">Register</button>
     </form>
-    <a href="{{ url_for('register') }}">Register</a>
+    <a href="{{ url_for('login') }}">Back to Login</a>
 </body>
 </html>

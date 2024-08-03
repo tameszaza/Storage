@@ -1,8 +1,28 @@
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session
-from flask_bcrypt import Bcrypt
+import logging
 import os
 import shutil
-import logging
+import json
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session
+from flask_bcrypt import Bcrypt
+
+# Set up logging
+logging.basicConfig(
+    filename='server.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s',
+)
+
+USER_DATA_FILE = 'users.json'
+
+def load_users():
+    if os.path.exists(USER_DATA_FILE):
+        with open(USER_DATA_FILE, 'r') as file:
+            return json.load(file)
+    return {}
+
+def save_users(users):
+    with open(USER_DATA_FILE, 'w') as file:
+        json.dump(users, file)
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -12,14 +32,26 @@ app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024  # 5 GB limit
 app.secret_key = 'supersecretkey'  # Change this to a random secret key
 
 # In-memory user storage. Replace with a proper database in production.
-users = {}
+users = load_users()
 
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Set up logging
-logging.basicConfig(filename='server.log', level=logging.INFO,
-                    format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username in users:
+            return "Username already exists!"
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        users[username] = hashed_password
+        save_users(users)  # Save users to file
+        user_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+        if not os.path.exists(user_path):
+            os.makedirs(user_path)
+        logging.info(f"New user registered: {username}")
+        return redirect(url_for('login'))
+    return render_template('register.html')
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -30,29 +62,14 @@ def login():
             session['logged_in'] = True
             session['username'] = username
             logging.info(f"User {username} logged in.")
-            return redirect(url_for('index'))
-        if bcrypt.check_password_hash(users[username], password):
-            session['logged_in'] = True
-            logging.info(f"User {username} logged in.")
-            return redirect(url_for('index'))
+            if username == 'Admin':
+                return redirect(url_for('index'))
+            else:
+                return redirect(url_for('user_folder', username=username))
         else:
             logging.warning(f"Failed login attempt for username: {username}")
             return "Invalid username or password!"
     return render_template('login.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        if username in users:
-            logging.warning(f"Attempt to register with existing username: {username}")
-            return "Username already exists!"
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        users[username] = hashed_password
-        logging.info(f"User {username} registered successfully.")
-        return redirect(url_for('login'))
-    return render_template('register.html')
 
 @app.route('/index', defaults={'path': ''})
 @app.route('/index/<path:path>')
@@ -60,6 +77,13 @@ def index(path):
     if not session.get('logged_in'):
         logging.warning("Unauthorized access attempt to index.")
         return redirect(url_for('login'))
+    
+    # Ensure user stays within their directory
+    if session['username'] != 'Admin':
+        user_base_path = session['username']
+        if not path.startswith(user_base_path):
+            path = user_base_path
+    
     current_path = os.path.join(app.config['UPLOAD_FOLDER'], path)
     if not os.path.exists(current_path):
         logging.error(f"Folder not found: {current_path}")
@@ -67,6 +91,20 @@ def index(path):
     files = os.listdir(current_path)
     files = [{'name': f, 'is_dir': os.path.isdir(os.path.join(current_path, f))} for f in files]
     return render_template('index.html', files=files, path=path)
+
+
+
+@app.route('/user/<username>')
+def user_folder(username):
+    if not session.get('logged_in') or session.get('username') != username:
+        logging.warning(f"Unauthorized access attempt to user folder: {username}")
+        return redirect(url_for('login'))
+    user_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    if not os.path.exists(user_path):
+        os.makedirs(user_path)
+    files = os.listdir(user_path)
+    files = [{'name': f, 'is_dir': os.path.isdir(os.path.join(user_path, f))} for f in files]
+    return render_template('index.html', files=files, path=username)
 
 @app.route('/upload', methods=['POST'])
 @app.route('/upload/<path:path>', methods=['POST'])
@@ -80,6 +118,8 @@ def upload_file(path=''):
     if not files or files[0].filename == '':
         return redirect(request.url)
     current_path = os.path.join(app.config['UPLOAD_FOLDER'], path)
+    if not os.path.exists(current_path):
+        os.makedirs(current_path)
     for file in files:
         if file and file.filename != '':
             filepath = os.path.join(current_path, file.filename)

@@ -191,6 +191,16 @@ def admin():
         return redirect(url_for('login'))
     return render_template('admin_panel.html', users=users)
 
+@app.route('/admin/reset/<username>', methods=['POST'])
+def remove_user(username):
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    if username in users:
+        del users[username]
+        save_users(users)  # Save changes to file
+        logging.info(f"User {username} reseted by Admin.")
+    return redirect(url_for('admin'))
+
 @app.route('/admin/remove/<username>', methods=['POST'])
 def remove_user(username):
     if session.get('username') != 'Admin':

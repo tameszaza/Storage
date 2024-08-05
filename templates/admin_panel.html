@@ -31,11 +31,15 @@
                         <button type="submit">Unsuspend</button>
                     </form>
                     {% endif %}
+                    <form action="{{ url_for('reset_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit">Reset Password</button>
+                    </form>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     <a href="{{ url_for('logout') }}">Logout</a>
+    <a href="{{ url_for('index') }}">Index</a>
 </body>
 </html>

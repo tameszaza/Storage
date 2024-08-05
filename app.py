@@ -157,9 +157,10 @@ def uploaded_file(path, filename):
         <head>
             <meta charset="UTF-8">
             <title>PDF Viewer</title>
+            <style>html, body { margin: 0; padding: 0; height: 100%; }</style>
         </head>
         <body>
-            <iframe src="{{ url_for('serve_pdf', path=path, filename=filename) }}" width="100%" height="100%" style="border:none;"></iframe>
+            <iframe src="{{ url_for('serve_file', path=path, filename=filename) }}" width="100%" height="100%" style="border:none;"></iframe>
         </body>
         </html>
         """, path=path, filename=filename)
@@ -171,6 +172,7 @@ def uploaded_file(path, filename):
         <head>
             <meta charset="UTF-8">
             <title>Video Viewer</title>
+            <style>html, body { margin: 0; padding: 0; height: 100%; }</style>
         </head>
         <body>
             <video width="100%" height="100%" controls>

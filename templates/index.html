@@ -20,30 +20,44 @@
         <button type="submit">Create Folder</button>
     </form>
     <h2>Files and Folders:</h2>
-    <ul>
-        {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
-            <li><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></li>
-        {% endif %}
-        {% for file in files %}
-            <li>
-                {% if file.is_dir %}
-                    <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
-                    <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
-                        <button type="submit">Delete Folder</button>
-                    </form>
-                {% else %}
-                    <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-                    <a href="{{ url_for('download_file', path=path, filename=file.name) }}">Download</a>
-                    <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
-                        <button type="submit">Delete</button>
-                    </form>
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
-    {% if session['username'] == 'Admin' %}
-    <a href="{{ url_for('admin') }}">Admin Panel</a>
-    {% endif %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
+            <tr>
+                <td colspan="2"><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></td>
+            </tr>
+            {% endif %}
+            {% for file in files %}
+            <tr>
+                <td>
+                    {% if file.is_dir %}
+                        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+                    {% else %}
+                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if file.is_dir %}
+                        <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
+                            <button type="submit">Delete Folder</button>
+                        </form>
+                    {% else %}
+                        <a href="{{ url_for('download_file', path=path, filename=file.name) }}">Download</a>
+                        <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
+                            <button type="submit">Delete</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>

@@ -63,10 +63,7 @@ def login():
             session['logged_in'] = True
             session['username'] = username
             logging.info(f"User {username} logged in.")
-            if username == 'Admin':
-                return redirect(url_for('admin'))
-            else:
-                return redirect(url_for('user_folder', username=username))
+            return redirect(url_for('user_folder', username=username))
         else:
             logging.warning(f"Failed login attempt for username: {username}")
             return "Invalid username or password!"

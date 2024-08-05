@@ -21,7 +21,7 @@
     </form>
     <h2>Files and Folders:</h2>
     <ul>
-        {% if path and (path != session['username'] and path.startswith(session['username'])) %}
+        {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
             <li><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></li>
         {% endif %}
         {% for file in files %}

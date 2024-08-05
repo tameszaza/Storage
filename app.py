@@ -18,16 +18,9 @@ def load_users():
     if os.path.exists(USER_DATA_FILE):
         with open(USER_DATA_FILE, 'r') as file:
             users = json.load(file)
-        # Ensure all users have the 'suspended' attribute
-        for user in users:
-            if isinstance(users[user], dict):
-                users[user].setdefault('suspended', False)
-            else:
-                # This handles the case where the password was stored directly
-                users[user] = {'password': users[user], 'suspended': False}
-        save_users(users)  # Save changes back to the file if any updates were made
         return users
     return {}
+
 def save_users(users):
     with open(USER_DATA_FILE, 'w') as file:
         json.dump(users, file)
@@ -41,7 +34,6 @@ app.secret_key = 'supersecretkey'  # Change this to a random secret key
 
 # In-memory user storage. Replace with a proper database in production.
 users = load_users()
-
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -100,8 +92,6 @@ def index(path):
     files = os.listdir(current_path)
     files = [{'name': f, 'is_dir': os.path.isdir(os.path.join(current_path, f))} for f in files]
     return render_template('index.html', files=files, path=path)
-
-
 
 @app.route('/user/<username>')
 def user_folder(username):
@@ -233,6 +223,7 @@ def unsuspend_user(username):
         save_users(users)  # Save changes to file
         logging.info(f"User {username} unsuspended by Admin.")
     return redirect(url_for('admin'))
+
 @app.route('/logout')
 def logout():
     logging.info(f"User {session.get('username')} logged out.")

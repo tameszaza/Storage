@@ -2,8 +2,9 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort
 from flask_bcrypt import Bcrypt
+import subprocess
 
 # Set up logging
 logging.basicConfig(
@@ -233,6 +234,44 @@ def unsuspend_user(username):
         save_users(users)  # Save changes to file
         logging.info(f"User {username} unsuspended by Admin.")
     return redirect(url_for('admin'))
+
+@app.route('/admin/git_pull', methods=['POST'])
+def git_pull():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    try:
+        result = subprocess.run(['git', 'pull'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        logging.info(f"Git pull stdout: {result.stdout}")
+        logging.info(f"Git pull stderr: {result.stderr}")
+        if result.returncode == 0:
+            return f"Git pull completed successfully:<br>{result.stdout.replace('\n', '<br>')}", 200
+        else:
+            logging.error(f"Git pull failed: {result.stderr}")
+            return f"Git pull failed with error:<br>{result.stderr.replace('\n', '<br>')}", 500
+    except Exception as e:
+        logging.error(f"Git pull exception: {str(e)}")
+        return f"Git pull exception: {str(e)}", 500
+
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        abort(500)
+    func()
+
+@app.route('/admin/shutdown', methods=['POST'])
+def shutdown():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    shutdown_server()
+    return 'Server shutting down...'
+
+@app.route('/admin/reboot', methods=['POST'])
+def reboot():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    shutdown_server()
+    os.system("flask run")
+    return 'Server rebooting...'
 
 @app.route('/logout')
 def logout():

@@ -17,9 +17,17 @@ USER_DATA_FILE = 'users.json'
 def load_users():
     if os.path.exists(USER_DATA_FILE):
         with open(USER_DATA_FILE, 'r') as file:
-            return json.load(file)
+            users = json.load(file)
+        # Ensure all users have the 'suspended' attribute
+        for user in users:
+            if isinstance(users[user], dict):
+                users[user].setdefault('suspended', False)
+            else:
+                # This handles the case where the password was stored directly
+                users[user] = {'password': users[user], 'suspended': False}
+        save_users(users)  # Save changes back to the file if any updates were made
+        return users
     return {}
-
 def save_users(users):
     with open(USER_DATA_FILE, 'w') as file:
         json.dump(users, file)

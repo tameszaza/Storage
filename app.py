@@ -253,25 +253,16 @@ def git_pull():
         return f"Git pull exception: {str(e)}", 500
 
 def shutdown_server():
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        abort(500)
-    func()
+    os._exit(0)
 
 @app.route('/admin/shutdown', methods=['POST'])
 def shutdown():
     if session.get('username') != 'Admin':
+        logging.warning("Unauthorized shutdown attempt")
         return redirect(url_for('login'))
+    logging.info("Shutdown initiated by admin")
     shutdown_server()
     return 'Server shutting down...'
-
-@app.route('/admin/reboot', methods=['POST'])
-def reboot():
-    if session.get('username') != 'Admin':
-        return redirect(url_for('login'))
-    shutdown_server()
-    os.system("flask run")
-    return 'Server rebooting...'
 
 @app.route('/logout')
 def logout():

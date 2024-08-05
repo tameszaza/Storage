@@ -2,9 +2,10 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file
 from flask_bcrypt import Bcrypt
 import subprocess
+import mimetypes
 
 # Set up logging
 logging.basicConfig(
@@ -132,7 +133,24 @@ def uploaded_file(path, filename):
     if not session.get('logged_in'):
         logging.warning("Unauthorized file access attempt.")
         return redirect(url_for('login'))
-    return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], path), filename)
+
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], path, filename)
+
+    # Ensure the file path is within the upload directory
+    if not os.path.commonpath([app.config['UPLOAD_FOLDER']]) == os.path.commonpath([app.config['UPLOAD_FOLDER'], file_path]):
+        logging.error(f"Attempted directory traversal: {file_path}")
+        abort(403)
+
+    if not os.path.exists(file_path):
+        logging.error(f"File not found: {file_path}")
+        abort(404)
+
+    mime_type, encoding = mimetypes.guess_type(file_path)
+    
+    if mime_type is None:
+        mime_type = 'application/octet-stream'
+
+    return send_file(file_path, mimetype=mime_type, as_attachment=False)
 
 @app.route('/download/<path:path>/<filename>')
 def download_file(path, filename):

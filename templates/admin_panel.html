@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel</title>
+</head>
+<body>
+    <h1>Admin Panel</h1>
+    <h2>User Accounts</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user }}</td>
+                <td>
+                    <form action="{{ url_for('remove_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit">Remove</button>
+                    </form>
+                    {% if not users[user].get('suspended') %}
+                    <form action="{{ url_for('suspend_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit">Suspend</button>
+                    </form>
+                    {% else %}
+                    <form action="{{ url_for('unsuspend_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit">Unsuspend</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('logout') }}">Logout</a>
+</body>
+</html>

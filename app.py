@@ -35,7 +35,6 @@ app.secret_key = 'supersecretkey'  # Change this to a random secret key
 users = load_users()
 
 
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -44,7 +43,7 @@ def register():
         if username in users:
             return "Username already exists!"
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        users[username] = hashed_password
+        users[username] = {'password': hashed_password, 'suspended': False}
         save_users(users)  # Save users to file
         user_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
         if not os.path.exists(user_path):
@@ -53,17 +52,19 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username in users and bcrypt.check_password_hash(users[username], password):
+        if username in users and bcrypt.check_password_hash(users[username]['password'], password):
+            if users[username].get('suspended'):
+                return "Account is suspended!"
             session['logged_in'] = True
             session['username'] = username
             logging.info(f"User {username} logged in.")
             if username == 'Admin':
-                return redirect(url_for('index'))
+                return redirect(url_for('admin'))
             else:
                 return redirect(url_for('user_folder', username=username))
         else:
@@ -186,6 +187,44 @@ def create_folder(path=''):
         logging.info(f"Folder created: {new_folder_path}")
     return redirect(url_for('index', path=path))
 
+@app.route('/admin')
+def admin():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    return render_template('admin_panel.html', users=users)
+
+@app.route('/admin/remove/<username>', methods=['POST'])
+def remove_user(username):
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    if username in users:
+        del users[username]
+        save_users(users)  # Save changes to file
+        user_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+        if os.path.exists(user_path):
+            shutil.rmtree(user_path)
+        logging.info(f"User {username} removed by Admin.")
+    return redirect(url_for('admin'))
+
+@app.route('/admin/suspend/<username>', methods=['POST'])
+def suspend_user(username):
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    if username in users:
+        users[username]['suspended'] = True
+        save_users(users)  # Save changes to file
+        logging.info(f"User {username} suspended by Admin.")
+    return redirect(url_for('admin'))
+
+@app.route('/admin/unsuspend/<username>', methods=['POST'])
+def unsuspend_user(username):
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    if username in users and 'suspended' in users[username]:
+        users[username]['suspended'] = False
+        save_users(users)  # Save changes to file
+        logging.info(f"User {username} unsuspended by Admin.")
+    return redirect(url_for('admin'))
 @app.route('/logout')
 def logout():
     logging.info(f"User {session.get('username')} logged out.")

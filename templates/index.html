@@ -41,6 +41,9 @@
             </li>
         {% endfor %}
     </ul>
+    {% if session['username'] == 'Admin' %}
+    <a href="{{ url_for('admin') }}">Admin Panel</a>
+    {% endif %}
     <a href="{{ url_for('logout') }}">Logout</a>
 </body>
 </html>

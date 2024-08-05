@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, render_template_string
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort
 from flask_bcrypt import Bcrypt
 import subprocess
 import mimetypes
@@ -133,77 +133,7 @@ def uploaded_file(path, filename):
     if not session.get('logged_in'):
         logging.warning("Unauthorized file access attempt.")
         return redirect(url_for('login'))
-
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], path, filename)
-
-    # Ensure the file path is within the upload directory
-    if not os.path.commonpath([app.config['UPLOAD_FOLDER']]) == os.path.commonpath([app.config['UPLOAD_FOLDER'], file_path]):
-        logging.error(f"Attempted directory traversal: {file_path}")
-        abort(403)
-
-    if not os.path.exists(file_path):
-        logging.error(f"File not found: {file_path}")
-        abort(404)
-
-    mime_type, encoding = mimetypes.guess_type(file_path)
-    
-    if mime_type is None:
-        mime_type = 'application/octet-stream'
-
-    if mime_type == 'application/pdf':
-        return render_template_string("""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>PDF Viewer</title>
-            <style>html, body { margin: 0; padding: 0; height: 100%; }</style>
-        </head>
-        <body>
-            <iframe src="{{ url_for('serve_file', path=path, filename=filename) }}" width="100%" height="100%" style="border:none;"></iframe>
-        </body>
-        </html>
-        """, path=path, filename=filename)
-
-    if mime_type.startswith('video/'):
-        return render_template_string("""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Video Viewer</title>
-            <style>html, body { margin: 0; padding: 0; height: 100%; }</style>
-        </head>
-        <body>
-            <video width="100%" height="100%" controls>
-                <source src="{{ url_for('serve_file', path=path, filename=filename) }}" type="{{ mime_type }}">
-                Your browser does not support the video tag.
-            </video>
-        </body>
-        </html>
-        """, path=path, filename=filename, mime_type=mime_type)
-
-    return send_file(file_path, mimetype=mime_type, as_attachment=False)
-
-@app.route('/serve_file/<path:path>/<filename>')
-def serve_file(path, filename):
-    if not session.get('logged_in'):
-        logging.warning("Unauthorized file access attempt.")
-        return redirect(url_for('login'))
-
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], path, filename)
-
-    if not os.path.exists(file_path):
-        logging.error(f"File not found: {file_path}")
-        abort(404)
-
-    mime_type, encoding = mimetypes.guess_type(file_path)
-    
-    if mime_type is None:
-        mime_type = 'application/octet-stream'
-
-    return send_file(file_path, mimetype=mime_type)
-
+    return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], path), filename)
 @app.route('/download/<path:path>/<filename>')
 def download_file(path, filename):
     if not session.get('logged_in'):

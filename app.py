@@ -240,15 +240,20 @@ def git_pull():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
     try:
+        # Remove the problematic reference
+        subprocess.run(['git', 'update-ref', '-d', 'refs/remotes/origin/main'], check=True)
+
+        # Perform the git pull operation
         result = subprocess.run(['git', 'pull'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         logging.info(f"Git pull stdout: {result.stdout}")
         logging.info(f"Git pull stderr: {result.stderr}")
+
         if result.returncode == 0:
             return f"Git pull completed successfully:<br>{result.stdout.replace('\n', '<br>')}", 200
         else:
             logging.error(f"Git pull failed: {result.stderr}")
             return f"Git pull failed with error:<br>{result.stderr.replace('\n', '<br>')}", 500
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         logging.error(f"Git pull exception: {str(e)}")
         return f"Git pull exception: {str(e)}", 500
 

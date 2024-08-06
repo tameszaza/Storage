@@ -93,8 +93,16 @@ def index(path):
         logging.error(f"Folder not found: {current_path}")
         return "Folder not found!", 404
     files = os.listdir(current_path)
-    files = [{'name': f, 'is_dir': os.path.isdir(os.path.join(current_path, f))} for f in files]
+    files = [{'name': f, 'is_dir': os.path.isdir(os.path.join(current_path, f)), 'size': os.path.getsize(os.path.join(current_path, f)) if not os.path.isdir(os.path.join(current_path, f)) else get_folder_size(os.path.join(current_path, f))} for f in files]
     return render_template('index.html', files=files, path=path)
+
+def get_folder_size(folder_path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(folder_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
 
 @app.route('/user/<username>')
 def user_folder(username):

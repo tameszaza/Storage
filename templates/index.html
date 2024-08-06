@@ -115,8 +115,9 @@
             </div>
         </div>
 
-        {% if session['username'] == 'Admin' %}
+        
         <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+        {% if session['username'] == 'Admin' %}
         <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
         {% endif %}
     </div>

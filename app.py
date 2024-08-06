@@ -7,6 +7,8 @@ from flask_bcrypt import Bcrypt
 import subprocess
 import mimetypes
 import psutil
+import time
+import datetime
 
 # Set up logging
 logging.basicConfig(
@@ -398,6 +400,8 @@ def admin():
     cpu_usage = psutil.cpu_percent(interval=1)
     memory_info = psutil.virtual_memory()
     disk_info = psutil.disk_usage('/')
+    uptime_seconds = time.time() - psutil.boot_time()
+    uptime_string = str(datetime.timedelta(seconds=int(uptime_seconds)))
 
     # Gather user storage usage
     user_storage = {}
@@ -411,7 +415,8 @@ def admin():
                     total_size += os.path.getsize(fp)
             user_storage[user] = total_size
 
-    return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage)
+    return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string)
+
 def shutdown_server():
     os._exit(0)
 

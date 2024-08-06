@@ -2,13 +2,14 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, jsonify
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, jsonify, Response
 from flask_bcrypt import Bcrypt
 import subprocess
 import mimetypes
 import psutil
 import time
 import datetime
+import cv2
 
 # Set up logging
 logging.basicConfig(
@@ -416,6 +417,30 @@ def admin():
             user_storage[user] = total_size
 
     return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string)
+
+def gen_frames():
+    camera = cv2.VideoCapture(0)  # Use 0 for the default camera
+    while True:
+        success, frame = camera.read()  # Read the camera frame
+        if not success:
+            break
+        else:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # Concatenate frame one by one and show result
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/view_cam')
+def view_cam():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    return render_template('view_cam.html')
+
+# Other routes ...
 
 def shutdown_server():
     os._exit(0)

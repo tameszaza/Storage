@@ -44,15 +44,17 @@
                 <td>
                     {% if file.is_dir %}
                         <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
-                        <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
-                            <button type="submit">Download Folder</button>
-                        </form>
+                        
                     {% else %}
                         <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
                     {% endif %}
                 </td>
                 <td>
                     {% if file.is_dir %}
+                        
+                        <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
+                            <button type="submit">Download Folder</button>
+                        </form>
                         <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
                             <button type="submit">Delete Folder</button>
                         </form>

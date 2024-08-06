@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>File Management</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
     <script>
         function confirmAction(message, form) {
             if (confirm(message)) {
@@ -14,6 +15,7 @@
         function confirmDeletion(itemType, itemName) {
             return confirm(`Are you sure you want to delete this ${itemType}: ${itemName}?`);
         }
+
         function openRenameModal(path, oldName, isFolder) {
             const form = document.getElementById('renameForm');
             const newNameInput = document.getElementById('newName');
@@ -22,95 +24,105 @@
             newNameInput.value = oldName;
             form.action = isFolder ? `/rename_folder/${path}/${oldName}` : `/rename_file/${path}/${oldName}`;
             renameTitle.textContent = `Rename ${isFolder ? 'Folder' : 'File'}: ${oldName}`;
-            
+
             $('#renameModal').modal('show');
         }
     </script>
 </head>
 <body>
-    <h1>File Management System</h1>
-    <form action="/upload{{ '/' + path if path else '' }}" method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" multiple>
-        <button type="submit">Upload</button>
-    </form>
-    <form action="/create_folder{{ '/' + path if path else '' }}" method="POST">
-        <input type="text" name="folder_name" placeholder="New Folder Name">
-        <button type="submit">Create Folder</button>
-    </form>
-    <h2>Files and Folders:</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
-            <tr>
-                <td colspan="2"><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></td>
-            </tr>
-            {% endif %}
-            {% for file in files %}
-            <tr>
-                <td>
-                    {% if file.is_dir %}
-                        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
-                        
-                    {% else %}
-                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if file.is_dir %}
-                        
-                        <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
-                            <button type="submit">Download</button>
+    <div class="container">
+        <h1 class="my-4">File Management System</h1>
+        
+        <form action="/upload{{ '/' + path if path else '' }}" method="POST" enctype="multipart/form-data" class="mb-4">
+            <div class="custom-file">
+                <input type="file" class="custom-file-input" id="fileInput" name="file" multiple>
+                <label class="custom-file-label" for="fileInput">Choose file</label>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Upload</button>
+        </form>
+
+        <form action="/create_folder{{ '/' + path if path else '' }}" method="POST" class="mb-4">
+            <div class="form-group">
+                <input type="text" name="folder_name" placeholder="New Folder Name" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-primary">Create Folder</button>
+        </form>
+
+        <h2>Files and Folders</h2>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
+                <tr>
+                    <td colspan="2"><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></td>
+                </tr>
+                {% endif %}
+                {% for file in files %}
+                <tr>
+                    <td>
+                        {% if file.is_dir %}
+                            <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+                        {% else %}
+                            <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if file.is_dir %}
+                            <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
+                                <button type="submit" class="btn btn-secondary">Download</button>
+                            </form>
+                            <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                            <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">Rename</button>
+                        {% else %}
+                            <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display:inline;">
+                                <button type="submit" class="btn btn-secondary">Download</button>
+                            </form>
+                            <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                            <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">Rename</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="modal fade" id="renameModal" tabindex="-1" role="dialog" aria-labelledby="renameModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="renameTitle">Rename</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="renameForm" method="POST">
+                            <div class="form-group">
+                                <label for="newName">New Name</label>
+                                <input type="text" class="form-control" id="newName" name="new_name" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Rename</button>
                         </form>
-                        <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
-                            <button type="submit">Delete</button>
-                        </form>
-                        <button type="button" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">Rename</button>
-                
-                    {% else %}
-                    <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display:inline;">
-                        <button type="submit">Download</button>
-                    </form>
-                        <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
-                            <button type="submit">Delete</button>
-                        </form>
-                        <button type="button" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">Rename</button>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <div class="modal fade" id="renameModal" tabindex="-1" role="dialog" aria-labelledby="renameModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="renameTitle">Rename</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="renameForm" method="POST">
-                        <div class="form-group">
-                            <label for="newName">New Name</label>
-                            <input type="text" class="form-control" id="newName" name="new_name" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Rename</button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
+
+        {% if session['username'] == 'Admin' %}
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+        <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
+        {% endif %}
     </div>
-    {% if session['username'] == 'Admin' %}
-    <a href="{{ url_for('logout') }}">Logout</a>{% endif %}
-    
-    <a href="{{ url_for('admin') }}">admin_panel</a>
+
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>

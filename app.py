@@ -2,10 +2,11 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, jsonify
 from flask_bcrypt import Bcrypt
 import subprocess
 import mimetypes
+import psutil
 
 # Set up logging
 logging.basicConfig(
@@ -277,11 +278,6 @@ def create_folder(path=''):
         logging.info(f"Folder created: {new_folder_path}")
     return redirect(url_for('index', path=path))
 
-@app.route('/admin')
-def admin():
-    if session.get('username') != 'Admin':
-        return redirect(url_for('login'))
-    return render_template('admin_panel.html', users=users)
 
 @app.route('/admin/reset/<username>', methods=['POST'])
 def reset_user(username):
@@ -348,6 +344,53 @@ def git_pull():
         logging.error(f"Git pull exception: {str(e)}")
         return f"Git pull exception: {str(e)}", 500
 
+@app.route('/system_usage')
+def system_usage():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+
+    # Gather system usage data
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_info = psutil.virtual_memory()
+    disk_info = psutil.disk_usage('/')
+
+    data = {
+        'cpu_usage': cpu_usage,
+        'memory_usage': memory_info.percent,
+        'memory_used': (memory_info.total - memory_info.available) // (1024 ** 2),
+        'memory_total': memory_info.total // (1024 ** 2),
+        'disk_usage': disk_info.percent,
+        'disk_used': disk_info.used // (1024 ** 3),
+        'disk_total': disk_info.total // (1024 ** 3)
+    }
+    
+    return jsonify(data)
+
+
+
+@app.route('/admin')
+def admin():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+
+    # Gather system usage data
+    cpu_usage = psutil.cpu_percent(interval=1)
+    memory_info = psutil.virtual_memory()
+    disk_info = psutil.disk_usage('/')
+
+    # Gather user storage usage
+    user_storage = {}
+    for user in users:
+        user_folder = os.path.join(app.config['UPLOAD_FOLDER'], user)
+        if os.path.exists(user_folder):
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(user_folder):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    total_size += os.path.getsize(fp)
+            user_storage[user] = total_size
+
+    return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage)
 def shutdown_server():
     os._exit(0)
 

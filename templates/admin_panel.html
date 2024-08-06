@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Admin Panel</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
     <script>
         function confirmAction(message, form) {
             if (confirm(message)) {
@@ -78,6 +79,7 @@
         <form action="{{ url_for('git_pull') }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to reboot the server?', this);">
             <button type="submit" class="btn btn-warning">Reboot</button>
         </form>
+        <a href="{{ url_for('admin_logs') }}" class="btn btn-info">View Server Logs</a>
         <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
         <a href="{{ url_for('index') }}" class="btn btn-primary">Index</a>
     </div>

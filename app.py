@@ -286,6 +286,19 @@ def create_folder(path=''):
         logging.info(f"Folder created: {new_folder_path}")
     return redirect(url_for('index', path=path))
 
+@app.route('/admin/logs')
+def admin_logs():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    
+    log_file_path = 'server.log'
+    try:
+        with open(log_file_path, 'r') as file:
+            log_contents = file.read()
+    except FileNotFoundError:
+        log_contents = "Log file not found."
+    
+    return render_template('admin_logs.html', log_contents=log_contents)
 
 @app.route('/admin/reset/<username>', methods=['POST'])
 def reset_user(username):

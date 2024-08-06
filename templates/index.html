@@ -67,7 +67,9 @@
             {% endfor %}
         </tbody>
     </table>
-    <a href="{{ url_for('logout') }}">Logout</a>
+    {% if session['username'] == 'Admin' %}
+    <a href="{{ url_for('logout') }}">Logout</a>{% endif %}
+    
     <a href="{{ url_for('admin') }}">admin_panel</a>
 </body>
 </html>

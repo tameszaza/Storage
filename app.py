@@ -199,6 +199,64 @@ def delete_folder(path=''):
     parent_path = '/'.join(path.split('/')[:-1])
     return redirect(url_for('index', path=parent_path))
 
+@app.route('/rename_file/<path:path>/<filename>', methods=['POST'])
+def rename_file(path, filename):
+    if not session.get('logged_in'):
+        logging.warning("Unauthorized rename attempt.")
+        return redirect(url_for('login'))
+
+    # Check if the user is authorized to rename this file
+    if session['username'] != 'Admin' and not filename.startswith(session['username']):
+        logging.warning(f"Unauthorized rename attempt by user {session['username']} for file {filename}.")
+        return redirect(url_for('index', path=path))
+
+    new_filename = request.form['new_name'].strip()
+    if not new_filename:
+        logging.warning("Empty new filename provided.")
+        return redirect(url_for('index', path=path))
+
+    current_filepath = os.path.join(app.config['UPLOAD_FOLDER'], path, filename)
+    new_filepath = os.path.join(app.config['UPLOAD_FOLDER'], path, new_filename)
+
+    if not os.path.exists(current_filepath):
+        logging.error(f"File not found: {current_filepath}")
+        abort(404)
+
+    if os.path.exists(new_filepath):
+        logging.warning("New filename already exists.")
+        return redirect(url_for('index', path=path))
+
+    os.rename(current_filepath, new_filepath)
+    logging.info(f"File renamed from {current_filepath} to {new_filepath}")
+
+    return redirect(url_for('index', path=path))
+
+@app.route('/rename_folder/<path:path>/<foldername>', methods=['POST'])
+def rename_folder(path, foldername):
+    if not session.get('logged_in'):
+        logging.warning("Unauthorized rename attempt.")
+        return redirect(url_for('login'))
+
+    new_folder_name = request.form['new_name'].strip()
+    if not new_folder_name:
+        logging.warning("Empty new folder name provided.")
+        return redirect(url_for('index', path=os.path.dirname(path)))
+
+    current_folder_path = os.path.join(app.config['UPLOAD_FOLDER'], path, foldername)
+    new_folder_path = os.path.join(app.config['UPLOAD_FOLDER'], path, new_folder_name)
+
+    if not os.path.exists(current_folder_path):
+        logging.error(f"Folder not found: {current_folder_path}")
+        abort(404)
+
+    if os.path.exists(new_folder_path):
+        logging.warning("New folder name already exists.")
+        return redirect(url_for('index', path=os.path.dirname(path)))
+
+    os.rename(current_folder_path, new_folder_path)
+    logging.info(f"Folder renamed from {current_folder_path} to {new_folder_path}")
+
+    return redirect(url_for('index', path=path))
 @app.route('/create_folder', methods=['POST'])
 @app.route('/create_folder/<path:path>', methods=['POST'])
 def create_folder(path=''):

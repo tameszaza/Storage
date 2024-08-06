@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file
 from flask_bcrypt import Bcrypt
 import subprocess
 import mimetypes
@@ -124,9 +124,11 @@ def upload_file(path=''):
     for file in files:
         if file and file.filename != '':
             filepath = os.path.join(current_path, file.filename)
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)  # Ensure directories exist
             file.save(filepath)
             logging.info(f"File uploaded: {filepath}")
     return redirect(url_for('index', path=path))
+
 
 @app.route('/uploads/<path:path>/<filename>')
 def uploaded_file(path, filename):
@@ -134,6 +136,7 @@ def uploaded_file(path, filename):
         logging.warning("Unauthorized file access attempt.")
         return redirect(url_for('login'))
     return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], path), filename)
+
 @app.route('/download/<path:path>/<filename>')
 def download_file(path, filename):
     if not session.get('logged_in'):
@@ -141,6 +144,36 @@ def download_file(path, filename):
         return redirect(url_for('login'))
     logging.info(f"File downloaded: {os.path.join(app.config['UPLOAD_FOLDER'], path, filename)}")
     return send_from_directory(os.path.join(app.config['UPLOAD_FOLDER'], path), filename, as_attachment=True)
+
+@app.route('/download_folder/<path:path>', methods=['POST'])
+def download_folder(path):
+    if not session.get('logged_in'):
+        logging.warning("Unauthorized folder download attempt.")
+        return redirect(url_for('login'))
+
+    folder_path = os.path.join(app.config['UPLOAD_FOLDER'], path)
+
+    if not os.path.exists(folder_path):
+        logging.error(f"Folder not found: {folder_path}")
+        abort(404)
+
+    # Create a zip file
+    zip_filename = f"{os.path.basename(folder_path)}.zip"
+    zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
+    shutil.make_archive(zip_path.replace('.zip', ''), 'zip', folder_path)
+
+    return send_file(zip_path, as_attachment=True, mimetype='application/zip')
+
+# Ensure that after sending the file, the zip is deleted
+@app.after_request
+def remove_zip_file(response):
+    content_disposition = response.headers.get('Content-Disposition', '')
+    if 'filename=' in content_disposition:
+        zip_filename = content_disposition.split('filename=')[-1].strip('"')
+        zip_full_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
+        if os.path.exists(zip_full_path):
+            os.remove(zip_full_path)
+    return response
 
 @app.route('/delete/<path:path>/<filename>', methods=['POST'])
 def delete_file(path, filename):

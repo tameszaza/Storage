@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <title>File Management</title>
     <script>
+        function confirmAction(message, form) {
+            if (confirm(message)) {
+                form.submit();
+            }
+        }
+
         function confirmDeletion(itemType, itemName) {
             return confirm(`Are you sure you want to delete this ${itemType}: ${itemName}?`);
         }
@@ -38,6 +44,9 @@
                 <td>
                     {% if file.is_dir %}
                         <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+                        <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
+                            <button type="submit">Download Folder</button>
+                        </form>
                     {% else %}
                         <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
                     {% endif %}

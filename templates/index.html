@@ -59,7 +59,7 @@
             <tbody>
                 {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
                 <tr>
-                    <td colspan="2"><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">.. (go back (go up one level))</a></td>
+                    <td colspan="2"><a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">..</a></td>
                 </tr>
                 {% endif %}
                 {% for file in files %}

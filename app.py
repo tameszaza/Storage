@@ -303,6 +303,39 @@ def admin_logs():
     
     return render_template('admin_logs.html', log_contents=log_contents)
 
+@app.route('/admin/clear_logs', methods=['POST'])
+def clear_logs():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    
+    log_file_path = 'server.log'
+    try:
+        with open(log_file_path, 'w') as file:
+            file.write('')  # Clear the log file
+        logging.info('Log file cleared by Admin.')
+    except Exception as e:
+        logging.error(f'Error clearing log file: {str(e)}')
+        return f'Error clearing log file: {str(e)}', 500
+
+    return redirect(url_for('admin_logs'))
+
+data_transfer_log = 'data_transfer.log'
+
+@app.after_request
+def log_response(response):
+    with open(data_transfer_log, 'a') as f:
+        data_size = len(response.get_data())
+        log_message = f"Outgoing Response - Path: {request.path}, Method: {request.method}, Status: {response.status_code}, Data Size: {data_size} bytes\n"
+        f.write(log_message)
+    return response
+
+@app.before_request
+def log_request():
+    with open(data_transfer_log, 'a') as f:
+        data_size = request.content_length or 0
+        log_message = f"Incoming Request - Path: {request.path}, Method: {request.method}, Data Size: {data_size} bytes\n"
+        f.write(log_message)
+
 @app.route('/admin/reset/<username>', methods=['POST'])
 def reset_user(username):
     if session.get('username') != 'Admin':

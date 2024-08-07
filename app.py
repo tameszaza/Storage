@@ -18,6 +18,7 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s',
 )
 
+DATA_TRANSFER_LOG = 'data_transfer.log'
 USER_DATA_FILE = 'users.json'
 
 def load_users():
@@ -302,6 +303,20 @@ def admin_logs():
         log_contents = "Log file not found."
     
     return render_template('admin_logs.html', log_contents=log_contents)
+
+
+@app.route('/admin/transfer_logs')
+def view_transfer_logs():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    
+    try:
+        with open(DATA_TRANSFER_LOG, 'r') as file:
+            log_contents = file.read()
+    except FileNotFoundError:
+        log_contents = "Transfer log file not found."
+    
+    return render_template('transfer_logs.html', log_contents=log_contents)
 
 @app.route('/admin/clear_logs', methods=['POST'])
 def clear_logs():

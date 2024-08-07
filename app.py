@@ -451,25 +451,40 @@ def admin():
                     total_size += os.path.getsize(fp)
             user_storage[user] = total_size
 
+    logging.debug(f"System usage - CPU: {cpu_usage}%, Memory: {memory_info.percent}%, Disk: {disk_info.percent}%, Uptime: {uptime_string}")
+    logging.debug(f"User storage usage: {user_storage}")
+
     return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string)
 
 def gen_frames():
     camera = cv2.VideoCapture(0)  # Use 0 for the default camera
+    if not camera.isOpened():
+        logging.error("Could not open video device")
+        return
+
+    logging.debug("Camera opened")
     try:
         while True:
             success, frame = camera.read()  # Read the camera frame
             if not success:
+                logging.error("Failed to read frame from camera")
                 break
             else:
                 ret, buffer = cv2.imencode('.jpg', frame)
+                if not ret:
+                    logging.error("Failed to encode frame")
+                    break
                 frame = buffer.tobytes()
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # Concatenate frame one by one and show result
+                logging.debug("Frame captured and encoded")
     finally:
         camera.release()
+        logging.debug("Camera released")
 
 @app.route('/video_feed')
 def video_feed():
+    logging.debug("Video feed requested")
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/view_cam')
@@ -477,7 +492,6 @@ def view_cam():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
     return render_template('view_cam.html')
-# Other routes ...
 
 def shutdown_server():
     os._exit(0)

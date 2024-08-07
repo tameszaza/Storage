@@ -741,3 +741,84 @@ Outgoing Response - Path: /view_cam, Method: GET, Status: 200, Data Size: 774 by
 Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
 Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
 Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /admin/logs, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /admin/logs, Method: GET, Status: 200, Data Size: 84320 bytes
+Incoming Request - Path: /static/css/styles.css, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /static/css/styles.css, Method: GET, Status: 404, Data Size: 207 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /admin/clear_logs, Method: POST, Data Size: 0 bytes
+Outgoing Response - Path: /admin/clear_logs, Method: POST, Status: 302, Data Size: 209 bytes
+Incoming Request - Path: /admin/logs, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /admin/logs, Method: GET, Status: 200, Data Size: 1589 bytes
+Incoming Request - Path: /static/css/styles.css, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /static/css/styles.css, Method: GET, Status: 404, Data Size: 207 bytes
+Incoming Request - Path: /admin/clear_logs, Method: POST, Data Size: 0 bytes
+Outgoing Response - Path: /admin/clear_logs, Method: POST, Status: 302, Data Size: 209 bytes
+Incoming Request - Path: /admin/logs, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /admin/logs, Method: GET, Status: 200, Data Size: 1589 bytes
+Incoming Request - Path: /static/css/styles.css, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /static/css/styles.css, Method: GET, Status: 404, Data Size: 207 bytes
+Incoming Request - Path: /admin/clear_logs, Method: POST, Data Size: 0 bytes
+Outgoing Response - Path: /admin/clear_logs, Method: POST, Status: 302, Data Size: 209 bytes
+Incoming Request - Path: /admin/logs, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /admin/logs, Method: GET, Status: 200, Data Size: 1589 bytes
+Incoming Request - Path: /static/css/styles.css, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /static/css/styles.css, Method: GET, Status: 404, Data Size: 207 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Incoming Request - Path: /admin, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Outgoing Response - Path: /admin, Method: GET, Status: 200, Data Size: 8198 bytes
+Incoming Request - Path: /static/css/styles.css, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /static/css/styles.css, Method: GET, Status: 404, Data Size: 207 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 155 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes
+Outgoing Response - Path: /system_usage, Method: GET, Status: 200, Data Size: 156 bytes
+Incoming Request - Path: /system_usage, Method: GET, Data Size: 0 bytes

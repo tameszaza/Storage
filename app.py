@@ -41,23 +41,6 @@ app.secret_key = 'supersecretkey'  # Change this to a random secret key
 # In-memory user storage. Replace with a proper database in production.
 users = load_users()
 
-data_transfer_log = 'data_transfer.log'
-
-@app.after_request
-def log_response(response):
-    with open(data_transfer_log, 'a') as f:
-        data_size = len(response.get_data())
-        log_message = f"Outgoing Response - Path: {request.path}, Method: {request.method}, Status: {response.status_code}, Data Size: {data_size} bytes\n"
-        f.write(log_message)
-    return response
-
-@app.before_request
-def log_request():
-    with open(data_transfer_log, 'a') as f:
-        data_size = request.content_length or 0
-        log_message = f"Incoming Request - Path: {request.path}, Method: {request.method}, Data Size: {data_size} bytes\n"
-        f.write(log_message)
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -363,23 +346,6 @@ def unsuspend_user(username):
         logging.info(f"User {username} unsuspended by Admin.")
     return redirect(url_for('admin'))
 
-@app.route('/admin/clear_logs', methods=['POST'])
-def clear_logs():
-    if session.get('username') != 'Admin':
-        return redirect(url_for('login'))
-    
-    log_file_path = 'server.log'
-    try:
-        with open(log_file_path, 'w') as file:
-            file.write('')  # Clear the log file
-        logging.info('Log file cleared by Admin.')
-    except Exception as e:
-        logging.error(f'Error clearing log file: {str(e)}')
-        return f'Error clearing log file: {str(e)}', 500
-
-    return redirect(url_for('admin_logs'))
-
-
 @app.route('/admin/git_pull', methods=['POST'])
 def git_pull():
     if session.get('username') != 'Admin':
@@ -426,7 +392,6 @@ def system_usage():
 
 
 
-
 @app.route('/admin')
 def admin():
     if session.get('username') != 'Admin':
@@ -451,40 +416,22 @@ def admin():
                     total_size += os.path.getsize(fp)
             user_storage[user] = total_size
 
-    logging.debug(f"System usage - CPU: {cpu_usage}%, Memory: {memory_info.percent}%, Disk: {disk_info.percent}%, Uptime: {uptime_string}")
-    logging.debug(f"User storage usage: {user_storage}")
-
     return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string)
 
 def gen_frames():
     camera = cv2.VideoCapture(0)  # Use 0 for the default camera
-    if not camera.isOpened():
-        logging.error("Could not open video device")
-        return
-
-    logging.debug("Camera opened")
-    try:
-        while True:
-            success, frame = camera.read()  # Read the camera frame
-            if not success:
-                logging.error("Failed to read frame from camera")
-                break
-            else:
-                ret, buffer = cv2.imencode('.jpg', frame)
-                if not ret:
-                    logging.error("Failed to encode frame")
-                    break
-                frame = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # Concatenate frame one by one and show result
-                logging.debug("Frame captured and encoded")
-    finally:
-        camera.release()
-        logging.debug("Camera released")
+    while True:
+        success, frame = camera.read()  # Read the camera frame
+        if not success:
+            break
+        else:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # Concatenate frame one by one and show result
 
 @app.route('/video_feed')
 def video_feed():
-    logging.debug("Video feed requested")
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/view_cam')
@@ -492,6 +439,8 @@ def view_cam():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
     return render_template('view_cam.html')
+
+# Other routes ...
 
 def shutdown_server():
     os._exit(0)
@@ -513,4 +462,4 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True,host='0.0.0.0', port=5000)
+    app.run(debug=True)

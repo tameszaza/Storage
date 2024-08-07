@@ -304,6 +304,20 @@ def admin_logs():
     
     return render_template('admin_logs.html', log_contents=log_contents)
 
+@app.route('/admin/clear_transfer_logs', methods=['POST'])
+def clear_transfer_logs():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+    
+    try:
+        with open(DATA_TRANSFER_LOG, 'w') as file:
+            file.write('')  # Clear the log file
+        logging.info('Log file cleared by Admin.')
+    except Exception as e:
+        logging.error(f'Error clearing log file: {str(e)}')
+        return f'Error clearing log file: {str(e)}', 500
+
+    return redirect(url_for('view_transfer_logs'))
 
 @app.route('/admin/transfer_logs')
 def view_transfer_logs():
@@ -334,11 +348,11 @@ def clear_logs():
 
     return redirect(url_for('admin_logs'))
 
-data_transfer_log = 'data_transfer.log'
+
 
 @app.after_request
 def log_response(response):
-    with open(data_transfer_log, 'a') as f:
+    with open(DATA_TRANSFER_LOG, 'a') as f:
         data_size = len(response.get_data())
         log_message = f"Outgoing Response - Path: {request.path}, Method: {request.method}, Status: {response.status_code}, Data Size: {data_size} bytes\n"
         f.write(log_message)
@@ -346,7 +360,7 @@ def log_response(response):
 
 @app.before_request
 def log_request():
-    with open(data_transfer_log, 'a') as f:
+    with open(DATA_TRANSFER_LOG, 'a') as f:
         data_size = request.content_length or 0
         log_message = f"Incoming Request - Path: {request.path}, Method: {request.method}, Data Size: {data_size} bytes\n"
         f.write(log_message)

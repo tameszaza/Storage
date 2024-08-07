@@ -468,7 +468,6 @@ def gen_frames():
     finally:
         camera.release()
 
-
 @app.route('/video_feed')
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
@@ -478,7 +477,6 @@ def view_cam():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
     return render_template('view_cam.html')
-
 # Other routes ...
 
 def shutdown_server():

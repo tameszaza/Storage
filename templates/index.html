@@ -5,11 +5,34 @@
     <title>File Management System</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <style>
+        .drag-and-drop {
+            border: none;
+            padding: 10px;
+            margin : 7px;
+            
+        }
+
+        .drag-and-drop.dragging {
+            border-color: blue;
+            background-color: #e9ecef;
+            border: 4px dashed #007bff;
+            border-radius: 5px;
+            padding: 10px;
+            margin : 3px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+    </style>
     <script>
         function confirmAction(message, form) {
             if (confirm(message)) {
                 form.submit();
             }
+        }
+
+        function confirmDeletion(itemType, itemName) {
+            return confirm(`Are you sure you want to delete this ${itemType}: ${itemName}?`);
         }
 
         function openRenameModal(path, oldName, isFolder) {
@@ -20,12 +43,49 @@
             newNameInput.value = oldName;
             form.action = isFolder ? `/rename_folder/${path}/${oldName}` : `/rename_file/${path}/${oldName}`;
             renameTitle.textContent = `Rename ${isFolder ? 'Folder' : 'File'}: ${oldName}`;
-
+            
             $('#renameModal').modal('show');
         }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const dropArea = document.getElementById('dropArea');
+
+            dropArea.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                dropArea.classList.add('dragging');
+            });
+
+            dropArea.addEventListener('dragleave', () => {
+                dropArea.classList.remove('dragging');
+            });
+
+            dropArea.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dropArea.classList.remove('dragging');
+
+                const files = event.dataTransfer.files;
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('file', files[i]);
+                }
+
+                fetch('/upload{{ '/' + path if path else '' }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    console.log(data);
+                    location.reload();
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+            });
+        });
     </script>
 </head>
-<body>
+<body><div id="dropArea" class="drag-and-drop">
     <div class="container">
         <h1 class="my-4">File Management System</h1>
 
@@ -45,6 +105,8 @@
         </form>
 
         <h2>Files and Folders</h2>
+        
+        
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -120,7 +182,7 @@
         {% if session['username'] == 'Admin' %}
         <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
         {% endif %}
-    </div>
+    </div></div>
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>

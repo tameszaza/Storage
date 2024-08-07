@@ -352,10 +352,12 @@ def clear_logs():
 
 @app.after_request
 def log_response(response):
-    with open(DATA_TRANSFER_LOG, 'a') as f:
+    # Log the data transfer size
+    if not response.direct_passthrough:
         data_size = len(response.get_data())
-        log_message = f"Outgoing Response - Path: {request.path}, Method: {request.method}, Status: {response.status_code}, Data Size: {data_size} bytes\n"
-        f.write(log_message)
+        with open(DATA_TRANSFER_LOG, 'a') as f:
+            f.write(f"{datetime.datetime.now()}: {request.remote_addr} - {data_size} bytes transferred.\n")
+        logging.debug(f"Data size: {data_size} bytes transferred.")
     return response
 
 @app.before_request
@@ -480,27 +482,6 @@ def admin():
 
     return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string)
 
-def gen_frames():
-    camera = cv2.VideoCapture(0)  # Use 0 for the default camera
-    while True:
-        success, frame = camera.read()  # Read the camera frame
-        if not success:
-            break
-        else:
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # Concatenate frame one by one and show result
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/view_cam')
-def view_cam():
-    if session.get('username') != 'Admin':
-        return redirect(url_for('login'))
-    return render_template('view_cam.html')
 
 # Other routes ...
 

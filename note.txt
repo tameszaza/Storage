@@ -1,0 +1,9 @@
+ * Debug mode: on
+[ WARN:3@3191.078] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+[ERROR:3@3191.172] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
+[ WARN:4@3199.715] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+[ERROR:4@3199.716] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
+[ WARN:5@3207.141] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+[ERROR:5@3207.142] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
+[ WARN:6@3238.182] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
+[ERROR:6@3238.183] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range

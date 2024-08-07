@@ -424,21 +424,7 @@ def system_usage():
     
     return jsonify(data)
 
-@app.route('/admin/clear_logs', methods=['POST'])
-def clear_logs():
-    if session.get('username') != 'Admin':
-        return redirect(url_for('login'))
-    
-    log_file_path = 'server.log'
-    try:
-        with open(log_file_path, 'w') as file:
-            file.write('')  # Clear the log file
-        logging.info('Log file cleared by Admin.')
-    except Exception as e:
-        logging.error(f'Error clearing log file: {str(e)}')
-        return f'Error clearing log file: {str(e)}', 500
 
-    return redirect(url_for('admin_logs'))
 
 
 @app.route('/admin')

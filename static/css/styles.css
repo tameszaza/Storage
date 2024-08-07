@@ -1,6 +1,6 @@
 /* styles.css */
 
-.custom-file {
+/* .custom-file {
     position: relative;
     display: inline-block;
     width: 100%;
@@ -46,3 +46,17 @@
     border-color: #007bff;
     border-radius: .25rem;
 }
+.drag-and-drop {
+    border: 2px dashed #007bff;
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    margin-top: 20px;
+    color: #007bff;
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.drag-and-drop.dragging {
+    background-color: #e9ecef;
+} */

@@ -2,3 +2,4 @@ uploads
 server.log
 users.json
 data_transfer.log
+feedback.json

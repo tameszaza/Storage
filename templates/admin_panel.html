@@ -80,9 +80,11 @@
         <form action="{{ url_for('git_pull') }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to reboot the server?', this);">
             <button type="submit" class="btn btn-warning">Reboot</button>
         </form>
-        <a href="{{ url_for('admin_logs') }}" class="btn btn-info">View Server Logs</a>
+        <a href="{{ url_for('admin_logs') }}" class="btn btn-secondary">View Server Logs</a>
         <a href="{{ url_for('view_transfer_logs') }}" class="btn btn-secondary">View Transfer Logs</a>
-
+        <form action="{{ url_for('view_feedback') }}" method="GET" style="display:inline;">
+            <button type="submit" class="btn btn-info">Read Feedback</button>
+        </form>
         <div class="mt-3">
             <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
             <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Feedback</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .star-rating {
+            direction: rtl;
+            font-size: 1.5em;
+        }
+
+        .star-rating input[type="radio"] {
+            display: none;
+        }
+
+        .star-rating label {
+            color: #ddd;
+            cursor: pointer;
+        }
+
+        .star-rating input[type="radio"]:checked ~ label {
+            color: #f39c12;
+        }
+
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Give Feedback</h1>
+
+        {% if feedback_submitted %}
+        <div class="alert alert-success" role="alert">
+            Thank you! Your feedback has been sent.
+        </div>
+        {% endif %}
+
+        <form action="{{ url_for('feedback') }}" method="POST">
+            <div class="form-group">
+                <label for="feedback_type">Type of Feedback:</label>
+                <select name="feedback_type" id="feedback_type" class="form-control" required>
+                    <option value="Bug Report">Bug Report</option>
+                    <option value="Feature Request">Feature Request</option>
+                    <option value="General Feedback">General Feedback</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="message">Your Feedback:</label>
+                <textarea name="message" id="message" class="form-control" rows="4" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="rating">Rate Us:</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5">
+                    <label for="star5" title="5 stars">★</label>
+                    <input type="radio" id="star4" name="rating" value="4">
+                    <label for="star4" title="4 stars">★</label>
+                    <input type="radio" id="star3" name="rating" value="3">
+                    <label for="star3" title="3 stars">★</label>
+                    <input type="radio" id="star2" name="rating" value="2">
+                    <label for="star2" title="2 stars">★</label>
+                    <input type="radio" id="star1" name="rating" value="1">
+                    <label for="star1" title="1 star">★</label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Feedback</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary ml-2">Back to Home</a>
+        </form>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+</body>
+</html>

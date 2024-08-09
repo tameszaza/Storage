@@ -20,6 +20,7 @@ logging.basicConfig(
 
 DATA_TRANSFER_LOG = 'data_transfer.log'
 USER_DATA_FILE = 'users.json'
+FEEDBACK_FILE = 'feedback.json'
 
 def load_users():
     if os.path.exists(USER_DATA_FILE):
@@ -348,7 +349,62 @@ def clear_logs():
 
     return redirect(url_for('admin_logs'))
 
+@app.route('/admin/delete_feedback/<int:index>', methods=['POST'])
+def delete_feedback(index):
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
 
+    if os.path.exists(FEEDBACK_FILE):
+        with open(FEEDBACK_FILE, 'r') as file:
+            feedback_list = json.load(file)
+
+        if index < len(feedback_list):
+            del feedback_list[index]
+
+            with open(FEEDBACK_FILE, 'w') as file:
+                json.dump(feedback_list, file)
+
+    return redirect(url_for('view_feedback'))
+
+
+@app.route('/feedback', methods=['GET', 'POST'])
+def feedback():
+    feedback_submitted = False
+    if request.method == 'POST':
+        feedback_data = {
+            'username': session.get('username', 'Anonymous'),
+            'feedback_type': request.form['feedback_type'],
+            'message': request.form['message'],
+            'rating': request.form.get('rating')
+        }
+
+        if os.path.exists(FEEDBACK_FILE):
+            with open(FEEDBACK_FILE, 'r') as file:
+                feedback_list = json.load(file)
+        else:
+            feedback_list = []
+
+        feedback_list.append(feedback_data)
+
+        with open(FEEDBACK_FILE, 'w') as file:
+            json.dump(feedback_list, file)
+
+        feedback_submitted = True
+
+    return render_template('feedback.html', feedback_submitted=feedback_submitted)
+
+@app.route('/admin/view_feedback')
+def view_feedback():
+    if session.get('username') != 'Admin':
+        return redirect(url_for('login'))
+
+    if os.path.exists(FEEDBACK_FILE):
+        with open(FEEDBACK_FILE, 'r') as file:
+            feedback_list = json.load(file)
+    else:
+        feedback_list = []
+
+    return render_template('view_feedback.html', feedback_list=feedback_list)
 
 @app.after_request
 def log_response(response):

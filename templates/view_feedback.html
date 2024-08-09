@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Feedback</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .list-group-item {
+            position: relative;
+            padding-bottom: 40px; /* Add space for the button */
+        }
+
+        .delete-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Feedback List</h1>
+        <ul class="list-group">
+            {% set counter = 0 %}
+            {% for feedback in feedback_list %}
+            <li class="list-group-item">
+                <h5>{{ feedback.username }} <small class="text-muted">({{ feedback.feedback_type }})</small></h5>
+                <p>{{ feedback.message }}</p>
+                {% if feedback.rating %}
+                <p>Rating: <span class="badge badge-info">{{ feedback.rating }}/5</span></p>
+                {% endif %}
+                <form action="{{ url_for('delete_feedback', index=counter) }}" method="POST" class="delete-button">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </li>
+            {% set counter = counter + 1 %}
+            {% endfor %}
+        </ul>
+        <a href="{{ url_for('admin') }}" class="btn btn-secondary mt-4">Back to Admin Panel</a>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+</body>
+</html>

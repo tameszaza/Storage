@@ -49,6 +49,18 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             const dropArea = document.getElementById('dropArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileLabel = document.querySelector('.custom-file-label');
+
+            // Show selected file names or count
+            fileInput.addEventListener('change', function () {
+                const files = fileInput.files;
+                if (files.length === 1) {
+                    fileLabel.textContent = files[0].name;
+                } else {
+                    fileLabel.textContent = files.length + ' files selected';
+                }
+            });
 
             dropArea.addEventListener('dragover', (event) => {
                 event.preventDefault();
@@ -178,10 +190,11 @@
         </div>
 
         
-        <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
         {% if session['username'] == 'Admin' %}
         <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
         {% endif %}
+        <a href="{{ url_for('feedback') }}" class="btn btn-secondary">Give Feedback</a>
     </div></div>
 
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>

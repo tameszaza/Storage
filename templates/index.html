@@ -52,7 +52,7 @@
                             <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
                         {% endif %}
                     </td>
-                    <td>{{ file.size // (1000 ** 2) if file.size else 0 }} MB</td>
+                    <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
                     <td>
                         {% if file.is_dir %}
                             <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
@@ -81,14 +81,33 @@
     <!-- Grid View Template (hidden by default) -->
     <div id="gridContainer" class="grid-view" style="display: none;">
         <div class="row">
+            <!-- Back to upper folder card -->
+            {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
+            <div class="col-sm-4">
+                <div class="card mb-3">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">..</h5>
+                        <a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             {% for file in files %}
             <div class="col-sm-4">
                 <div class="card mb-3">
                     {% if file.is_dir %}
                     <div class="card-body">
                         <h5 class="card-title"><a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a></h5>
-                        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}" class="btn btn-primary">Open</a>
+                        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}" class="btn btn-primary mb-2">Open</a>
+                        <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
+                            <button type="submit" class="btn btn-danger mb-2">Delete Folder</button>
+                        </form>
+                        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">Rename Folder</button>
                     </div>
+                    
                     {% else %}
                     <div class="card-body">
                         <h5 class="card-title">{{ file.name }}</h5>
@@ -115,6 +134,7 @@
             {% endfor %}
         </div>
     </div>
+    
 
     <div class="modal fade" id="renameModal" tabindex="-1" role="dialog" aria-labelledby="renameModalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -155,5 +175,20 @@
         document.getElementById('fileContainer').style.display = 'none';
         document.getElementById('gridContainer').style.display = 'block';
     });
+        function openRenameModal(path, oldName, isFolder) {
+            const form = document.getElementById('renameForm');
+            const newNameInput = document.getElementById('newName');
+            const renameTitle = document.getElementById('renameTitle');
+    
+            // Set the action for the form
+            form.action = isFolder ? `/rename_folder/${path}/${oldName}` : `/rename_file/${path}/${oldName}`;
+    
+            // Set the old name in the input field and title
+            newNameInput.value = oldName;
+            renameTitle.textContent = `Rename ${isFolder ? 'Folder' : 'File'}: ${oldName}`;
+    
+            // Show the modal
+            $('#renameModal').modal('show');
+        }
 </script>
 {% endblock %}

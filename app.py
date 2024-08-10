@@ -9,7 +9,7 @@ import mimetypes
 import psutil
 import time
 import datetime
-import cv2
+import tempfile
 
 # Set up logging
 logging.basicConfig(
@@ -177,7 +177,54 @@ def download_folder(path):
     shutil.make_archive(zip_path.replace('.zip', ''), 'zip', folder_path)
 
     return send_file(zip_path, as_attachment=True, mimetype='application/zip')
+@app.route('/download_selected', methods=['POST'])
+def download_selected():
+    selected_files = request.form.getlist('selected_files')
+    current_path = request.form.get('current_path', '')  # Assuming you pass the current path from the form
+    if not selected_files:
+        return jsonify(success=False)
 
+    # Create a temporary directory to store the selected files
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for file_name in selected_files:
+            # Create a file path for the selected file in the uploads directory
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], current_path, file_name)
+            if os.path.exists(file_path):
+                # Copy the file to the temporary directory
+                shutil.copy(file_path, os.path.join(temp_dir, file_name))
+            else:
+                logging.warning(f"File not found: {file_path}")
+
+        # Create a zip file of the temporary directory
+        zip_filename = 'selected_files.zip'
+        zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
+        shutil.make_archive(zip_path.replace('.zip', ''), 'zip', temp_dir)
+
+        # Send the zip file as a response
+        return send_file(zip_path, as_attachment=True, mimetype='application/zip')
+
+@app.route('/toggle_dark_mode', methods=['POST'])
+def toggle_dark_mode():
+    mode = request.json.get('mode')
+    if mode in ['dark', 'light']:
+        session['dark_mode'] = mode
+    return jsonify(success=True)
+
+@app.route('/delete_selected', methods=['POST'])
+def delete_selected():
+    selected_files = request.form.getlist('selected_files')
+    if not selected_files:
+        return jsonify(success=False)
+
+    for file_name in selected_files:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+        if os.path.exists(file_path):
+            if os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+            else:
+                os.remove(file_path)
+
+    return jsonify(success=True)
 # Ensure that after sending the file, the zip is deleted
 @app.after_request
 def remove_zip_file(response):

@@ -1,34 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Server Logs</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
-    <style>
-        .log-container {
-            height: 80vh; /* Adjust this value as needed */
-            overflow-y: scroll;
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border: 1px solid #dee2e6;
-            border-radius: .25rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container mt-5">
-        <h1 class="my-4">Server Logs</h1>
-        <div class="log-container">
-            <pre style="white-space: pre-wrap;">{{ log_contents }}</pre>
-        </div>
-        <form action="{{ url_for('clear_logs') }}" method="POST" style="display:inline;">
-            <button type="submit" class="btn btn-warning mt-3">Clear Log File</button>
-        </form>
-        <a href="{{ url_for('admin') }}" class="btn btn-primary mt-3">Back to Admin Panel</a>
+{% extends "base.html" %}
+
+{% block title %}Server Logs{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="my-4">Server Logs</h1>
+    <div class="log-container">
+        <pre style="white-space: pre-wrap;">{{ log_contents }}</pre>
     </div>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-</body>
-</html>
+    <form action="{{ url_for('clear_logs') }}" method="POST" style="display:inline;">
+        <button type="submit" class="btn btn-warning mt-3">Clear Log File</button>
+    </form>
+    <a href="{{ url_for('admin') }}" class="btn btn-primary mt-3">Back to Admin Panel</a>
+</div>
+{% endblock %}

@@ -51,10 +51,15 @@ body[data-theme="light"] .custom-file-input {
 
 body[data-theme="dark"] .custom-file-label,
 body[data-theme="dark"] .form-control,
-body[data-theme="dark"] .custom-file-input {
+body[data-theme="dark"] .custom-file-input ,
+body[data-theme="dark"] .list-group-item
+{
     background-color: #333333;
     color: #ffffff;
     border-color: #444444;
+}
+body[data-theme="dark"] .text-muted{
+    color: #b9b9b9 !important;
 }
 
 /* Browse Button Text Color */
@@ -139,4 +144,13 @@ body[data-theme='dark'] .table-striped tbody tr:nth-of-type(odd) {
     background-color: var(--log-bg-color) !important;
     font-size: 14px; /* Adjust this as needed */
     font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+body[data-theme='dark'] .feedback-item {
+    background-color: #333333;
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+}
+
+body[data-theme='dark'] .rating-badge {
+    background-color: #1f6f8b;
 }

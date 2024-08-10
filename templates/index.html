@@ -17,13 +17,17 @@
             <input type="text" name="folder_name" placeholder="New Folder Name" class="form-control">
         </div>
         <button type="submit" class="btn btn-primary">Create Folder</button>
+        
     </form>
 
     <!-- Toggle Buttons for List/Grid View -->
-    <div class="mb-3">
-        <button id="listViewBtn" class="btn btn-secondary">List View</button>
-        <button id="gridViewBtn" class="btn btn-secondary">Grid View</button>
-    </div>
+    <!-- Toggle Button for List/Grid View -->
+<div class="mb-3">
+    <button id="viewToggleBtn" class="btn btn-secondary">
+        <i id="viewToggleIcon" class="fas fa-th-large"></i>
+    </button>
+</div>
+
 
     <h2>Files and Folders</h2>
 
@@ -112,7 +116,7 @@
                     <div class="card-body">
                         <h5 class="card-title">{{ file.name }}</h5>
                         <div class="file-preview">
-                            {% if file.name.endswith('.jpg') or file.name.endswith('.png') %}
+                            {% if file.name.endswith('.jpg') or file.name.endswith('.png') or file.name.endswith('.jpeg') %}
                             <img src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" alt="{{ file.name }}">
                             {% elif file.name.endswith('.mp4') or file.name.endswith('.webm') %}
                             <video src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" controls></video>
@@ -166,15 +170,41 @@
 </div>
 
 <script>
-    document.getElementById('listViewBtn').addEventListener('click', function() {
-        document.getElementById('fileContainer').style.display = 'block';
-        document.getElementById('gridContainer').style.display = 'none';
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileContainer = document.getElementById('fileContainer');
+        const gridContainer = document.getElementById('gridContainer');
+        const viewToggleIcon = document.getElementById('viewToggleIcon');
+    
+        // Retrieve the saved view preference
+        const savedView = localStorage.getItem('viewPreference') || 'list';
+    
+        if (savedView === 'grid') {
+            fileContainer.style.display = 'none';
+            gridContainer.style.display = 'block';
+            viewToggleIcon.className = 'fas fa-list';
+        } else {
+            fileContainer.style.display = 'block';
+            gridContainer.style.display = 'none';
+            viewToggleIcon.className = 'fas fa-th-large';
+        }
+    
+        document.getElementById('viewToggleBtn').addEventListener('click', function() {
+            if (fileContainer.style.display === 'block' || fileContainer.style.display === '') {
+                fileContainer.style.display = 'none';
+                gridContainer.style.display = 'block';
+                viewToggleIcon.className = 'fas fa-list';
+                localStorage.setItem('viewPreference', 'grid');  // Save the preference
+            } else {
+                fileContainer.style.display = 'block';
+                gridContainer.style.display = 'none';
+                viewToggleIcon.className = 'fas fa-th-large';
+                localStorage.setItem('viewPreference', 'list');  // Save the preference
+            }
+        });
     });
-
-    document.getElementById('gridViewBtn').addEventListener('click', function() {
-        document.getElementById('fileContainer').style.display = 'none';
-        document.getElementById('gridContainer').style.display = 'block';
-    });
+    
+    
+    
         function openRenameModal(path, oldName, isFolder) {
             const form = document.getElementById('renameForm');
             const newNameInput = document.getElementById('newName');
@@ -190,5 +220,7 @@
             // Show the modal
             $('#renameModal').modal('show');
         }
+       
+        
 </script>
 {% endblock %}

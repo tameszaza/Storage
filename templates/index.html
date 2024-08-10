@@ -116,12 +116,17 @@
                     <div class="card-body">
                         <h5 class="card-title">{{ file.name }}</h5>
                         <div class="file-preview">
-                            {% if file.name.endswith('.jpg') or file.name.endswith('.png') or file.name.endswith('.jpeg') %}
+                            {% if file.name.endswith('.jpg') or file.name.endswith('.png') or file.name.endswith('.jpeg') or file.name.endswith('.JPG')%}
                             <img src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" alt="{{ file.name }}">
                             {% elif file.name.endswith('.mp4') or file.name.endswith('.webm') %}
                             <video src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" controls></video>
                             {% elif file.name.endswith('.pdf') %}
                             <iframe src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid"></iframe>
+                            {% elif file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') %}
+
+                        <div class="txt-preview">
+                            <pre>{{ file.content | safe }}</pre>
+                        </div>
                             {% else %}
                             <p>No preview available.</p>
                             {% endif %}
@@ -199,6 +204,17 @@
                 gridContainer.style.display = 'none';
                 viewToggleIcon.className = 'fas fa-th-large';
                 localStorage.setItem('viewPreference', 'list');  // Save the preference
+            }
+        });
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.querySelector('.custom-file-label');
+
+        fileInput.addEventListener('change', function () {
+            const files = fileInput.files;
+            if (files.length === 1) {
+                fileLabel.textContent = files[0].name;
+            } else {
+                fileLabel.textContent = `${files.length} files selected`;
             }
         });
     });

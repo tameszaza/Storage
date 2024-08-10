@@ -304,3 +304,25 @@ body[data-theme='dark'] .btn-danger {
     background-color: #dc3545;
     border-color: #dc3545;
 }
+/* Styles for the List/Grid view toggle icon */
+#viewToggleBtn {
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 1.5em;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+#viewToggleIcon {
+    color: #ffffff;
+}
+
+/* Ensure correct colors in dark mode */
+body[data-theme='dark'] #viewToggleIcon {
+    color: #ffffff;
+}
+
+#viewToggleBtn{
+    float: right;
+    margin: 5px;
+}

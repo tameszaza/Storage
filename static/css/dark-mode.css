@@ -1,0 +1,47 @@
+/* Dark mode styles for input fields and buttons */
+body[data-theme='dark'] .custom-file-label,
+body[data-theme='dark'] .form-control {
+    background-color: #333333;
+    color: #ffffff;
+    border: 1px solid #555555;
+}
+
+body[data-theme='dark'] .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+body[data-theme='dark'] .btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #004085;
+}
+
+body[data-theme='dark'] .custom-file-input:focus ~ .custom-file-label,
+body[data-theme='dark'] .form-control:focus {
+    background-color: #444444;
+    border-color: #666666;
+    color: #ffffff;
+}
+
+body[data-theme='dark'] #themeToggle {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #ffffff;
+}
+
+body[data-theme='dark'] #themeToggle:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+/* Additional styles to make the buttons stand out */
+#themeToggle {
+    border-radius: 50%;
+    padding: 0.5rem;
+    font-size: 1.25rem;
+    line-height: 1;
+    text-align: center;
+    display: inline-block;
+    width: 2.5rem;
+    height: 2.5rem;
+}

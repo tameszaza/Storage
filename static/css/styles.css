@@ -1,62 +1,142 @@
-/* styles.css */
+/* General Light and Dark Mode Styles */
+body[data-theme='light'] {
+    background-color: #ffffff;
+    color: #000000;
+    --log-bg-color: #f8f9fa;
+    --log-text-color: #212529;
+    --log-border-color: #dee2e6;
 
-/* .custom-file {
-    position: relative;
-    display: inline-block;
-    width: 100%;
 }
 
-.custom-file-input {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 5;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    opacity: 0;
-    cursor: pointer;
+body[data-theme='dark'] {
+    background-color: #121212;
+    color: #ffffff;
+    --log-bg-color: #212121;
+    --log-text-color: #e0e0e0;
+    --log-border-color: #424242;
 }
 
-.custom-file-label {
-    display: inline-block;
-    width: 100%;
-    height: calc(1.5em + .75rem + 2px);
-    padding: .375rem .75rem;
-    line-height: 1.5;
-    color: #495057;
-    background-color: #fff;
-    border: 1px solid #ced4da;
-    border-radius: .25rem;
-    transition: background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.custom-file-label::after {
-    content: "Browse...";
-    display: inline-block;
-    padding: .375rem .75rem;
-    margin-left: .75rem;
-    color: #fff;
+/* Button Styles */
+.btn-primary {
     background-color: #007bff;
-    border-color: #007bff;
-    border-radius: .25rem;
-}
-.drag-and-drop {
-    border: 2px dashed #007bff;
-    border-radius: 5px;
-    padding: 20px;
-    text-align: center;
-    margin-top: 20px;
-    color: #007bff;
-    background-color: #f8f9fa;
-    cursor: pointer;
 }
 
-.drag-and-drop.dragging {
-    background-color: #e9ecef;
-} */
+body[data-theme='dark'] .btn-primary {
+    background-color: #375a7f;
+}
+
+body[data-theme='dark'] .btn-secondary {
+    background-color: #6c757d;
+    color: #ffffff;
+}
+
+body[data-theme='dark'] .btn-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+body[data-theme='dark'] .btn-info {
+    background-color: #17a2b8;
+    color: #ffffff;
+}
+
+/* Custom File Input and Form Control Styles */
+body[data-theme="light"] .custom-file-label,
+body[data-theme="light"] .form-control,
+body[data-theme="light"] .custom-file-input {
+    background-color: #ffffff;
+    color: #000000;
+    border-color: #ced4da;
+}
+
+body[data-theme="dark"] .custom-file-label,
+body[data-theme="dark"] .form-control,
+body[data-theme="dark"] .custom-file-input {
+    background-color: #333333;
+    color: #ffffff;
+    border-color: #444444;
+}
+
+/* Browse Button Text Color */
+body[data-theme="light"] .custom-file-label::after {
+    background-color: #eeeeee;
+    color: #000000;
+    border-color: #dddddd;
+}
+
+body[data-theme="dark"] .custom-file-label::after {
+    background-color: #666666;
+    color: #ffffff;
+    border-color: #777777;
+}
+
+/* Table Styles for Dark Mode */
+body[data-theme='dark'] .table {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+body[data-theme='dark'] .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #454545;
+}
+
+/* Star Rating System */
+.star-rating {
+    direction: rtl;
+    font-size: 1.5em;
+    unicode-bidi: bidi-override;
+    text-align: center;
+}
+
+.star-rating input[type="radio"] {
+    display: none; /* Hide the radio buttons */
+}
+
+.star-rating label {
+    color: #bbb; /* Dimmer color for empty stars */
+    font-size: 2em;
+    cursor: pointer;
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+    text-shadow: 1px 1px 1px #aaa; /* Subtle shadow for depth */
+}
+
+.star-rating input[type="radio"]:checked ~ label {
+    color: #f39c12; /* Bright color for selected stars */
+}
+
+.star-rating label:hover,
+.star-rating label:hover ~ label {
+    color: #f39c12; /* Bright color on hover */
+}
+
+/* Log Container Styles */
+.log-container {
+    height: 80vh; /* Adjust this value as needed */
+    overflow-y: scroll;
+    background-color: var(--log-bg-color);
+    color: var(--log-text-color); /* Text color for the logs */
+    padding: 1rem;
+    border: 1px solid var(--log-border-color);
+    border-radius: .25rem;
+}
+
+/* Feedback List Styles */
+.list-group-item {
+    position: relative;
+    padding-bottom: 40px; /* Add space for the button */
+}
+
+.delete-button {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+}
+/* Override default pre styling for log container */
+.log-container pre {
+    color: var(--log-text-color) !important;
+    background-color: var(--log-bg-color) !important;
+    font-size: 14px; /* Adjust this as needed */
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}

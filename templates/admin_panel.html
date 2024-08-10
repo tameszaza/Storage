@@ -1,98 +1,92 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Admin Panel</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
-    <script>
-        function confirmAction(message, form) {
-            if (confirm(message)) {
-                form.submit();
-            }
-        }
+{% extends "base.html" %}
 
-        function fetchSystemUsage() {
-            fetch('/system_usage')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('cpuUsage').innerText = data.cpu_usage + '%';
-                    document.getElementById('memoryUsage').innerText = data.memory_usage + '% (' + data.memory_used + ' MB used of ' + data.memory_total + ' MB)';
-                    document.getElementById('diskUsage').innerText = data.disk_usage + '% (' + data.disk_used + ' GB used of ' + data.disk_total + ' GB)';
-                })
-                .catch(error => console.error('Error fetching system usage:', error));
-        }
+{% block title %}
+Admin Panel
+{% endblock %}
 
-        setInterval(fetchSystemUsage, 5000); // Fetch every 5 seconds
-        window.onload = fetchSystemUsage; // Fetch on page load
-    </script>
-</head>
-<body>
-    <div class="container mt-5">
-        <h1>Admin Panel</h1>
-        
-        <h2>System Usage</h2>
-        <p>CPU Usage: <span id="cpuUsage">Loading...</span></p>
-        <p>Memory Usage: <span id="memoryUsage">Loading...</span></p>
-        <p>Disk Usage: <span id="diskUsage">Loading...</span></p>
-        <p>Uptime: <span id="uptime">{{ uptime }}</span></p>
-        
-        <h2>User Accounts</h2>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Storage Used</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td>{{ user }}</td>
-                    <td>{{ (user_storage[user] // (1024 ** 2)) if user in user_storage else 0 }} MB</td>
-                    <td>
-                        <form action="{{ url_for('remove_user', username=user) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to remove this user?', this);">
-                            <button type="submit" class="btn btn-danger">Remove</button>
-                        </form>
-                        {% if not users[user].get('suspended') %}
-                        <form action="{{ url_for('suspend_user', username=user) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn btn-warning">Suspend</button>
-                        </form>
-                        {% else %}
-                        <form action="{{ url_for('unsuspend_user', username=user) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn btn-success">Unsuspend</button>
-                        </form>
-                        {% endif %}
-                        <form action="{{ url_for('reset_user', username=user) }}" method="POST" style="display:inline;">
-                            <button type="submit" class="btn btn-secondary">Reset Password</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        
-        <h2>Server Management</h2>
-        <form action="{{ url_for('shutdown') }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to shut down the server?', this);">
-            <button type="submit" class="btn btn-danger">Shutdown Server</button>
-        </form>
-        <form action="{{ url_for('git_pull') }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to reboot the server?', this);">
-            <button type="submit" class="btn btn-warning">Reboot</button>
-        </form>
-        <a href="{{ url_for('admin_logs') }}" class="btn btn-secondary">View Server Logs</a>
-        <a href="{{ url_for('view_transfer_logs') }}" class="btn btn-secondary">View Transfer Logs</a>
-        <form action="{{ url_for('view_feedback') }}" method="GET" style="display:inline;">
-            <button type="submit" class="btn btn-info">Read Feedback</button>
-        </form>
-        <div class="mt-3">
-            <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
-            <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
-        </div>
+{% block content %}
+<div class="container mt-5">
+    <h1>Admin Panel</h1>
+    
+    <h2>System Usage</h2>
+    <p>CPU Usage: <span id="cpuUsage">Loading...</span></p>
+    <p>Memory Usage: <span id="memoryUsage">Loading...</span></p>
+    <p>Disk Usage: <span id="diskUsage">Loading...</span></p>
+    <p>Uptime: <span id="uptime">{{ uptime }}</span></p>
+    
+    <h2>User Accounts</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Storage Used</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user }}</td>
+                <td>{{ (user_storage[user] // (1024 ** 2)) if user in user_storage else 0 }} MB</td>
+                <td>
+                    <form action="{{ url_for('remove_user', username=user) }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to remove this user?', this);">
+                        <button type="submit" class="btn btn-danger">Remove</button>
+                    </form>
+                    {% if not users[user].get('suspended') %}
+                    <form action="{{ url_for('suspend_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-warning">Suspend</button>
+                    </form>
+                    {% else %}
+                    <form action="{{ url_for('unsuspend_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-success">Unsuspend</button>
+                    </form>
+                    {% endif %}
+                    <form action="{{ url_for('reset_user', username=user) }}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-secondary">Reset Password</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <h2>Server Management</h2>
+    <form action="{{ url_for('shutdown') }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to shut down the server?', this);">
+        <button type="submit" class="btn btn-danger">Shutdown Server</button>
+    </form>
+    <form action="{{ url_for('git_pull') }}" method="POST" style="display:inline;" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to reboot the server?', this);">
+        <button type="submit" class="btn btn-warning">Reboot</button>
+    </form>
+    <a href="{{ url_for('admin_logs') }}" class="btn btn-secondary">View Server Logs</a>
+    <a href="{{ url_for('view_transfer_logs') }}" class="btn btn-secondary">View Transfer Logs</a>
+    <form action="{{ url_for('view_feedback') }}" method="GET" style="display:inline;">
+        <button type="submit" class="btn btn-info">Read Feedback</button>
+    </form>
+    <div class="mt-3">
+        <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
     </div>
+</div>
 
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
-    <script src="https://stackpath.amazonaws.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-</body>
-</html>
+<script>
+    function confirmAction(message, form) {
+        if (confirm(message)) {
+            form.submit();
+        }
+    }
+
+    function fetchSystemUsage() {
+        fetch('/system_usage')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('cpuUsage').innerText = data.cpu_usage + '%';
+                document.getElementById('memoryUsage').innerText = data.memory_usage + '% (' + data.memory_used + ' MB used of ' + data.memory_total + ' MB)';
+                document.getElementById('diskUsage').innerText = data.disk_usage + '% (' + data.disk_used + ' GB used of ' + data.disk_total + ' GB)';
+            })
+            .catch(error => console.error('Error fetching system usage:', error));
+    }
+
+    setInterval(fetchSystemUsage, 5000); // Fetch every 5 seconds
+    window.onload = fetchSystemUsage; // Fetch on page load
+</script>
+{% endblock %}

@@ -97,8 +97,26 @@ def index(path):
     if not os.path.exists(current_path):
         logging.error(f"Folder not found: {current_path}")
         return "Folder not found!", 404
-    files = os.listdir(current_path)
-    files = [{'name': f, 'is_dir': os.path.isdir(os.path.join(current_path, f)), 'size': os.path.getsize(os.path.join(current_path, f)) if not os.path.isdir(os.path.join(current_path, f)) else get_folder_size(os.path.join(current_path, f))} for f in files]
+    
+    files = []
+    for f in os.listdir(current_path):
+        file_path = os.path.join(current_path, f)
+        is_dir = os.path.isdir(file_path)
+        size = os.path.getsize(file_path) if not is_dir else get_folder_size(file_path)
+        
+        # Read content for .txt files
+        content = None
+        if f.endswith(('.txt', '.py', '.log')) and not is_dir:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+        
+        files.append({
+            'name': f,
+            'is_dir': is_dir,
+            'size': size,
+            'content': content
+        })
+    
     return render_template('index.html', files=files, path=path)
 
 def get_folder_size(folder_path):

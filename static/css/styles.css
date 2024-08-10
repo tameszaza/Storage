@@ -157,42 +157,150 @@ body[data-theme='dark'] .rating-badge {
 /* Adjust card layout */
 .card {
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 5px rgba(146, 146, 146, 0.5); /* Glow effect */
     transition: transform 0.2s ease-in-out;
+    min-height: 350px; /* Ensure consistent card height */
+    min-width: 200px; /* Minimum width for the card */
+    max-width: 100%; /* Ensure the card does not exceed its container width */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border: none;
 }
 
 .card:hover {
     transform: translateY(-5px);
-}
-
-.card-img-top {
-    border-top-left-radius: 10px;
-    border-top-right-radius: 10px;
-    object-fit: cover;
-}
-
-.card-title {
-    font-size: 1rem;
-    font-weight: bold;
-    margin-bottom: 10px;
+    box-shadow: 0 0 10px rgba(146, 146, 146, 0.7); /* Enhanced glow on hover */
 }
 
 .card-body {
     padding: 15px;
+    background-color: #ffffff; /* Light mode background */
+    border-radius: 5px;
 }
 
-.btn {
-    font-size: 0.9rem;
-    padding: 5px 10px;
+.file-preview img,
+.file-preview video,
+.file-preview iframe {
+    width: 100%;
+    height: auto;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    background-color: #f8f9fa; /* Light mode background for media */
 }
 
-a.card-title:hover {
-    text-decoration: underline;
+.card-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
 }
 
+/* Center the buttons in the card */
+.d-flex.justify-content-center {
+    margin-top: 15px;
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+}
+
+/* Dark mode adjustments for cards */
+body[data-theme='dark'] .card {
+    background-color: #333333;
+    color: #ffffff;
+    border-color: #444444;
+}
+
+body[data-theme='dark'] .card:hover {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); /* Enhanced light glow on hover */
+}
+
+body[data-theme='dark'] .card-body {
+    background-color: #444444;
+    border-radius: 5px;
+}
+
+body[data-theme='dark'] .file-preview img,
+body[data-theme='dark'] .file-preview video,
+body[data-theme='dark'] .file-preview iframe {
+    background-color: #555555;
+    color: #ffffff;
+}
+
+/* Adjust card button layout */
+.card-body .btn {
+    margin-bottom: 5px;
+    width: 100%;
+}
+
+/* Dark mode file preview adjustments */
+body[data-theme='dark'] .file-preview img,
+body[data-theme='dark'] .file-preview video,
+body[data-theme='dark'] .file-preview iframe {
+    border-radius: 10px;
+}
 /* Responsive adjustments */
 @media (max-width: 576px) {
     .card {
-        width: 100%;
+        min-height: 300px;
     }
+
+    .card-body .btn {
+        font-size: 0.9rem;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 992px) {
+    .card {
+        min-height: 320px;
+    }
+}
+
+@media (min-width: 992px) {
+    .card {
+        min-height: 340px;
+    }
+}
+/* Dark theme for modal */
+body[data-theme='dark'] .modal-content {
+    background-color: #333333;
+    color: #ffffff;
+    border: 1px solid #444444;
+}
+
+body[data-theme='dark'] .modal-header {
+    border-bottom: 1px solid #444444;
+}
+
+body[data-theme='dark'] .modal-footer {
+    border-top: 1px solid #444444;
+}
+
+body[data-theme='dark'] .modal-title {
+    color: #ffffff;
+}
+
+body[data-theme='dark'] .close {
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+body[data-theme='dark'] .btn-primary {
+    background-color: #375a7f;
+    border-color: #4a90e2;
+}
+
+body[data-theme='dark'] .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+body[data-theme='dark'] .btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+body[data-theme='dark'] .btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
 }

@@ -575,8 +575,8 @@ def update(json_file_path):
 def git_pull():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
-    update()
     try:
+        update()
         # Remove the problematic reference
         subprocess.run(['git', 'update-ref', '-d', 'refs/remotes/origin/main'], check=True)
 

@@ -1,4 +1,21 @@
-/* General Light and Dark Mode Styles */
+
+.drag-and-drop {
+    border: none;
+    padding: 10px;
+    margin : 7px;
+    
+}
+
+.drag-and-drop.dragging {
+    border-color: blue;
+    background-color: #e9ecef;
+    border: 4px dashed #007bff;
+    border-radius: 5px;
+    padding: 10px;
+    margin : 3px;
+    background-color: #f8f9fa;
+    cursor: pointer;
+}/* General Light and Dark Mode Styles */
 body[data-theme='light'] {
     background-color: #ffffff;
     color: #000000;

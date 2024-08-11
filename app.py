@@ -125,6 +125,24 @@ def index(path):
     
     return render_template('index.html', files=files, path=path)
 
+def load_feedback():
+    if os.path.exists(FEEDBACK_FILE):
+        with open(FEEDBACK_FILE, 'r') as file:
+            feedback_list = json.load(file)
+    else:
+        feedback_list = []
+    return feedback_list
+
+def mark_all_feedback_as_read():
+    feedback_list = load_feedback()
+    for feedback in feedback_list:
+        feedback['read'] = True
+
+    with open(FEEDBACK_FILE, 'w') as file:
+        json.dump(feedback_list, file)
+    return feedback_list
+
+
 
 def get_folder_size(folder_path):
     total_size = 0
@@ -447,7 +465,8 @@ def feedback():
             'username': session.get('username', 'Anonymous'),
             'feedback_type': request.form['feedback_type'],
             'message': request.form['message'],
-            'rating': request.form.get('rating')
+            'rating': request.form.get('rating'),
+            "read": False
         }
 
         if os.path.exists(FEEDBACK_FILE):
@@ -470,12 +489,7 @@ def view_feedback():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
 
-    if os.path.exists(FEEDBACK_FILE):
-        with open(FEEDBACK_FILE, 'r') as file:
-            feedback_list = json.load(file)
-    else:
-        feedback_list = []
-
+    feedback_list = mark_all_feedback_as_read()
     return render_template('view_feedback.html', feedback_list=feedback_list)
 
 @app.after_request
@@ -538,10 +552,30 @@ def unsuspend_user(username):
         logging.info(f"User {username} unsuspended by Admin.")
     return redirect(url_for('admin'))
 
+# Function to update the feedback JSON file
+def update(json_file_path):
+    json_file_path = 'feedback.json'
+    # Load the existing feedback data
+    with open(json_file_path, 'r') as file:
+        feedback_data = json.load(file)
+
+    # Add 'read': False to each feedback entry
+    for feedback in feedback_data:
+        if 'read' not in feedback:
+            feedback['read'] = False
+
+    # Save the updated feedback data back to the file
+    with open(json_file_path, 'w') as file:
+        json.dump(feedback_data, file, indent=4)
+
+    print(f"Updated {len(feedback_data)} feedback entries with 'read': False")
+
+
 @app.route('/admin/git_pull', methods=['POST'])
 def git_pull():
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
+    update()
     try:
         # Remove the problematic reference
         subprocess.run(['git', 'update-ref', '-d', 'refs/remotes/origin/main'], check=True)
@@ -607,8 +641,10 @@ def admin():
                     fp = os.path.join(dirpath, f)
                     total_size += os.path.getsize(fp)
             user_storage[user] = total_size
+    feedback_list = load_feedback()
+    unread_count = sum(1 for feedback in feedback_list if not feedback['read'])
 
-    return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string)
+    return render_template('admin_panel.html', users=users, cpu_usage=cpu_usage, memory_info=memory_info, disk_info=disk_info, user_storage=user_storage, uptime=uptime_string, unread_count=unread_count)
 
 
 # Other routes ...

@@ -82,67 +82,80 @@
         </table>
     </div>
 
-    <!-- Grid View Template (hidden by default) -->
-    <div id="gridContainer" class="grid-view" style="display: none;">
-        <div class="row">
-            <!-- Back to upper folder card -->
-            {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
-            <div class="col-sm-4">
-                <div class="card mb-3">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">..</h5>
-                        <a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </a>
-                    </div>
+<!-- Grid View Template (hidden by default) -->
+<div id="gridContainer" class="grid-view" style="display: none;">
+    <div class="row">
+        <!-- Back to upper folder card -->
+        {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
+        <div class="col-sm-4">
+            <div class="card mb-3">
+                <div class="card-body text-center">
+                    <h5 class="card-title">..</h5>
+                    <a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
                 </div>
             </div>
-            {% endif %}
-            
-            {% for file in files %}
-            <div class="col-sm-4">
-                <div class="card mb-3">
-                    {% if file.is_dir %}
-                    <div class="card-body">
-                        <h5 class="card-title"><a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a></h5>
-                        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}" class="btn btn-primary mb-2">Open</a>
-                        <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
-                            <button type="submit" class="btn btn-danger mb-2">Delete Folder</button>
-                        </form>
-                        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">Rename Folder</button>
-                    </div>
-                    
-                    {% else %}
-                    <div class="card-body">
-                        <h5 class="card-title">{{ file.name }}</h5>
-                        <div class="file-preview">
-                            {% if file.name.endswith('.jpg') or file.name.endswith('.png') or file.name.endswith('.jpeg') or file.name.endswith('.JPG')%}
-                            <img src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" alt="{{ file.name }}">
-                            {% elif file.name.endswith('.mp4') or file.name.endswith('.webm') %}
-                            <video src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" controls></video>
-                            {% elif file.name.endswith('.pdf') %}
-                            <iframe src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid"></iframe>
-                            {% elif file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') %}
-
-                        <div class="txt-preview">
-                            <pre>{{ file.content | safe }}</pre>
-                        </div>
-                            {% else %}
-                            <p>No preview available.</p>
-                            {% endif %}
-                        </div>
-                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="btn btn-secondary">Download</a>
-                        <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
-                            <button type="submit" class="btn btn-danger">Delete</button>
-                        </form>
-                        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">Rename</button>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
         </div>
+        {% endif %}
+        
+        {% for file in files %}
+        <div class="col-sm-4">
+            <div class="card mb-3">
+                {% if file.is_dir %}
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+                    </h5>
+                    <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}" class="btn btn-primary mb-2">Open</a>
+                    <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
+                        <button type="submit" class="btn btn-danger mb-2">Delete Folder</button>
+                    </form>
+                    <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">Rename Folder</button>
+                </div>
+                
+                {% else %}
+                <div class="card-body">
+                    <h5 class="card-title file-name">
+                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+                    </h5>
+                    <div class="file-preview">
+                        {% if file.name.endswith('.jpg') or file.name.endswith('.png') or file.name.endswith('.jpeg') or file.name.endswith('.JPG') %}
+                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">
+                            <img src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" alt="{{ file.name }}">
+                        </a>
+                        {% elif file.name.endswith('.mp4') or file.name.endswith('.webm') %}
+                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">
+                            <video src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid" controls></video>
+                        </a>
+                        {% elif file.name.endswith('.pdf') %}
+                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">
+                            <iframe src="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="img-fluid"></iframe>
+                        </a>
+                        {% elif file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') %}
+                        <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">
+                            <div class="txt-preview">
+                                <pre>{{ file.content | safe }}</pre>
+                            </div>
+                        </a>
+                        {% else %}
+                        <p>No preview available.</p>
+                        {% endif %}
+                    </div>
+                    <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}" class="btn btn-secondary">Download</a>
+                    <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display:inline;" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                    <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">Rename</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
     </div>
+</div>
+
+
     
 
     <div class="modal fade" id="renameModal" tabindex="-1" role="dialog" aria-labelledby="renameModalLabel" aria-hidden="true">

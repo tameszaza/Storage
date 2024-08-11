@@ -106,9 +106,12 @@ def index(path):
         
         # Read content for .txt files
         content = None
-        if f.endswith(('.txt', '.py', '.log')) and not is_dir:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                content = file.read()
+        if not is_dir and f.endswith(('.txt', '.py', '.log')):
+            with open(file_path, 'r') as file:
+                lines = file.readlines()[:6]  # Limit to first 5 lines
+                content = ''.join(lines)
+                if len(lines) == 6:
+                    content += '...'  # Indicate that there is more content
         
         files.append({
             'name': f,

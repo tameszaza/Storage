@@ -159,9 +159,10 @@ body[data-theme='dark'] .rating-badge {
     border-radius: 10px;
     box-shadow: 0 0 5px rgba(146, 146, 146, 0.5); /* Glow effect */
     transition: transform 0.2s ease-in-out;
-    min-height: 350px; /* Ensure consistent card height */
-    min-width: 200px; /* Minimum width for the card */
+    min-height: 386.8px; /* Ensure consistent card height */
+    min-width: 140px; /* Minimum width for the card */
     max-width: 100%; /* Ensure the card does not exceed its container width */
+    margin-bottom: 8px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -184,7 +185,7 @@ body[data-theme='dark'] .rating-badge {
 .file-preview iframe {
     width: 100%;
     height: auto;
-    max-height: 150px;
+    height: 150px;
     object-fit: cover;
     border-radius: 10px;
     margin-bottom: 15px;
@@ -242,7 +243,8 @@ body[data-theme='dark'] .file-preview iframe {
 /* Responsive adjustments */
 @media (max-width: 576px) {
     .card {
-        min-height: 300px;
+        height: 386.8;
+        
     }
 
     .card-body .btn {
@@ -252,13 +254,13 @@ body[data-theme='dark'] .file-preview iframe {
 
 @media (min-width: 768px) and (max-width: 992px) {
     .card {
-        min-height: 320px;
+        height: 386.8;
     }
 }
 
 @media (min-width: 992px) {
     .card {
-        min-height: 340px;
+        height: 386.8;
     }
 }
 /* Dark theme for modal */
@@ -325,4 +327,34 @@ body[data-theme='dark'] #viewToggleIcon {
 #viewToggleBtn{
     float: right;
     margin: 5px;
+}
+/* Styling for text-based file previews in dark mode */
+body[data-theme='dark'] .txt-preview pre {
+    color: #ffffff; /* Set text color to white */
+    background-color: #333333; /* Optional: set a darker background for the preview area */
+}
+
+/* Optional: Styling for light mode to keep the text dark */
+body[data-theme='light'] .txt-preview pre {
+    color: #000000; /* Set text color to black */
+    background-color: #f8f9fa; /* Optional: set a lighter background for the preview area */
+}
+footer{
+    min-height: 20px;
+}
+/* CSS to make the file name consistent in height */
+.card-title.file-name {
+    height: 3em; /* Adjust the height to accommodate two lines */
+    overflow: hidden;
+    line-height: 1.5em; /* Line height to control the spacing between lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limit to two lines */
+    -webkit-box-orient: vertical;
+}
+
+.card-title.file-name a {
+    display: block;
+    color: inherit; /* Inherit color based on light/dark mode */
+    text-decoration: none;
+    white-space: pre-line; /* Preserve whitespace to add blank line if needed */
 }

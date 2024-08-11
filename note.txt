@@ -1,24 +1,3 @@
- * Debug mode: on
-[ WARN:3@3191.078] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-[ERROR:3@3191.172] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
-[ WARN:4@3199.715] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-[ERROR:4@3199.716] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
-[ WARN:5@3207.141] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-[ERROR:5@3207.142] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
-[ WARN:6@3238.182] global cap_v4l.cpp:999 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-[ERROR:6@3238.183] global obsensor_uvc_stream_channel.cpp:158 getStreamChannelGroup Camera index out of range
-your url is: https://tames-storage.loca.lt
-/usr/local/lib/node_modules/localtunnel/bin/lt.js:81
-    throw err;
-    ^
-
-Error: connection refused: localtunnel.me:36331 (check your firewall settings)
-    at Socket.<anonymous> (/usr/local/lib/node_modules/localtunnel/lib/TunnelCluster.js:52:11)
-    at Socket.emit (node:events:517:28)
-    at emitErrorNT (node:internal/streams/destroy:151:8)
-    at emitErrorCloseNT (node:internal/streams/destroy:116:3)
-    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
-
-Node.js v18.19.1
-tameszaza@tameszaza-Lenovo-G480:~$ 
-
+Upload progress
+Newsimple file
+inweb text editor

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}
+Edit File - {{ filename }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Editing: {{ filename }}</h1>
+    <form action="{{ url_for('save_file', path=path, filename=filename) }}" method="POST">
+
+        <div id="editor">{{ content | e }}</div>
+        <textarea name="file_content" id="file_content" style="display:none;"></textarea>
+        <button type="submit" class="btn btn-primary mt-3">Save Changes</button>
+        <a href="{{ url_for('index', path=path) }}" class="btn btn-secondary mt-3">Cancel</a>
+    </form>
+    
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var editor = ace.edit("editor");
+        editor.setFontSize(16); // Set the font size to 16px or any other desired size
+    
+        // Function to set the editor's theme based on the current theme
+        function setEditorTheme(theme) {
+            if (theme === 'dark') {
+                editor.setTheme("ace/theme/twilight");  // Dark mode theme
+                console.log("Editor theme set to: dark");
+            } else {
+                editor.setTheme("ace/theme/github");  // Light mode theme
+                console.log("Editor theme set to: light");
+            }
+        }
+    
+        // Function to initialize the theme correctly
+        function initializeTheme() {
+            // Retrieve the current theme from localStorage or set to light by default
+            var currentTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', currentTheme);
+            setEditorTheme(currentTheme);
+            var themeToggle = document.getElementById('themeToggle');
+            themeToggle.checked = currentTheme === 'dark';
+            console.log('Initialized theme:', currentTheme);
+        }
+    
+        // Initialize the theme correctly on page load
+        initializeTheme();
+    
+        // Listen for theme changes
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            var currentTheme = document.body.getAttribute('data-theme');
+            var newTheme = currentTheme === 'dark' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);  // Save the theme preference
+            setEditorTheme(newTheme);  // Update the editor theme immediately
+            console.log('Toggling theme from', currentTheme, 'to', newTheme);
+        });
+    
+        // Determine the file type and set the appropriate mode
+        var fileType = "{{ filename.split('.')[-1] }}";
+        switch(fileType) {
+            case 'py':
+                editor.session.setMode("ace/mode/python");
+                break;
+            case 'js':
+                editor.session.setMode("ace/mode/javascript");
+                break;
+            case 'html':
+                editor.session.setMode("ace/mode/html");
+                break;
+            case 'css':
+                editor.session.setMode("ace/mode/css");
+                break;
+            case 'json':
+                editor.session.setMode("ace/mode/json");
+                break;
+            case 'txt':
+            default:
+                editor.session.setMode("ace/mode/text");
+                break;
+        }
+    
+        // Update the hidden textarea with the editor's content before submitting the form
+        document.querySelector('form').addEventListener('submit', function () {
+            document.getElementById('file_content').value = editor.getValue();
+        });
+    });
+    
+    
+</script>
+
+
+{% endblock %}

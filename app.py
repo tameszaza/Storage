@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 import json
-from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, jsonify, Response
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, jsonify, Response, flash
 from flask_bcrypt import Bcrypt
 import subprocess
 import mimetypes
@@ -124,6 +124,9 @@ def index(path):
     files.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
     
     return render_template('index.html', files=files, path=path)
+
+
+
 
 def load_feedback():
     if os.path.exists(FEEDBACK_FILE):
@@ -302,6 +305,35 @@ def delete_folder(path=''):
         logging.info(f"Folder deleted: {folder_path}")
     parent_path = '/'.join(path.split('/')[:-1])
     return redirect(url_for('index', path=parent_path))
+
+@app.route('/edit_file/<path:path>/<filename>')
+def edit_file(path, filename):
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], path, filename)
+    try:
+        with open(file_path, 'r') as file:
+            content = file.read()
+    except IsADirectoryError:
+        flash('Error: The specified path is a directory, not a file.', 'danger')
+        return redirect(url_for('index', path=path))
+
+    return render_template('editfile.html', filename=filename, content=content, path=path)
+
+
+
+
+@app.route('/save_file/<path:path>/<filename>', methods=['POST'])
+def save_file(path, filename):
+    file_content = request.form['file_content']
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], path, filename)
+    
+    # Save the content to the file
+    with open(file_path, 'w') as file:
+        file.write(file_content)
+    
+    flash('File saved successfully!', 'success')
+    return redirect(url_for('index', path=path))
+
+
 
 @app.route('/rename_file/<path:path>/<filename>', methods=['POST'])
 def rename_file(path, filename):

@@ -104,7 +104,7 @@ def index(path):
         is_dir = os.path.isdir(file_path)
         size = os.path.getsize(file_path) if not is_dir else get_folder_size(file_path)
         
-        # Read content for .txt files
+        # Read content for .txt, .py, and .log files
         content = None
         if not is_dir and f.endswith(('.txt', '.py', '.log')):
             with open(file_path, 'r') as file:
@@ -120,7 +120,11 @@ def index(path):
             'content': content
         })
     
+    # Sort files: directories first, then by name
+    files.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
+    
     return render_template('index.html', files=files, path=path)
+
 
 def get_folder_size(folder_path):
     total_size = 0

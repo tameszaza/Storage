@@ -1,32 +1,22 @@
 import json
-import os
 
-USER_DATA_FILE = 'users.json'
+def add_read_field_to_feedback(json_file_path):
+    # Load the existing feedback data
+    with open(json_file_path, 'r') as file:
+        feedback_data = json.load(file)
 
-def update_existing_users():
-    if os.path.exists(USER_DATA_FILE):
-        with open(USER_DATA_FILE, 'r') as file:
-            users = json.load(file)
-        
-        updated = False
-        for user in users:
-            if isinstance(users[user], dict):
-                if 'suspended' not in users[user]:
-                    users[user]['suspended'] = False
-                    updated = True
-            else:
-                # This handles the case where the password was stored directly
-                users[user] = {'password': users[user], 'suspended': False}
-                updated = True
-        
-        if updated:
-            with open(USER_DATA_FILE, 'w') as file:
-                json.dump(users, file, indent=4)
-            print("Users updated successfully.")
-        else:
-            print("No updates needed.")
-    else:
-        print("User data file not found.")
+    # Add 'read': False to each feedback entry
+    for feedback in feedback_data:
+        if 'read' not in feedback:
+            feedback['read'] = False
 
-if __name__ == "__main__":
-    update_existing_users()
+    # Save the updated feedback data back to the file
+    with open(json_file_path, 'w') as file:
+        json.dump(feedback_data, file, indent=4)
+
+    print(f"Updated {len(feedback_data)} feedback entries with 'read': False")
+
+# Example usage:
+json_file_path = 'feedback.json'  # Replace with your actual file path
+add_read_field_to_feedback(json_file_path)
+

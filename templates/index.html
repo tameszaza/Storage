@@ -180,6 +180,25 @@
         </div>
     </div>
 
+<!-- Progress Modal -->
+<div class="modal fade" id="progressModal" tabindex="-1" role="dialog" aria-labelledby="progressModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="progressModalLabel">Uploading...</h5>
+            </div>
+            <div class="modal-body">
+                <div class="progress">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                <p id="progressPercentage" class="text-center mt-2">0%</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+  
     <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
     {% if session['username'] == 'Admin' %}
     <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
@@ -192,6 +211,11 @@
         const fileContainer = document.getElementById('fileContainer');
         const gridContainer = document.getElementById('gridContainer');
         const viewToggleIcon = document.getElementById('viewToggleIcon');
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.querySelector('.custom-file-label');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercentage = document.getElementById('progressPercentage');
     
         // Retrieve the saved view preference
         const savedView = localStorage.getItem('viewPreference') || 'list';
@@ -219,9 +243,7 @@
                 localStorage.setItem('viewPreference', 'list');  // Save the preference
             }
         });
-        const fileInput = document.getElementById('fileInput');
-        const fileLabel = document.querySelector('.custom-file-label');
-
+    
         fileInput.addEventListener('change', function () {
             const files = fileInput.files;
             if (files.length === 1) {
@@ -230,62 +252,87 @@
                 fileLabel.textContent = `${files.length} files selected`;
             }
         });
-        const dropArea = document.getElementById('dropArea');
-
-            dropArea.addEventListener('dragover', (event) => {
-                event.preventDefault();
-                dropArea.classList.add('dragging');
-            });
-
-            dropArea.addEventListener('dragleave', () => {
-                dropArea.classList.remove('dragging');
-            });
-
-            dropArea.addEventListener('drop', (event) => {
-                event.preventDefault();
-                dropArea.classList.remove('dragging');
-
-                const files = event.dataTransfer.files;
-                const formData = new FormData();
-                for (let i = 0; i < files.length; i++) {
-                    formData.append('file', files[i]);
-                }
-
-                fetch('/upload{{ '/' + path if path else '' }}', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(data => {
-                    console.log(data);
-                    location.reload();
-                })
-                .catch(error => {
-                    console.error(error);
-                });
-            });
-    });
-    function confirmDeletion(itemType, itemName) {
-        return confirm(`Are you sure you want to delete this ${itemType}: ${itemName}?`);
-    }
     
+        dropArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropArea.classList.add('dragging');
+        });
+    
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('dragging');
+        });
+    
+        dropArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropArea.classList.remove('dragging');
+            handleFileUpload(event.dataTransfer.files);
+        });
+    
+        document.querySelector('form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            handleFileUpload(fileInput.files);
+        });
+    
+        function handleFileUpload(files) {
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('file', files[i]);
+            }
+    
+            let uploadPath = window.location.pathname;
+            if (uploadPath.startsWith('/index')) {
+                uploadPath = uploadPath.replace('/index', '');
+            }
+            uploadPath = '/upload' + uploadPath;
+    
+            // Show the progress modal
+            $('#progressModal').modal('show');
+    
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', uploadPath, true);
+    
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    let percentComplete = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressPercentage.textContent = percentComplete + '%';
+                }
+            };
+    
+            xhr.onload = function() {
+                $('#progressModal').modal('hide');
+                if (xhr.status === 200) {
+                    location.reload();
+                } else {
+                    console.error('Upload failed');
+                }
+            };
+    
+            xhr.send(formData);
+        }
+    
+        function confirmDeletion(itemType, itemName) {
+            return confirm(`Are you sure you want to delete this ${itemType}: ${itemName}?`);
+        }
+    
+        window.confirmDeletion = confirmDeletion;
     
         function openRenameModal(path, oldName, isFolder) {
             const form = document.getElementById('renameForm');
             const newNameInput = document.getElementById('newName');
             const renameTitle = document.getElementById('renameTitle');
     
-            // Set the action for the form
             form.action = isFolder ? `/rename_folder/${path}/${oldName}` : `/rename_file/${path}/${oldName}`;
-    
-            // Set the old name in the input field and title
             newNameInput.value = oldName;
             renameTitle.textContent = `Rename ${isFolder ? 'Folder' : 'File'}: ${oldName}`;
-    
-            // Show the modal
             $('#renameModal').modal('show');
         }
-       
+    
+        window.openRenameModal = openRenameModal;
+    });
+    
+    
+    
         
 </script>
 {% endblock %}

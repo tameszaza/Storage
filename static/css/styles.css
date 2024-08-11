@@ -387,3 +387,12 @@ footer{
     text-decoration: none;
     white-space: pre-line; /* Preserve whitespace to add blank line if needed */
 }
+/* Dark mode adjustments for progress modal */
+body[data-theme="dark"] .modal-content {
+    background-color: #333;
+    color: #fff;
+}
+
+body[data-theme="dark"] .progress-bar {
+    background-color: #007bff;
+}

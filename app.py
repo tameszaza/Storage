@@ -669,7 +669,7 @@ def admin():
     memory_info = psutil.virtual_memory()
     disk_info = psutil.disk_usage('/')
     uptime_seconds = time.time() - psutil.boot_time()
-    uptime_string = str(datetime.timedelta(seconds=int(uptime_seconds)))
+    uptime_string = str(timedelta(seconds=int(uptime_seconds)))
 
     # Gather user storage usage
     user_storage = {}

@@ -54,17 +54,19 @@
         <tr>
           <th>Name</th>
           <th>Size</th>
+          <th class="date-column">Date Modified</th>
           <th>Actions</th>
+          
         </tr>
       </thead>
       <tbody>
         {% if path and (session['username'] == 'Admin' or (session['username']
         != 'Admin' and path != session['username'])) %}
         <tr>
-          <td colspan="3">
+          <td colspan="4">
             <a
               href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}"
-              >..</a
+              >..&nbsp;&nbsp;(Go Back)</a
             >
           </td>
         </tr>
@@ -91,7 +93,8 @@
             {% endif %} {% endif %}
           </td>
           <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
-          <td>
+          <td class="date-column">{{ file.mod_time }}</td> <!-- Display modification time -->
+          <td class='file-actions'>
             {% if file.is_dir %}
             <form
               action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}"

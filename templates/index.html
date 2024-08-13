@@ -177,11 +177,16 @@
                 >{{ file.name }}/</a
               >
             </h5>
-            <a
-              href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}"
-              class="btn btn-primary mb-2"
-              >Open</a
-            >
+            <form
+    action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}"
+    method="POST"
+    style="display: inline"
+    onsubmit="return confirmAction('Are you sure you want to download this folder as a zip?', this);"
+>
+    <button type="submit" class="btn btn-secondary">Download</button>
+</form>
+
+
             <form
               action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}"
               method="POST"
@@ -256,11 +261,13 @@
               <p>No preview available.</p>
               {% endif %}
             </div>
-            <a
-              href="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-              class="btn btn-secondary"
-              >Download</a
+            <form
+              action="{{ url_for('download_file', path=path, filename=file.name) }}"
+              method="GET"
+              style="display: inline"
             >
+              <button type="submit" class="btn btn-secondary">Download</button>
+            </form>
             <form
               action="{{ url_for('delete_file', path=path, filename=file.name) }}"
               method="POST"
@@ -363,6 +370,11 @@
 </div>
 
 <script>
+  function confirmAction(message, formElement) {
+    if (confirm(message)) {
+      formElement.submit();
+    }
+  }
   document.addEventListener("DOMContentLoaded", function () {
     const fileContainer = document.getElementById("fileContainer");
     const gridContainer = document.getElementById("gridContainer");
@@ -385,7 +397,7 @@
       gridContainer.style.display = "none";
       viewToggleIcon.className = "fas fa-th-large";
     }
-
+    
     document
       .getElementById("viewToggleBtn")
       .addEventListener("click", function () {
@@ -477,7 +489,7 @@
         `Are you sure you want to delete this ${itemType}: ${itemName}?`
       );
     }
-
+    
     window.confirmDeletion = confirmDeletion;
 
     function openRenameModal(path, oldName, isFolder) {

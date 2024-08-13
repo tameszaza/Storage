@@ -8,8 +8,8 @@ import subprocess
 import mimetypes
 import psutil
 import time
-import datetime
 import tempfile
+from datetime import datetime, timedelta
 
 # Set up logging
 logging.basicConfig(
@@ -42,6 +42,30 @@ app.secret_key = 'supersecretkey'  # Change this to a random secret key
 
 # In-memory user storage. Replace with a proper database in production.
 users = load_users()
+
+def format_modification_time(mod_time):
+    now = datetime.now()
+    mod_datetime = datetime.fromtimestamp(mod_time)
+
+    # If the file was modified today
+    if mod_datetime.date() == now.date():
+        return mod_datetime.strftime("%H:%M")
+
+    # If the file was modified yesterday
+    elif mod_datetime.date() == (now - timedelta(days=1)).date():
+        return "Yesterday"
+
+    # If the file was modified within the last 6 days (but not today or yesterday)
+    elif now - timedelta(days=6) <= mod_datetime < now:
+        return mod_datetime.strftime("%A, %d %B")
+
+    # If the file was modified earlier this year
+    elif mod_datetime.year == now.year:
+        return mod_datetime.strftime("%d %B")
+
+    # If the file was modified in a previous year
+    else:
+        return mod_datetime.strftime("%d %B %Y")
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -103,6 +127,7 @@ def index(path):
         file_path = os.path.join(current_path, f)
         is_dir = os.path.isdir(file_path)
         size = os.path.getsize(file_path) if not is_dir else get_folder_size(file_path)
+        mod_time = os.path.getmtime(file_path)
         
         # Read content for .txt, .py, and .log files
         content = None
@@ -117,6 +142,7 @@ def index(path):
             'name': f,
             'is_dir': is_dir,
             'size': size,
+            'mod_time': format_modification_time(mod_time),
             'content': content
         })
     
@@ -530,7 +556,7 @@ def log_response(response):
     if not response.direct_passthrough:
         data_size = len(response.get_data())
         with open(DATA_TRANSFER_LOG, 'a') as f:
-            f.write(f"{datetime.datetime.now()}: {request.remote_addr} - {data_size} bytes transferred.\n")
+            f.write(f"{datetime.now()}: {request.remote_addr} - {data_size} bytes transferred.\n")
         logging.debug(f"Data size: {data_size} bytes transferred.")
     return response
 

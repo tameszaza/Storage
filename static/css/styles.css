@@ -279,12 +279,30 @@ body[data-theme='dark'] .file-preview iframe {
     .card-body .btn {
         font-size: 0.9rem;
     }
+    .container {
+        max-width: 700px !important;
+      }
+    .file-actions button {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px; /* Add margin when stacked */
+    }
+    /* Ensure last stacked button has no bottom margin */
+    .file-actions button:last-child {
+        margin-bottom: 0;
+    }
+    .date-column {
+        display: none;
+      }
 }
 
 @media (min-width: 768px) and (max-width: 992px) {
     .card {
         height: 386.8;
     }
+    .date-column {
+        display: none;
+      }
 }
 
 @media (min-width: 992px) {
@@ -403,3 +421,17 @@ body[data-theme="dark"] .progress-bar {
     border: 1px solid #ced4da;
     border-radius: .25rem;
 }
+@media (min-width: 1400px) {
+    .container {
+      max-width: 1260px;
+    }
+  }
+  
+  @media (min-width: 1800px) {
+    .container {
+      max-width: 1420px;
+    }
+  }
+  
+
+  

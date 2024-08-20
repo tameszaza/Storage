@@ -3,39 +3,40 @@
 
 <div id="dropArea" class="drag-and-drop">
   <form
-    action="/upload{{ '/' + path if path else '' }}"
-    method="POST"
-    enctype="multipart/form-data"
-    class="mb-4"
-  >
-    <div class="custom-file">
-      <input
-        type="file"
-        class="custom-file-input"
-        id="fileInput"
-        name="file"
-        multiple
-      />
-      <label class="custom-file-label" for="fileInput">Choose file</label>
-    </div>
-    <button type="submit" class="btn btn-primary mt-2">Upload</button>
-  </form>
+  action="/upload{{ '/' + path if path else '' }}"
+  method="POST"
+  enctype="multipart/form-data"
+  class="mb-4"
+>
+  <div class="custom-file">
+    <input
+      type="file"
+      class="custom-file-input"
+      id="fileInput"
+      name="file"
+      multiple
+    />
+    <label class="custom-file-label" for="fileInput">Choose file</label>
+  </div>
+  <button type="submit" class="btn btn-primary mt-2" id="uploadButton" disabled>Upload</button>
+</form>
 
-  <form
-    action="/create_folder{{ '/' + path if path else '' }}"
-    method="POST"
-    class="mb-4"
-  >
-    <div class="form-group">
-      <input
-        type="text"
-        name="folder_name"
-        placeholder="New Folder Name"
-        class="form-control"
-      />
-    </div>
-    <button type="submit" class="btn btn-primary">Create Folder</button>
-  </form>
+<form
+  action="/create_folder{{ '/' + path if path else '' }}"
+  method="POST"
+  class="mb-4"
+>
+  <div class="form-group">
+    <input
+      type="text"
+      name="folder_name"
+      placeholder="New Folder Name"
+      class="form-control"
+      id="folderNameInput"
+    />
+  </div>
+  <button type="submit" class="btn btn-primary" id="createFolderButton" disabled>Create Folder</button>
+</form>
 
   <!-- Toggle Buttons for List/Grid View -->
   <!-- Toggle Button for List/Grid View -->
@@ -515,6 +516,31 @@
     }
 
     window.openRenameModal = openRenameModal;
+  });
+  document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('fileInput');
+    const uploadButton = document.getElementById('uploadButton');
+    const folderNameInput = document.getElementById('folderNameInput');
+    const createFolderButton = document.getElementById('createFolderButton');
+
+    // Enable/Disable Upload button based on file input
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files.length > 0) {
+        uploadButton.disabled = false;
+      } else {
+        uploadButton.disabled = true;
+      }
+    });
+
+    // Enable/Disable Create Folder button based on folder name input
+    folderNameInput.addEventListener('input', function() {
+      const folderName = folderNameInput.value.trim();
+      if (folderName !== '' && /^[a-zA-Z0-9_\- ]+$/.test(folderName)) {
+        createFolderButton.disabled = false;
+      } else {
+        createFolderButton.disabled = true;
+      }
+    });
   });
 </script>
 {% endblock %}

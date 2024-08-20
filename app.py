@@ -253,6 +253,7 @@ def download_folder(path):
     shutil.make_archive(zip_path.replace('.zip', ''), 'zip', folder_path)
 
     return send_file(zip_path, as_attachment=True, mimetype='application/zip')
+
 @app.route('/download_selected', methods=['POST'])
 def download_selected():
     selected_files = request.form.getlist('selected_files')
@@ -302,6 +303,7 @@ def delete_selected():
 
     return jsonify(success=True)
 # Ensure that after sending the file, the zip is deleted
+
 @app.after_request
 def remove_zip_file(response):
     content_disposition = response.headers.get('Content-Disposition', '')
@@ -423,6 +425,7 @@ def rename_folder(path, foldername):
     logging.info(f"Folder renamed from {current_folder_path} to {new_folder_path}")
 
     return redirect(url_for('index', path=path))
+
 @app.route('/create_folder', methods=['POST'])
 @app.route('/create_folder/<path:path>', methods=['POST'])
 def create_folder(path=''):

@@ -6,7 +6,6 @@
 <div class="container mt-5">
     <h1 class="mb-4">Feedback List</h1>
     <ul class="list-group">
-        {% set counter = 0 %}
         {% for feedback in feedback_list %}
         <li class="list-group-item">
             <h5>{{ feedback.username }} <small class="text-muted">({{ feedback.feedback_type }})</small></h5>
@@ -14,11 +13,10 @@
             {% if feedback.rating %}
             <p>Rating: <span class="badge badge-info">{{ feedback.rating }}/5</span></p>
             {% endif %}
-            <form action="{{ url_for('delete_feedback', index=counter) }}" method="POST" class="delete-button">
+            <form action="{{ url_for('delete_feedback', feedback_id=feedback.id) }}" method="POST" class="delete-button">
                 <button type="submit" class="btn btn-danger btn-sm">Delete</button>
             </form>
         </li>
-        {% set counter = counter + 1 %}
         {% endfor %}
     </ul>
     <a href="{{ url_for('admin') }}" class="btn btn-secondary mt-4">Back to Admin Panel</a>

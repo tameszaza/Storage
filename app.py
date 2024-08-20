@@ -10,6 +10,7 @@ import psutil
 import time
 import tempfile
 from datetime import datetime, timedelta
+import uuid
 
 # Set up logging
 logging.basicConfig(
@@ -153,11 +154,15 @@ def index(path):
 
 
 
-
 def load_feedback():
     if os.path.exists(FEEDBACK_FILE):
         with open(FEEDBACK_FILE, 'r') as file:
-            feedback_list = json.load(file)
+            try:
+                feedback_list = json.load(file)
+                if not isinstance(feedback_list, list):
+                    feedback_list = []  # Ensure feedback_list is a list
+            except json.JSONDecodeError:
+                feedback_list = []
     else:
         feedback_list = []
     return feedback_list
@@ -168,9 +173,8 @@ def mark_all_feedback_as_read():
         feedback['read'] = True
 
     with open(FEEDBACK_FILE, 'w') as file:
-        json.dump(feedback_list, file)
+        json.dump(feedback_list, file, indent=4)  # Added indent for better readability
     return feedback_list
-
 
 
 def get_folder_size(folder_path):
@@ -497,8 +501,8 @@ def clear_logs():
 
     return redirect(url_for('admin_logs'))
 
-@app.route('/admin/delete_feedback/<int:index>', methods=['POST'])
-def delete_feedback(index):
+@app.route('/admin/delete_feedback/<feedback_id>', methods=['POST'])
+def delete_feedback(feedback_id):
     if session.get('username') != 'Admin':
         return redirect(url_for('login'))
 
@@ -506,11 +510,10 @@ def delete_feedback(index):
         with open(FEEDBACK_FILE, 'r') as file:
             feedback_list = json.load(file)
 
-        if index < len(feedback_list):
-            del feedback_list[index]
+        feedback_list = [f for f in feedback_list if f['id'] != feedback_id]
 
-            with open(FEEDBACK_FILE, 'w') as file:
-                json.dump(feedback_list, file)
+        with open(FEEDBACK_FILE, 'w') as file:
+            json.dump(feedback_list, file)
 
     return redirect(url_for('view_feedback'))
 
@@ -520,21 +523,31 @@ def feedback():
     feedback_submitted = False
     if request.method == 'POST':
         feedback_data = {
+            'id': str(uuid.uuid4()),  # Generate a unique ID for each feedback
             'username': session.get('username', 'Anonymous'),
             'feedback_type': request.form['feedback_type'],
             'message': request.form['message'],
             'rating': request.form.get('rating'),
-            "read": False
+            'timestamp': datetime.now().isoformat(),  # Add timestamp
+            'read': False  # Mark as unread initially
         }
 
+        # Load existing feedback from the JSON file
         if os.path.exists(FEEDBACK_FILE):
             with open(FEEDBACK_FILE, 'r') as file:
-                feedback_list = json.load(file)
+                try:
+                    feedback_list = json.load(file)
+                    if not isinstance(feedback_list, list):
+                        feedback_list = []  # Ensure feedback_list is a list
+                except json.JSONDecodeError:
+                    feedback_list = []
         else:
             feedback_list = []
 
+        # Append the new feedback data
         feedback_list.append(feedback_data)
 
+        # Write the updated feedback list back to the JSON file
         with open(FEEDBACK_FILE, 'w') as file:
             json.dump(feedback_list, file)
 

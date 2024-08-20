@@ -46,7 +46,11 @@
   </div>
 
   <h2>Files and Folders</h2>
-
+  {% if path %}
+<p><strong>Current Path:</strong> /{{ path }}</p>
+{% else %}
+<p><strong>Current Path:</strong> / (Root Directory)</p>
+{% endif %}
   <!-- Container for List/Grid View -->
   <div id="fileContainer" class="list-view">
     <table class="table table-striped">

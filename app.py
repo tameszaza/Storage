@@ -5,13 +5,11 @@ import json
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template, session, abort, send_file, jsonify, Response, flash
 from flask_bcrypt import Bcrypt
 import subprocess
-import mimetypes
 import psutil
 import time
 import tempfile
 from datetime import datetime, timedelta
 import uuid
-import torch
 import google.generativeai as genai
 import PIL.Image
 import io

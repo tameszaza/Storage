@@ -11,6 +11,10 @@ import time
 import tempfile
 from datetime import datetime, timedelta
 import uuid
+import torch
+import google.generativeai as genai
+import PIL.Image
+import io
 
 # Set up logging
 logging.basicConfig(
@@ -40,6 +44,12 @@ bcrypt = Bcrypt(app)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024  # 5 GB limit
 app.secret_key = 'supersecretkey'  # Change this to a random secret key
+def load_api_key():
+    with open('uploads/Admin/config.txt', 'r') as file:
+        return file.read().strip()
+
+genai.configure(api_key=load_api_key())
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 # In-memory user storage. Replace with a proper database in production.
 users = load_users()
@@ -557,6 +567,37 @@ def feedback():
         feedback_submitted = True
 
     return render_template('feedback.html', feedback_submitted=feedback_submitted)
+
+def get_Chat_response(text=None, image_file=None, prompt=None):
+    if image_file:
+        # Handle image input
+        image = PIL.Image.open(io.BytesIO(image_file.read()))
+        prompt = prompt or "Describe this image."
+        response = model.generate_content([prompt, image])
+    else:
+        # Handle text input
+        response = model.generate_content(text)
+    
+    return response.text
+
+@app.route('/chat', methods=['GET'])
+def chat_page():
+    return render_template('chat.html')
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    msg = request.form.get("msg")
+    image = request.files.get("image")
+    prompt = request.form.get("prompt")
+
+    if image:
+        response = get_Chat_response(image_file=image, prompt=prompt)
+    elif msg:
+        response = get_Chat_response(text=msg)
+    else:
+        return jsonify({"response": "No valid input provided"}), 400
+
+    return jsonify({"response": response})
 
 @app.route('/admin/view_feedback')
 def view_feedback():

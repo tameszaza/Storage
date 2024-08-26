@@ -1,22 +1,12 @@
-import json
+import google.generativeai as genai
+import PIL.Image
+import os
 
-def add_read_field_to_feedback(json_file_path):
-    # Load the existing feedback data
-    with open(json_file_path, 'r') as file:
-        feedback_data = json.load(file)
+genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
-    # Add 'read': False to each feedback entry
-    for feedback in feedback_data:
-        if 'read' not in feedback:
-            feedback['read'] = False
+model = genai.GenerativeModel("gemini-1.5-flash")
+response = model.generate_content(["Tell me about this instrument"])
+print(response.text)
 
-    # Save the updated feedback data back to the file
-    with open(json_file_path, 'w') as file:
-        json.dump(feedback_data, file, indent=4)
-
-    print(f"Updated {len(feedback_data)} feedback entries with 'read': False")
-
-# Example usage:
-json_file_path = 'feedback.json'  # Replace with your actual file path
-add_read_field_to_feedback(json_file_path)
+      
 

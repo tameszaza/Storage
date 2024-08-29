@@ -459,3 +459,16 @@ body[data-theme="dark"] .progress-bar {
 .msg_container_send, .msg_container{
     margin-top:20px
 }
+.uploaded_image {
+    max-width: 60%; /* Reduced the image size in the conversation */
+    vertical-align: bottom;
+    float: right; /* Align image to the right */
+    margin-left: 10px; /* Add some space between the image and the text */
+    border-radius: 5px; /* Slight border radius for better appearance */
+}
+.text_below_image {
+    text-align: right; /* Align the text to the right under the image */
+    margin-top: 5px; /* Add some space between the image and the text */
+    margin-left: auto; /* Ensure text aligns with the image on the right */
+    margin-right: 0;
+}

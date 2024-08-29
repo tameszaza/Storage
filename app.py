@@ -588,28 +588,46 @@ def chat_page():
 def chat():
     if 'conversation_history' not in session:
         session['conversation_history'] = deque(maxlen=1000)
-
+        
+        # Initialize the conversation with the user's name
+        initial_message = f"My name is {session.get('username')}."
+        print(initial_message)
+        session['conversation_history'].append({"role": "user", "parts": initial_message})
+        
+        # Start the conversation with the AI model
+        chat = model.start_chat(history=list(session['conversation_history']))
+        response = chat.send_message(initial_message)
+        session['conversation_history'].append({"role": "model", "parts": response.text})
+    
     conversation_history = session['conversation_history']
     msg = request.form.get("msg")
     image = request.files.get("image")
     prompt = request.form.get("prompt")
+
+    response_text = ""
 
     if image:
         # Handle image input
         image = PIL.Image.open(io.BytesIO(image.read()))
         prompt = prompt or "Describe this image."
         response = model.generate_content([prompt, image])
+        conversation_history.append({"role": "user", "parts": "Image sent: " + (msg or '')})
+        conversation_history.append({"role": "model", "parts": response.text})
+        response_text = response.text
     elif msg:
         # Handle text input
         conversation_history.append({"role": "user", "parts": msg})
         chat = model.start_chat(history=list(conversation_history))
         response = chat.send_message(msg)
         conversation_history.append({"role": "model", "parts": response.text})
+        response_text = response.text
     else:
         return jsonify({"response": "No valid input provided"}), 400
 
     session['conversation_history'] = list(conversation_history)  # Convert deque to list before storing
-    return jsonify({"response": response.text})
+    return jsonify({"response": response_text})
+
+
 
 @app.route('/admin/view_feedback')
 def view_feedback():

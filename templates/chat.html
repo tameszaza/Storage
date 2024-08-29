@@ -22,8 +22,9 @@
             <label class="custom-file-label" for="image">Choose file (optional)</label>
         </div>
         <div id="fileNameDisplay" class="mt-2"></div> <!-- To display the selected file name -->
+        <img id="imagePreview" src="#" alt="Image Preview" style="display: none; max-width: 150px;" /> <!-- Image Preview -->
     </form>
-	<div class="mt-3">
+    <div class="mt-3">
         <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
         <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
     </div>
@@ -50,14 +51,16 @@
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     userHtml = `<div class="d-flex justify-content-end mb-4">
-                                    <div class="msg_cotainer_send">
-                                        <img src="${e.target.result}" class="uploaded_image" alt="uploaded image"/>
-                                        <span class="msg_time_send">${str_time}</span>
-                                    </div>
-                                    <div class="img_cont_msg">
-                                        <img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg">
-                                    </div>
-                                </div>`;
+    <div class="msg_cotainer_send">
+        <img src="${e.target.result}" class="uploaded_image" alt="uploaded image"/> <!-- Uploaded image -->
+        <div class="text_below_image">
+            ${userInput}
+            <span class="msg_time_send">${str_time}</span>
+        </div>
+    </div>
+</div>
+
+`;
                     document.getElementById('chatbox').innerHTML += userHtml;
                 };
                 reader.readAsDataURL(imageInput);
@@ -83,6 +86,7 @@
             document.getElementById('userInput').value = '';
             document.getElementById('image').value = ''; // Deselect the image
             document.getElementById('fileNameDisplay').innerText = ''; // Clear file name display
+            document.getElementById('imagePreview').style.display = 'none'; // Hide image preview
 
             fetch("{{ url_for('chat') }}", {
                 method: "POST",
@@ -114,10 +118,21 @@
             });
         });
 
-        // Show selected file name
+        // Show selected file name and preview
         document.getElementById('image').addEventListener('change', function() {
             const fileName = this.files[0] ? this.files[0].name : 'No file selected';
             document.getElementById('fileNameDisplay').innerText = fileName;
+
+            if (this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').src = e.target.result;
+                    document.getElementById('imagePreview').style.display = 'block';
+                };
+                reader.readAsDataURL(this.files[0]);
+            } else {
+                document.getElementById('imagePreview').style.display = 'none';
+            }
         });
     });
 </script>

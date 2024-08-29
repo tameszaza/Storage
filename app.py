@@ -13,6 +13,7 @@ import uuid
 import google.generativeai as genai
 import PIL.Image
 import io
+from collections import deque
 
 # Set up logging
 logging.basicConfig(
@@ -566,17 +567,18 @@ def feedback():
 
     return render_template('feedback.html', feedback_submitted=feedback_submitted)
 
-def get_Chat_response(text=None, image_file=None, prompt=None):
-    if image_file:
-        # Handle image input
-        image = PIL.Image.open(io.BytesIO(image_file.read()))
-        prompt = prompt or "Describe this image."
-        response = model.generate_content([prompt, image])
-    else:
-        # Handle text input
-        response = model.generate_content(text)
+# def get_Chat_response(text=None, image_file=None, prompt=None):
+#     if image_file:
+#         # Handle image input
+#         image = PIL.Image.open(io.BytesIO(image_file.read()))
+#         prompt = prompt or "Describe this image."
+#         response = model.generate_content([prompt, image])
+#     else:
+#         # Handle text input
+#         response = model.generate_content(text)
     
-    return response.text
+#     return response.text
+
 
 @app.route('/chat', methods=['GET'])
 def chat_page():
@@ -584,18 +586,30 @@ def chat_page():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    if 'conversation_history' not in session:
+        session['conversation_history'] = deque(maxlen=1000)
+
+    conversation_history = session['conversation_history']
     msg = request.form.get("msg")
     image = request.files.get("image")
     prompt = request.form.get("prompt")
 
     if image:
-        response = get_Chat_response(image_file=image, prompt=prompt)
+        # Handle image input
+        image = PIL.Image.open(io.BytesIO(image.read()))
+        prompt = prompt or "Describe this image."
+        response = model.generate_content([prompt, image])
     elif msg:
-        response = get_Chat_response(text=msg)
+        # Handle text input
+        conversation_history.append({"role": "user", "parts": msg})
+        chat = model.start_chat(history=list(conversation_history))
+        response = chat.send_message(msg)
+        conversation_history.append({"role": "model", "parts": response.text})
     else:
         return jsonify({"response": "No valid input provided"}), 400
 
-    return jsonify({"response": response})
+    session['conversation_history'] = list(conversation_history)  # Convert deque to list before storing
+    return jsonify({"response": response.text})
 
 @app.route('/admin/view_feedback')
 def view_feedback():

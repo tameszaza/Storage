@@ -567,17 +567,7 @@ def feedback():
 
     return render_template('feedback.html', feedback_submitted=feedback_submitted)
 
-# def get_Chat_response(text=None, image_file=None, prompt=None):
-#     if image_file:
-#         # Handle image input
-#         image = PIL.Image.open(io.BytesIO(image_file.read()))
-#         prompt = prompt or "Describe this image."
-#         response = model.generate_content([prompt, image])
-#     else:
-#         # Handle text input
-#         response = model.generate_content(text)
-    
-#     return response.text
+
 
 
 @app.route('/chat', methods=['GET'])

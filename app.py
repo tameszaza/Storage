@@ -579,16 +579,23 @@ def chat():
     if 'conversation_history' not in session:
         session['conversation_history'] = deque(maxlen=1000)
         
-        # Initialize the conversation with the user's name
-        initial_message = f"My name is {session.get('username')}."
-        print(initial_message)
+        # Initialize the conversation with the user's name and role
+        initial_message = (
+            f"My name is {session.get('username')}. "
+            "I am the user of this file management system, and I need assistance with managing my files."
+        )
         session['conversation_history'].append({"role": "user", "parts": initial_message})
+        
+        # Include file structure information
+        file_structure = get_user_file_structure(session.get('username'))  # Function to get file structure
+        file_structure_message = f"The current file structure is as follows:\n{file_structure}"
+        session['conversation_history'].append({"role": "user", "parts": file_structure_message})
         
         # Start the conversation with the AI model
         chat = model.start_chat(history=list(session['conversation_history']))
         response = chat.send_message(initial_message)
         session['conversation_history'].append({"role": "model", "parts": response.text})
-    
+
     conversation_history = session['conversation_history']
     msg = request.form.get("msg")
     image = request.files.get("image")
@@ -616,6 +623,20 @@ def chat():
 
     session['conversation_history'] = list(conversation_history)  # Convert deque to list before storing
     return jsonify({"response": response_text})
+
+def get_user_file_structure(username):
+    user_folder_path = os.path.join(app.config['UPLOAD_FOLDER'], username)
+    structure = []
+
+    for root, dirs, files in os.walk(user_folder_path):
+        level = root.replace(user_folder_path, '').count(os.sep)
+        indent = ' ' * 4 * level
+        structure.append(f"{indent}{os.path.basename(root)}/")
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            structure.append(f"{subindent}{f}")
+    
+    return '\n'.join(structure)
 
 
 

@@ -572,7 +572,11 @@ def feedback():
 
 @app.route('/chat', methods=['GET'])
 def chat_page():
+    # Clear the conversation history when the chat page is accessed
+    session.pop('conversation_history', None)
     return render_template('chat.html')
+
+
 
 @app.route('/chat', methods=['POST'])
 def chat():

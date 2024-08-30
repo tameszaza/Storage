@@ -3,6 +3,8 @@
 {% block title %}Chat with AI{% endblock %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
 <div class="container mt-5">
     <h1 class="mb-4">Chat with Your AI Assistant</h1>
     <div id="chatbox" class="border rounded p-3" style="height: 600px; overflow-y: scroll;">
@@ -42,25 +44,23 @@
             const userInput = document.getElementById('userInput').value.trim();
             const imageInput = document.getElementById('image').files[0];
             let userHtml = '';
-
+    
             if (userInput === '' && !imageInput) {
                 return;
             }
-
+    
             if (imageInput) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     userHtml = `<div class="d-flex justify-content-end mb-4">
-    <div class="msg_cotainer_send">
-        <img src="${e.target.result}" class="uploaded_image" alt="uploaded image"/> <!-- Uploaded image -->
-        <div class="text_below_image">
-            ${userInput}
-            <span class="msg_time_send">${str_time}</span>
-        </div>
-    </div>
-</div>
-
-`;
+                                    <div class="msg_cotainer_send">
+                                        <img src="${e.target.result}" class="uploaded_image" alt="uploaded image"/> <!-- Uploaded image -->
+                                        <div class="text_below_image">
+                                            ${userInput}
+                                            <span class="msg_time_send">${str_time}</span>
+                                        </div>
+                                    </div>
+                                </div>`;
                     document.getElementById('chatbox').innerHTML += userHtml;
                 };
                 reader.readAsDataURL(imageInput);
@@ -76,18 +76,18 @@
                             </div>`;
                 document.getElementById('chatbox').innerHTML += userHtml;
             }
-
+    
             const formData = new FormData();
             formData.append('msg', userInput);
             if (imageInput) {
                 formData.append('image', imageInput);
             }
-
+    
             document.getElementById('userInput').value = '';
             document.getElementById('image').value = ''; // Deselect the image
             document.getElementById('fileNameDisplay').innerText = ''; // Clear file name display
             document.getElementById('imagePreview').style.display = 'none'; // Hide image preview
-
+    
             fetch("{{ url_for('chat') }}", {
                 method: "POST",
                 body: formData,
@@ -96,12 +96,14 @@
             })
             .then(response => response.json())
             .then(data => {
+                // Use marked.js to parse and render markdown from the AI response
+                const responseHtml = marked.parse(data.response);
                 const botHtml = `<div class="d-flex justify-content-start mb-4">
                                     <div class="img_cont_msg">
                                         <img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img_msg">
                                     </div>
                                     <div class="msg_cotainer">
-                                        ${data.response}
+                                        ${responseHtml}
                                         <span class="msg_time">${str_time}</span>
                                     </div>
                                 </div>`;
@@ -117,12 +119,12 @@
                 document.getElementById('chatbox').innerHTML += errorHtml;
             });
         });
-
+    
         // Show selected file name and preview
         document.getElementById('image').addEventListener('change', function() {
             const fileName = this.files[0] ? this.files[0].name : 'No file selected';
             document.getElementById('fileNameDisplay').innerText = fileName;
-
+    
             if (this.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -135,6 +137,7 @@
             }
         });
     });
+    
 </script>
 
 {% endblock %}

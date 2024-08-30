@@ -64,7 +64,7 @@ body[data-theme='dark'] .btn-info {
     color: #ffffff;
 }
 
-body[data-theme="light"] .drag-and-drop.dragging {
+body[data-theme="light"] .drag-and-drop.dragging, .file-row.dragging {
     border-color: blue;
     border: 4px dashed #007bff;
     border-radius: 5px;
@@ -74,7 +74,7 @@ body[data-theme="light"] .drag-and-drop.dragging {
     cursor: pointer;
 }
 
-body[data-theme="dark"] .drag-and-drop.dragging {
+body[data-theme="dark"] .drag-and-drop.dragging , .file-row.dragging {
     border-color: #003064;
     background-color: #2b2b2b;
     border: 4px dashed #003064;
@@ -472,3 +472,14 @@ body[data-theme="dark"] .progress-bar {
     margin-left: auto; /* Ensure text aligns with the image on the right */
     margin-right: 0;
 }
+/* Ensure the subfolder drag-and-drop area is prioritized */
+.file-row.dragging {
+    z-index: 100; /* High enough to be above the general drop area */
+    position: relative; /* Ensure z-index is applied */
+}
+
+#dropArea {
+    z-index: 50; /* Lower value to be below the subfolder */
+    position: relative; /* Ensure z-index is applied */
+}
+

@@ -64,7 +64,7 @@ body[data-theme='dark'] .btn-info {
     color: #ffffff;
 }
 
-body[data-theme="light"] .drag-and-drop.dragging, .file-row.dragging {
+body[data-theme="light"] .drag-and-drop.dragging,body[data-theme="light"] .file-row.dragging {
     border-color: blue;
     border: 4px dashed #007bff;
     border-radius: 5px;
@@ -74,7 +74,7 @@ body[data-theme="light"] .drag-and-drop.dragging, .file-row.dragging {
     cursor: pointer;
 }
 
-body[data-theme="dark"] .drag-and-drop.dragging , .file-row.dragging {
+body[data-theme="dark"] .drag-and-drop.dragging ,body[data-theme="dark"] .file-row.dragging {
     border-color: #003064;
     background-color: #2b2b2b;
     border: 4px dashed #003064;
@@ -481,5 +481,30 @@ body[data-theme="dark"] .progress-bar {
 #dropArea {
     z-index: 50; /* Lower value to be below the subfolder */
     position: relative; /* Ensure z-index is applied */
+}
+
+/* Styling for code blocks */
+
+body[data-theme="dark"] pre code ,body[data-theme="dark"] pre {
+    background-color: #2d2d2d;  /* Dark grey background */
+    color: #f8f8f2; /* Light text color for readability */
+    padding: 5px; /* Padding inside the code block */
+    border-radius: 5px; /* Slightly rounded corners */
+    font-family: 'Courier New', Courier, monospace; /* Monospace font for code */
+    font-size: 14px; /* Adjust the font size if needed */
+    white-space: pre-wrap; /* Wrap code lines if they are too long */
+}
+
+/* Additional styling for inline code */
+body[data-theme="dark"] code {
+    background-color: #343644; /* Slightly different background for inline code */
+    color: #7bdd39; /* Light text color */
+    background-color: #2d2d2d;  /* Dark grey background */
+    color: #f8f8f2; /* Light text color for readability */
+    padding: 5px; /* Padding inside the code block */
+    border-radius: 5px; /* Slightly rounded corners */
+    font-family: 'Courier New', Courier, monospace; /* Monospace font for code */
+    font-size: 14px; /* Adjust the font size if needed */
+    white-space: pre-wrap; /* Wrap code lines if they are too long */
 }
 

@@ -22,22 +22,24 @@
 </form>
 
 <div class="row mb-4">
-  <div class="col-md-8">
-      <!-- Existing Create New Folder form -->
-      <form action="/create_folder{{ '/' + path if path else '' }}" method="POST" class="form-inline">
-          <input type="text" name="folder_name" placeholder="New Folder Name" class="form-control mr-2">
-          <button type="submit" class="btn btn-primary">Create New Folder</button>
+  <div class="col-12 col-md-6 mb-2 mb-md-0">
+      <!-- Create New Folder form -->
+      <form action="/create_folder{{ '/' + path if path else '' }}" method="POST" class="d-flex">
+          <input type="text" name="folder_name" placeholder="New Folder Name" class="form-control flex-grow-1 mr-2" style="min-width: 150px;">
+          <button type="submit" class="btn btn-primary">Create Folder</button>
       </form>
   </div>
-  
-  <!-- Add the search form on the right side -->
-  <div class="col-md-4">
-      <form action="{{ url_for('index', path=path) }}" method="GET" class="form-inline float-right">
-          <input type="text" name="search" placeholder="Search files..." class="form-control mr-2">
+
+  <div class="col-12 col-md-6">
+      <!-- Search form -->
+      <form action="{{ url_for('index', path=path) }}" method="GET" class="d-flex">
+          <input type="text" name="search" placeholder="Search files..." class="form-control flex-grow-1 mr-2" style="min-width: 150px;">
           <button type="submit" class="btn btn-secondary">Search</button>
       </form>
   </div>
 </div>
+
+
 {% if request.args.get('search') %}
     <div class="alert alert-info" role="alert">
         Displaying {{ files|length }} search result{% if files|length != 1 %}s{% endif %} for "{{ request.args.get('search') }}" in {{ path }}.

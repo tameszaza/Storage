@@ -542,3 +542,48 @@ body[data-theme="dark"] .alert{
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.form-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.input-group {
+    flex-grow: 1;
+    min-width: 150px; /* Minimum width for the input group */
+    margin-right: 10px;
+}
+
+.input-group .form-control {
+    flex-grow: 1;
+    min-width: 100px; /* Minimum width for the input */
+}
+
+.input-group-append {
+    flex-shrink: 0; /* Prevent the button from shrinking */
+}
+
+.btn {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .form-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .input-group {
+        margin-right: 0;
+        width: 100%; /* Ensure the input group takes full width */
+        margin-bottom: 10px; /* Add some spacing between elements */
+    }
+
+    .btn {
+        width: 100%; /* Make the button span the full width on small screens */
+    }
+    #themeToggle{
+        margin-left: 20px;
+    }
+}
+

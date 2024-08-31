@@ -3,8 +3,6 @@
 {% block title %}Chat with AI{% endblock %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
 <div class="container mt-5">
     <h1 class="mb-4">Chat with Your AI Assistant</h1>
     <div id="chatbox" class="border rounded p-3" style="height: 600px; overflow-y: scroll;">
@@ -32,6 +30,7 @@
     </div>
 </div>
 
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('chatForm').addEventListener('submit', function(event) {
@@ -44,11 +43,11 @@
             const userInput = document.getElementById('userInput').value.trim();
             const imageInput = document.getElementById('image').files[0];
             let userHtml = '';
-    
+
             if (userInput === '' && !imageInput) {
                 return;
             }
-    
+
             if (imageInput) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -76,18 +75,24 @@
                             </div>`;
                 document.getElementById('chatbox').innerHTML += userHtml;
             }
-    
+
+            // Show spinner while waiting for response
+            const spinnerHtml = `<div id="spinnerContainer" class="d-flex justify-content-end mb-4">
+                                    <div class="spinner"></div>
+                                </div>`;
+            document.getElementById('chatbox').innerHTML += spinnerHtml;
+
             const formData = new FormData();
             formData.append('msg', userInput);
             if (imageInput) {
                 formData.append('image', imageInput);
             }
-    
+
             document.getElementById('userInput').value = '';
             document.getElementById('image').value = ''; // Deselect the image
             document.getElementById('fileNameDisplay').innerText = ''; // Clear file name display
             document.getElementById('imagePreview').style.display = 'none'; // Hide image preview
-    
+
             fetch("{{ url_for('chat') }}", {
                 method: "POST",
                 body: formData,
@@ -96,20 +101,30 @@
             })
             .then(response => response.json())
             .then(data => {
-                // Use marked.js to parse and render markdown from the AI response
-                const responseHtml = marked.parse(data.response);
+                // Remove spinner
+                const spinnerElement = document.getElementById('spinnerContainer');
+                if (spinnerElement) {
+                    spinnerElement.remove();
+                }
+
                 const botHtml = `<div class="d-flex justify-content-start mb-4">
                                     <div class="img_cont_msg">
                                         <img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img_msg">
                                     </div>
                                     <div class="msg_cotainer">
-                                        ${responseHtml}
+                                        ${data.response}
                                         <span class="msg_time">${str_time}</span>
                                     </div>
                                 </div>`;
                 document.getElementById('chatbox').innerHTML += botHtml;
             })
             .catch(error => {
+                // Remove spinner
+                const spinnerElement = document.getElementById('spinnerContainer');
+                if (spinnerElement) {
+                    spinnerElement.remove();
+                }
+
                 console.error('Error:', error);
                 const errorHtml = `<div class="d-flex justify-content-start mb-4">
                                     <div class="msg_cotainer">
@@ -119,12 +134,12 @@
                 document.getElementById('chatbox').innerHTML += errorHtml;
             });
         });
-    
+
         // Show selected file name and preview
         document.getElementById('image').addEventListener('change', function() {
             const fileName = this.files[0] ? this.files[0].name : 'No file selected';
             document.getElementById('fileNameDisplay').innerText = fileName;
-    
+
             if (this.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -137,7 +152,6 @@
             }
         });
     });
-    
 </script>
 
 {% endblock %}

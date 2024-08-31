@@ -536,7 +536,7 @@ body[data-theme="dark"] .alert{
 }
 .file-name-cell a {
     display: inline-block;
-    max-width: 200px; /* Adjust the max-width as needed */
+    max-width: 400px; /* Adjust the max-width as needed */
     white-space: normal;
     word-wrap: break-word;
     overflow: hidden;

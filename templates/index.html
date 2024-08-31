@@ -64,67 +64,64 @@
   <div id="fileContainer" class="list-view">
     <table class="table table-striped">
       <thead>
-        <tr>
-          <th>Name</th>
-          <th>Size</th>
-          <th class="date-column">Date Modified</th>
-          <th>Actions</th>
-          
-        </tr>
+          <tr>
+              <th>Name</th>
+              <th>Size</th>
+              <th class="date-column">Date Modified</th>
+              <th>Actions</th>
+          </tr>
       </thead>
       <tbody>
-        {% if path and (session['username'] == 'Admin' or (session['username']
-        != 'Admin' and path != session['username'])) %}
-        <tr>
-          <td colspan="4">
-            <a
-              href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}"
-              >..&nbsp;&nbsp;(Go Back)</a
-            >
-          </td>
-        </tr>
-        {% endif %}{% for file in files %}
-        <tr class="file-row" data-file-path="{{ path + '/' + file.name if path else file.name }}">
-            <td>
-                {% if file.is_dir %}
-                <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
-                {% else %}
-                    {% if file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') or file.name.endswith('.html') or file.name.endswith('.css') or file.name.endswith('.js') %}
-                    <a href="{{ url_for('edit_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-                    {% else %}
-                    <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-                    {% endif %}
-                {% endif %}
-            </td>
-            <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
-            <td class="date-column">{{ file.mod_time }}</td> <!-- Display modification time -->
-            <td class='file-actions'>
-                {% if file.is_dir %}
-                <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display: inline" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
-                    <button type="submit" class="btn btn-secondary">Download</button>
-                </form>
-                <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-                <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">
-                    Rename
-                </button>
-                {% else %}
-                <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display: inline">
-                    <button type="submit" class="btn btn-secondary">Download</button>
-                </form>
-                <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
-                    <button type="submit" class="btn btn-danger">Delete</button>
-                </form>
-                <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">
-                    Rename
-                </button>
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
+          {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
+          <tr>
+              <td colspan="4">
+                  <a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">..&nbsp;&nbsp;(Go Back)</a>
+              </td>
+          </tr>
+          {% endif %}
+          {% for file in files %}
+          <tr class="file-row" data-file-path="{{ path + '/' + file.name if path else file.name }}">
+              <td class="file-name-cell">
+                  {% if file.is_dir %}
+                  <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+                  {% else %}
+                  {% if file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') or file.name.endswith('.html') or file.name.endswith('.css') or file.name.endswith('.js') %}
+                  <a href="{{ url_for('edit_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+                  {% else %}
+                  <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+                  {% endif %}
+                  {% endif %}
+              </td>
+              <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
+              <td class="date-column">{{ file.mod_time }}</td>
+              <td class='file-actions'>
+                  {% if file.is_dir %}
+                  <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display: inline" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
+                      <button type="submit" class="btn btn-secondary">Download</button>
+                  </form>
+                  <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
+                      <button type="submit" class="btn btn-danger">Delete</button>
+                  </form>
+                  <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">
+                      Rename
+                  </button>
+                  {% else %}
+                  <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display: inline">
+                      <button type="submit" class="btn btn-secondary">Download</button>
+                  </form>
+                  <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
+                      <button type="submit" class="btn btn-danger">Delete</button>
+                  </form>
+                  <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">
+                      Rename
+                  </button>
+                  {% endif %}
+              </td>
+          </tr>
+          {% endfor %}
       </tbody>
-    </table>
+  </table>
+  
   </div>
 
   <!-- Grid View Template (hidden by default) -->

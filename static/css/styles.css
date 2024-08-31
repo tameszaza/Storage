@@ -534,3 +534,11 @@ body[data-theme="dark"] .alert{
     color: #ffffff;
     border-color: #4a90e2;
 }
+.file-name-cell a {
+    display: inline-block;
+    max-width: 200px; /* Adjust the max-width as needed */
+    white-space: normal;
+    word-wrap: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

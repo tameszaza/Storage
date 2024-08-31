@@ -40,10 +40,11 @@
 </div>
 {% if request.args.get('search') %}
     <div class="alert alert-info" role="alert">
-        Displaying search results for "{{ request.args.get('search') }}" in {{path}}. 
+        Displaying {{ files|length }} search result{% if files|length != 1 %}s{% endif %} for "{{ request.args.get('search') }}" in {{ path }}.
         <a href="{{ url_for('index', path=path) }}" class="btn btn-danger btn-sm ml-2">Exit Search</a>
     </div>
 {% endif %}
+
 
   <!-- Toggle Buttons for List/Grid View -->
   <!-- Toggle Button for List/Grid View -->

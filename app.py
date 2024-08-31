@@ -126,40 +126,70 @@ def index(path):
         user_base_path = session['username']
         if not path.startswith(user_base_path):
             path = user_base_path
-    
+
     current_path = os.path.join(app.config['UPLOAD_FOLDER'], path)
     if not os.path.exists(current_path):
         logging.error(f"Folder not found: {current_path}")
         return "Folder not found!", 404
-    
+
+    search_query = request.args.get('search')
     files = []
-    for f in os.listdir(current_path):
-        file_path = os.path.join(current_path, f)
-        is_dir = os.path.isdir(file_path)
-        size = os.path.getsize(file_path) if not is_dir else get_folder_size(file_path)
-        mod_time = os.path.getmtime(file_path)
-        
-        # Read content for .txt, .py, and .log files
-        content = None
-        if not is_dir and f.endswith(('.txt', '.py', '.log')):
-            with open(file_path, 'r') as file:
-                lines = file.readlines()[:6]  # Limit to first 5 lines
-                content = ''.join(lines)
-                if len(lines) == 6:
-                    content += '...'  # Indicate that there is more content
-        
-        files.append({
-            'name': f,
-            'is_dir': is_dir,
-            'size': size,
-            'mod_time': format_modification_time(mod_time),
-            'content': content
-        })
+
+    if search_query:
+        # Search mode: find files and folders that match the query
+        for root, dirs, file_list in os.walk(current_path):
+            for file_name in file_list:
+                if search_query.lower() in file_name.lower():
+                    file_path = os.path.join(root, file_name)
+                    size = os.path.getsize(file_path)
+                    mod_time = os.path.getmtime(file_path)
+
+                    files.append({
+                        'name': os.path.relpath(file_path, current_path),
+                        'is_dir': False,
+                        'size': size,
+                        'mod_time': format_modification_time(mod_time)
+                    })
+            for dir_name in dirs:
+                if search_query.lower() in dir_name.lower():
+                    dir_path = os.path.join(root, dir_name)
+                    files.append({
+                        'name': os.path.relpath(dir_path, current_path) + '/',
+                        'is_dir': True,
+                        'size': None,
+                        'mod_time': None
+                    })
+    else:
+        # Normal mode: list files and folders in the current directory only
+        for f in os.listdir(current_path):
+            file_path = os.path.join(current_path, f)
+            is_dir = os.path.isdir(file_path)
+            size = os.path.getsize(file_path) if not is_dir else get_folder_size(file_path)
+            mod_time = os.path.getmtime(file_path)
+
+            # Read content for .txt, .py, and .log files
+            content = None
+            if not is_dir and f.endswith(('.txt', '.py', '.log')):
+                with open(file_path, 'r') as file:
+                    lines = file.readlines()[:6]  # Limit to first 5 lines
+                    content = ''.join(lines)
+                    if len(lines) == 6:
+                        content += '...'  # Indicate that there is more content
+
+            files.append({
+                'name': f,
+                'is_dir': is_dir,
+                'size': size,
+                'mod_time': format_modification_time(mod_time),
+                'content': content
+            })
     
     # Sort files: directories first, then by name
     files.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
-    
-    return render_template('index.html', files=files, path=path)
+
+    return render_template('index.html', files=files, path=path, search_query=search_query)
+
+
 
 
 

@@ -21,22 +21,29 @@
   <button type="submit" class="btn btn-primary mt-2" id="uploadButton" disabled>Upload</button>
 </form>
 
-<form
-  action="/create_folder{{ '/' + path if path else '' }}"
-  method="POST"
-  class="mb-4"
->
-  <div class="form-group">
-    <input
-      type="text"
-      name="folder_name"
-      placeholder="New Folder Name"
-      class="form-control"
-      id="folderNameInput"
-    />
+<div class="row mb-4">
+  <div class="col-md-8">
+      <!-- Existing Create New Folder form -->
+      <form action="/create_folder{{ '/' + path if path else '' }}" method="POST" class="form-inline">
+          <input type="text" name="folder_name" placeholder="New Folder Name" class="form-control mr-2">
+          <button type="submit" class="btn btn-primary">Create New Folder</button>
+      </form>
   </div>
-  <button type="submit" class="btn btn-primary" id="createFolderButton" disabled>Create Folder</button>
-</form>
+  
+  <!-- Add the search form on the right side -->
+  <div class="col-md-4">
+      <form action="{{ url_for('index', path=path) }}" method="GET" class="form-inline float-right">
+          <input type="text" name="search" placeholder="Search files..." class="form-control mr-2">
+          <button type="submit" class="btn btn-secondary">Search</button>
+      </form>
+  </div>
+</div>
+{% if request.args.get('search') %}
+    <div class="alert alert-info" role="alert">
+        Displaying search results for "{{ request.args.get('search') }}" in {{path}}. 
+        <a href="{{ url_for('index', path=path) }}" class="btn btn-danger btn-sm ml-2">Exit Search</a>
+    </div>
+{% endif %}
 
   <!-- Toggle Buttons for List/Grid View -->
   <!-- Toggle Button for List/Grid View -->

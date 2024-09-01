@@ -82,45 +82,45 @@
           </tr>
           {% endif %}
           {% for file in files %}
-          <tr class="file-row" data-file-path="{{ path + '/' + file.name if path else file.name }}">
-              <td class="file-name-cell">
-                  {% if file.is_dir %}
-                  <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
-                  {% else %}
-                  {% if file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') or file.name.endswith('.html') or file.name.endswith('.css') or file.name.endswith('.js') %}
-                  <a href="{{ url_for('edit_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-                  {% else %}
-                  <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-                  {% endif %}
-                  {% endif %}
-              </td>
-              <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
-              <td class="date-column">{{ file.mod_time }}</td>
-              <td class='file-actions'>
-                  {% if file.is_dir %}
-                  <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display: inline" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
-                      <button type="submit" class="btn btn-secondary">Download</button>
-                  </form>
-                  <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
-                      <button type="submit" class="btn btn-danger">Delete</button>
-                  </form>
-                  <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">
-                      Rename
-                  </button>
-                  {% else %}
-                  <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display: inline">
-                      <button type="submit" class="btn btn-secondary">Download</button>
-                  </form>
-                  <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
-                      <button type="submit" class="btn btn-danger">Delete</button>
-                  </form>
-                  <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">
-                      Rename
-                  </button>
-                  {% endif %}
-              </td>
-          </tr>
-          {% endfor %}
+<tr class="file-row" data-file-path="{{ path + '/' + file.name if path else file.name }}">
+    <td>
+        {% if file.is_dir %}
+        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
+        {% else %}
+            {% if file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') or file.name.endswith('.html') or file.name.endswith('.css') or file.name.endswith('.js') %}
+            <a href="{{ url_for('edit_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+            {% else %}
+            <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
+            {% endif %}
+        {% endif %}
+    </td>
+    <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
+    <td class="date-column">{{ file.mod_time }}</td> <!-- Display modification time -->
+    <td class='file-actions'>
+        {% if file.is_dir %}
+        <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display: inline" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
+            <button type="submit" class="btn btn-secondary">Download</button>
+        </form>
+        <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">
+            Rename
+        </button>
+        {% else %}
+        <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display: inline">
+            <button type="submit" class="btn btn-secondary">Download</button>
+        </form>
+        <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">
+            Rename
+        </button>
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
       </tbody>
   </table>
   
@@ -519,75 +519,59 @@
       }
     });
     // Drag and drop for specific folders
+// Drag and drop for specific folders
 const fileRows = document.querySelectorAll('.file-row');
 let targetFolderPath = null;
 
-// Handle dragover event for folders
 fileRows.forEach(row => {
-  if (row.querySelector('a').textContent.endsWith('/')) { // Check if it's a folder
-      row.addEventListener('dragover', function (event) {
-          event.preventDefault();
-          event.stopPropagation(); // Prevent larger area from activating
-          row.classList.add('dragging');
-          targetFolderPath = row.dataset.filePath;
-      });
+    if (row.querySelector('a').textContent.endsWith('/')) { // Check if it's a folder
+        row.addEventListener('dragover', function (event) {
+            event.preventDefault();
+            row.classList.add('dragging');
+            targetFolderPath = row.querySelector('a').getAttribute('href'); // Set target folder path
+        });
 
-      row.addEventListener('dragleave', function () {
-          row.classList.remove('dragging');
-          targetFolderPath = null;
-      });
+        row.addEventListener('dragleave', function () {
+            row.classList.remove('dragging');
+            targetFolderPath = null;
+        });
 
-      row.addEventListener('drop', function (event) {
-          event.preventDefault();
-          event.stopPropagation(); // Prevent larger area from activating
-          row.classList.remove('dragging');
-          handleFileUpload(event.dataTransfer.files, targetFolderPath);
-      });
-  }
+        row.addEventListener('drop', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            row.classList.remove('dragging');
+            handleFileUpload(event.dataTransfer.files, targetFolderPath); // Upload to the specific folder
+        });
+    }
 });
 
-dropArea.addEventListener('dragover', function(event) {
-  event.preventDefault();
-  if (!targetFolderPath) { // Only highlight if not dragging over a subfolder
-      dropArea.classList.add('dragging');
-  }
-});
+// Function to handle file upload
+function handleFileUpload(files, folderPath = '') {
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append("file", files[i]);
+    }
 
-dropArea.addEventListener('drop', function(event) {
-  event.preventDefault();
-  dropArea.classList.remove('dragging');
-  if (!targetFolderPath) { // Only upload to current directory if no subfolder is targeted
-      handleFileUpload(event.dataTransfer.files);
-  }
-});
-function handleFileUpload(files, folderPath) {
-  const formData = new FormData();
-  for (let i = 0; i < files.length; i++) {
-      formData.append('file', files[i]);
-  }
+    // Determine the upload path
+    let uploadPath = folderPath ? `/upload${folderPath}` : window.location.pathname;
+    if (uploadPath.startsWith("/index")) {
+        uploadPath = uploadPath.replace("/index", "");
+    }
 
-  // Correct the upload path formatting
-  let uploadPath = `/upload${folderPath.startsWith('/') ? '' : '/'}${folderPath}`;
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", uploadPath, true);
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', uploadPath, true);
+    xhr.onload = function () {
+        if (xhr.status === 200) {
+            // Reload or update the UI after upload
+            location.reload();
+        } else {
+            console.error('Upload failed');
+        }
+    };
 
-  xhr.onload = function () {
-      if (xhr.status === 200) {
-          // Reload or update the UI after upload
-          location.reload();
-      } else {
-          console.error('Upload failed:', xhr.responseText);  // Log the server response for more details
-      }
-  };
-
-  xhr.onerror = function () {
-      console.error('Upload failed: Connection error');
-  };
-
-  xhr.send(formData);
+    xhr.send(formData);
 }
-
 
   });
 </script>

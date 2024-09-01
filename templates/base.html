@@ -8,10 +8,14 @@
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
     {% block link %}{% endblock %}
 </head>
-<body data-theme="light"> <!-- Default theme is light -->
+<body>
     <div class="container">
-        <header class="d-flex justify-content-between align-items-center my-4">
-            <h1>{% block header %}Tamestorage{% endblock %}</h1>
+        <header class="d-flex justify-content-between align-items-center mt-4">
+            <!-- Logos for light and dark mode -->
+            <h1>
+                <img id="lightLogo" src="{{ url_for('static', filename='images/logo-light.png') }}" alt="Tamestorage Logo" style="height: 110px;">
+                <img id="darkLogo" src="{{ url_for('static', filename='images/logo-dark.png') }}" alt="Tamestorage Logo" style="height: 110px; display: none;">
+            </h1>
             <button id="themeToggle" class="btn btn-secondary">
                 <i id="themeIcon" class="fa-solid fa-moon"></i> <!-- Added ID here -->
             </button>
@@ -46,11 +50,24 @@
             // Update the theme icon
             const themeIcon = document.getElementById('themeIcon');
             themeIcon.className = newTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+            
+            // Update the logo based on the theme
+            updateLogo(newTheme);
         }
         
-        // Set up event listener for the toggle button
-        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-        
+        // Function to update the logo based on the current theme
+        function updateLogo(theme) {
+            const lightLogo = document.getElementById('lightLogo');
+            const darkLogo = document.getElementById('darkLogo');
+            if (theme === 'dark') {
+                lightLogo.style.display = 'none';
+                darkLogo.style.display = 'block';
+            } else {
+                lightLogo.style.display = 'block';
+                darkLogo.style.display = 'none';
+            }
+        }
+
         // Load the saved theme preference on page load
         document.addEventListener('DOMContentLoaded', function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
@@ -59,11 +76,15 @@
             // Set the correct icon based on the theme
             const themeIcon = document.getElementById('themeIcon');
             themeIcon.className = savedTheme === 'light' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+            
+            // Update the logo based on the saved theme
+            updateLogo(savedTheme);
         });
         
+        // Set up event listener for the toggle button after the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+        });
     </script>
-    <footer>
-        
-    </footer>
 </body>
 </html>

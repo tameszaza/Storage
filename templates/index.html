@@ -346,6 +346,11 @@
   <a href="{{ url_for('feedback') }}" class="btn btn-secondary"
     >Give Feedback</a
   >
+  {% if path %}
+  <a href="{{ url_for('detail', directory=path) }}"class="btn btn-primary">Detail</a>
+  {%else%}
+  <a href="{{ url_for('detail', directory='Root') }}"class="btn btn-primary">Detail</a>
+  {% endif %}
   <a href="{{ url_for('chat_page') }}" class="btn btn-primary">Chat with AI Assistant</a>
 </div>
 

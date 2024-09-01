@@ -14,6 +14,8 @@ import google.generativeai as genai
 import PIL.Image
 import io
 from collections import deque
+import matplotlib.pyplot as plt
+import uuid  # for generating unique filenames
 
 # Set up logging
 logging.basicConfig(
@@ -672,6 +674,112 @@ def get_user_file_structure(username):
     
     return '\n'.join(structure)
 
+@app.route('/detail/<path:directory>', methods=['GET'])
+def detail(directory):
+    try:
+        # Handle root directory access
+        if directory == 'Root':
+            if session['username'] != 'Admin':
+                return "Unauthorized access", 403
+            directory = ''  # Root of the uploads directory
+
+        # Ensure the user stays within their directory
+        if session['username'] != 'Admin':
+            user_base_path = os.path.join(app.config['UPLOAD_FOLDER'], session['username'])
+            abs_directory_path = os.path.join(app.config['UPLOAD_FOLDER'], directory)
+
+            # Normalize paths for comparison
+            user_base_path = os.path.normpath(user_base_path)
+            abs_directory_path = os.path.normpath(abs_directory_path)
+
+            if not abs_directory_path.startswith(user_base_path):
+                return "Unauthorized access", 403
+        else:
+            # For Admin, calculate the absolute path without restriction
+            abs_directory_path = os.path.join(app.config['UPLOAD_FOLDER'], directory)
+
+        # Check if the directory exists
+        if not os.path.exists(abs_directory_path) or not os.path.isdir(abs_directory_path):
+            return "Directory not found!", 404
+
+        # Calculate space usage for the directory
+        directory_data = analyze_directory_space(abs_directory_path)
+
+        # Generate a unique filename for the pie chart
+        chart_path = generate_pie_chart(directory_data)
+
+        # Pass only the filename to the template
+        chart_filename = os.path.basename(chart_path)
+
+        return render_template('detail.html', directory=directory, chart_filename=chart_filename)
+    except Exception as e:
+        app.logger.error(f"Error generating chart: {e}")
+        return str(e), 500
+
+
+
+@app.route('/charts/<filename>')
+def serve_chart(filename):
+    print(os.path.join(app.root_path, 'uploads', 'Admin', 'charts'), filename)
+    return send_from_directory(os.path.join(app.root_path, 'uploads', 'Admin', 'charts'), filename)
+
+
+
+
+def analyze_directory_space(directory):
+    directory_data = {}
+    
+    for root, dirs, files in os.walk(directory):
+        total_size = sum(os.path.getsize(os.path.join(root, f)) for f in files)
+        directory_data[root] = total_size
+    
+    return directory_data
+
+
+
+def generate_pie_chart(data):
+    labels = []
+    sizes = []
+    
+    for dir_name, size in data.items():
+        labels.append(os.path.basename(dir_name))
+        sizes.append(size)
+    
+    fig, ax = plt.subplots()
+    ax.pie(sizes, labels=labels, startangle=90, colors=plt.cm.Paired.colors, wedgeprops={'edgecolor': 'black'})
+    ax.axis('equal')
+    
+    # Ensure the /Admin/charts directory exists
+    charts_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Admin', 'charts')
+    os.makedirs(charts_dir, exist_ok=True)  # Create the directory if it doesn't exist
+    
+    # Generate a unique filename using UUID
+    chart_filename = f"{uuid.uuid4()}.png"
+    chart_path = os.path.join(charts_dir, chart_filename)
+    
+    plt.savefig(chart_path)
+    plt.close()
+    print(chart_path)
+    
+    return chart_path
+
+@app.route('/admin/clear_charts', methods=['POST'])
+def clear_charts():
+    charts_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Admin', 'charts')
+
+    try:
+        # Delete all files in the charts directory
+        for filename in os.listdir(charts_dir):
+            file_path = os.path.join(charts_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        flash('All charts have been successfully cleared.', 'success')
+    except Exception as e:
+        app.logger.error(f"Error clearing charts: {e}")
+        flash(f"Error clearing charts: {e}", 'danger')
+
+    return redirect(url_for('admin'))
 
 
 @app.route('/admin/view_feedback')

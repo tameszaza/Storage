@@ -8,6 +8,7 @@
     <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart" class="img-fluid">
 </div>
 <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+<a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
 {% if session['username'] == 'Admin' %}
 <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
 {% endif %}

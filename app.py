@@ -744,7 +744,7 @@ def generate_pie_chart(data):
     total_size = sum(data.values())
     
     # Define a threshold to merge small sections (e.g., less than 5% of total)
-    threshold = total_size * 0.05
+    threshold = total_size * 0.01
     other_size = 0
     
     # Process the data to merge small sections

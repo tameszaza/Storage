@@ -794,7 +794,23 @@ def generate_pie_chart(data):
     
     return chart_path
 
+@app.route('/admin/clear_charts', methods=['POST'])
+def clear_charts():
+    charts_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Admin', 'charts')
 
+    try:
+        # Delete all files in the charts directory
+        for filename in os.listdir(charts_dir):
+            file_path = os.path.join(charts_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        flash('All charts have been successfully cleared.', 'success')
+    except Exception as e:
+        app.logger.error(f"Error clearing charts: {e}")
+        flash(f"Error clearing charts: {e}", 'danger')
+
+    return redirect(url_for('admin'))
 
 @app.route('/admin/view_feedback')
 def view_feedback():

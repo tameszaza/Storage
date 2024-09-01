@@ -16,6 +16,7 @@ import io
 from collections import deque
 import matplotlib.pyplot as plt
 import uuid  # for generating unique filenames
+import matplotlib.patheffects as path_effects
 
 # Set up logging
 logging.basicConfig(
@@ -740,46 +741,59 @@ def analyze_directory_space(directory):
 def generate_pie_chart(data):
     labels = []
     sizes = []
+    total_size = sum(data.values())
     
+    # Define a threshold to merge small sections (e.g., less than 5% of total)
+    threshold = total_size * 0.05
+    other_size = 0
+    
+    # Process the data to merge small sections
     for dir_name, size in data.items():
-        labels.append(os.path.basename(dir_name))
-        sizes.append(size)
+        if size < threshold:
+            other_size += size
+        else:
+            labels.append(f"{os.path.basename(dir_name)} ({size // (1024 ** 2)} MB)")
+            sizes.append(size)
     
-    fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels, startangle=90, colors=plt.cm.Paired.colors, wedgeprops={'edgecolor': 'black'})
+    # Add 'Other' section if needed
+    if other_size > 0:
+        labels.append(f"Other ({other_size // (1024 ** 2)} MB)")
+        sizes.append(other_size)
+    
+    fig, ax = plt.subplots(figsize=(10, 10))  # Increase the figure size
+    
+    wedges, texts, autotexts = ax.pie(
+        sizes, labels=labels, startangle=90, colors=plt.cm.Paired.colors,
+        wedgeprops={'edgecolor': 'black'}, autopct='%1.1f%%', textprops={'fontsize': 10, 'color': 'black'}
+    )
+    
+    # Function to add a glowing background behind text
+    def add_glow(text):
+        text.set_path_effects([
+            path_effects.withStroke(linewidth=3, foreground="white", alpha=0.8),
+            path_effects.Normal()
+        ])
+    
+    # Adjust the font size and add the glow effect
+    for text in texts + autotexts:
+        text.set_fontsize(10)
+        text.set_color('black')
+        add_glow(text)
+    
     ax.axis('equal')
     
-    # Ensure the /Admin/charts directory exists
+    # Save with a transparent background
     charts_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Admin', 'charts')
-    os.makedirs(charts_dir, exist_ok=True)  # Create the directory if it doesn't exist
+    os.makedirs(charts_dir, exist_ok=True)
     
-    # Generate a unique filename using UUID
     chart_filename = f"{uuid.uuid4()}.png"
     chart_path = os.path.join(charts_dir, chart_filename)
     
-    plt.savefig(chart_path)
+    plt.savefig(chart_path, transparent=True)
     plt.close()
-    print(chart_path)
     
     return chart_path
 
-@app.route('/admin/clear_charts', methods=['POST'])
-def clear_charts():
-    charts_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'Admin', 'charts')
-
-    try:
-        # Delete all files in the charts directory
-        for filename in os.listdir(charts_dir):
-            file_path = os.path.join(charts_dir, filename)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-
-        flash('All charts have been successfully cleared.', 'success')
-    except Exception as e:
-        app.logger.error(f"Error clearing charts: {e}")
-        flash(f"Error clearing charts: {e}", 'danger')
-
-    return redirect(url_for('admin'))
 
 
 @app.route('/admin/view_feedback')

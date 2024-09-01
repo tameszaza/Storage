@@ -3,9 +3,9 @@
 {% block title %}Detail View{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5 text-center"> <!-- Added text-center class -->
     <h1 class="mb-4">Detail View for {{ directory }}</h1>
-    <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart">
+    <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart" class="img-fluid">
 </div>
 <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
 {% if session['username'] == 'Admin' %}

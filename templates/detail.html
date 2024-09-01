@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Detail View{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Detail View for {{ directory }}</h1>
+    <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart">
+</div>
+<a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+{% if session['username'] == 'Admin' %}
+<a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
+{% endif %}
+<a href="{{ url_for('feedback') }}" class="btn btn-secondary">Give Feedback</a>
+<a href="{{ url_for('chat_page') }}" class="btn btn-primary">Chat with AI Assistant</a>
+{% endblock %}

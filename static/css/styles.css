@@ -587,3 +587,9 @@ body[data-theme="dark"] .alert{
     }
 }
 
+.link{
+    margin-top: 20px;
+}
+.slim{
+    min-height: 180px;
+}

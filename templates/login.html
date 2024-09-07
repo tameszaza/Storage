@@ -14,8 +14,12 @@
             <label for="password">Password</label>
             <input type="password" class="form-control" id="password" name="password" required>
         </div>
-        <button type="submit" class="btn btn-primary">Login</button>
+        <button type="submit" class="btn btn-primary" style="margin-bottom: 15px;">Login</button>
     </form>
-    <a href="{{ url_for('register') }}" class="btn btn-link">Register</a>
+    <a href="{{ url_for('register') }}" class='link'>Register</a>
+    <!-- Add a link to the introduction page -->
+    <div class="mt-4">
+        <p>New to Tamestorage? <a href="{{ url_for('introduction') }}" class="btn btn-info">Learn More About Us</a></p>
+    </div>  
 </div>
 {% endblock %}

@@ -789,7 +789,7 @@ def generate_pie_chart(data):
     chart_filename = f"{uuid.uuid4()}.png"
     chart_path = os.path.join(charts_dir, chart_filename)
     
-    plt.savefig(chart_path, transparent=True)
+    plt.savefig(chart_path, transparent=True,  dpi=300)
     plt.close()
     
     return chart_path
@@ -880,6 +880,33 @@ def unsuspend_user(username):
         logging.info(f"User {username} unsuspended by Admin.")
     return redirect(url_for('admin'))
 
+def get_user_count():
+    # Assume users are stored in a database or directory
+    users_dir = os.path.join(app.config['UPLOAD_FOLDER'])
+    return len([name for name in os.listdir(users_dir) if os.path.isdir(os.path.join(users_dir, name))])
+
+def get_total_storage():
+    total_size = 0
+    uploads_folder = app.config['UPLOAD_FOLDER']
+    
+    for dirpath, dirnames, filenames in os.walk(uploads_folder):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    
+    # Convert to MB or GB based on size
+    if total_size > 1024 ** 3:  # GB
+        return f"{total_size / (1024 ** 3):.2f} GB"
+    elif total_size > 1024 ** 2:  # MB
+        return f"{total_size / (1024 ** 2):.2f} MB"
+    else:  # KB
+        return f"{total_size / 1024:.2f} KB"
+
+@app.route('/introduction')
+def introduction():
+    user_count = get_user_count()
+    total_storage = get_total_storage()
+    return render_template('introduction.html', user_count=user_count, total_storage=total_storage)
 
 
 

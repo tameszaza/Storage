@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to Tamestorage{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+    <!-- Welcome Banner -->
+    <div class="jumbotron bg-info text-white">
+        <h1 class="display-4">Welcome to <strong>Tamestorage</strong></h1>
+        <p class="lead">Your all-in-one file management, storage analysis, and AI assistant solution!</p>
+        <hr class="my-4 bg-light">
+        <p class="mb-4">Take control of your files, manage storage space, and get assistance from our intelligent AI. Get started now!</p>
+        <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">Get Started</a>
+    </div>
+    <!-- Statistics Section -->
+    <section class="pt-5  pb-7"> <!-- Increased margin -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card slim bg-light mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-users fa-2x text-primary"></i> Join the Community</h5>
+                        <p class="card-text display-4"><strong>{{ user_count }}+</strong></p>
+                        <p>People have already signed up and are using Tamestorage to manage their files effectively.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card slim bg-light mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-database fa-2x text-success"></i> Data Stored</h5>
+                        <p class="card-text display-4"><strong>{{ total_storage }}</strong></p>
+                        <p>of data securely stored and managed in our system. Start optimizing your space today!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <!-- Key Features Section -->
+    <section class="pt-5  pb-7"> <!-- Increased margin -->
+        <h2 class="mb-4"><i class="fas fa-key"></i> Key Features</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <i class="fas fa-folder fa-3x mb-3 text-primary"></i>
+                <h4>File Management</h4>
+                <p>Easily upload, organize, and manage your files and folders. Use our intuitive interface to keep your storage clean and organized.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="fas fa-chart-pie fa-3x mb-3 text-success"></i>
+                <h4>Space Analysis</h4>
+                <p>Analyze your storage usage with visually appealing charts. Get detailed insights on how space is being utilized.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="fas fa-comments fa-3x mb-3 text-warning"></i>
+                <h4>AI Assistance</h4>
+                <p>Need help managing files or solving problems? Chat with our intelligent AI assistant for quick and helpful solutions.</p>
+            </div>
+        </div>
+    </section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <!-- How to Get Started Section -->
+    <section class="pt-5  pb-7"> <!-- Increased margin -->
+        <h2 class="mb-4"><i class="fas fa-play-circle"></i> How to Get Started</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card slim mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-folder-plus"></i> Create a New Folder</h5>
+                        <p class="card-text">Organize your files by creating new folders. Use the "Create New Folder" button in the file manager to keep everything sorted.</p>
+                    </div>
+                </div>
+                <div class="card slim mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-upload"></i> Upload Your Files</h5>
+                        <p class="card-text">Drag and drop files directly into your folder structure or use the upload button. Manage multiple files with ease.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card slim mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-chart-area"></i> Analyze Your Storage</h5>
+                        <p class="card-text">Use the storage analysis feature to view a breakdown of how your space is being used, and identify large files that may need attention.</p>
+                    </div>
+                </div>
+                <div class="card slim mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-robot"></i> Chat with AI</h5>
+                        <p class="card-text">Need assistance or have a question? Our AI assistant is ready to help you manage your files or troubleshoot issues. Just click the "Chat with AI Assistant" button.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <!-- Explore Your Storage Section -->
+    <section class="pt-5  pb-7"> <!-- Increased margin -->
+        <h2 class="mb-4"><i class="fas fa-search"></i> Explore Your Storage</h2>
+        <p>Want to dive into your storage and see how space is being used? Go to the <a href="{{ url_for('index') }}" class="text-decoration-none font-weight-bold">File Management</a> page to manage your files and get a detailed space analysis.</p>
+    </section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <section class="py-5"></section>
+    <!-- Call to Action Section -->
+    <section class="pt-5  pb-7"> <!-- Increased margin -->
+        <h2 class="mb-4"><i class="fas fa-user-check"></i> Ready to Get Started?</h2>
+        <p>We’re excited to have you! Click the button below to return to the login page and start managing your files.</p>
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Go to Login Page</a>
+    </section>
+    <section class="py-5"></section>
+</div>
+{% endblock %}

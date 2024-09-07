@@ -593,3 +593,20 @@ body[data-theme="dark"] .alert{
 .slim{
     min-height: 200px;
 }
+h1.display-1 {
+    font-size: 6rem;
+    font-weight: bold;
+}
+
+.container {
+    padding-top: 5rem;
+}
+
+a.btn-lg {
+    margin-top: 20px;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}

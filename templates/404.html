@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found{% endblock %}
+
+{% block content %}
+<div class="container text-center">
+    <div class="my-5">
+        <h1 class="display-1 text-danger">404</h1>
+        <h2 class="mb-4">Oops! The page you are looking for doesn't exist.</h2>
+        <p class="lead">It seems that you have lost your way. Don't worry, we've got you covered!</p>
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg mt-4"><i class="fas fa-home"></i> Go to Homepage</a>
+        <a href="{{ url_for('chat_page') }}" class="btn btn-secondary btn-lg mt-4"><i class="fas fa-comments"></i> Chat with AI Assistant</a>
+    </div>
+    <div class="mt-5">
+        <img src="{{ url_for('static', filename='images/a-guideline-on-how-to-fix-error-404-not-found-effectively-519451.png') }}" alt="Page Not Found" style="max-width: 400px;">
+    </div>
+</div>
+{% endblock %}

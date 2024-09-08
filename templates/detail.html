@@ -4,35 +4,77 @@
 
 {% block content %}
 <div class="container mt-5 text-center">
-    <h1 class="mb-4">Detail View for <strong>{{ directory }}</strong></h1>
-    <p class="lead">Analyzing the folder: <strong>{{ directory }}</strong> for <strong>{{ session['username'] }}</strong></p>
-    
-    <!-- Display file count and total storage -->
-    <!-- Display file count and total storage in one line -->
-<div class="text-center mt-3">
-    <p class="lead">
-        <strong>File Count:</strong> {{ file_count }} | 
-        <strong>Total Storage:</strong> {{ total_storage }} MB
-    </p>
-</div>
+    <h1 class="mb-4">Detail View for {{ directory }}</h1>
+    <p class="lead">Analyzing the folder: for {{ session['username'] }}</p>
+    <p>File Count: <strong>{{ file_count }}</strong> | Total Storage: <strong>{{ total_storage }} MB</strong></p>
 
-
-    <!-- Chart Display -->
+    <!-- Centering the image -->
     <div class="d-flex justify-content-center">
-        <div class="col-lg-8">
-            <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart">
+        <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart" class="img-fluid" style="max-width: 80%;">
+    </div>
+
+    <!-- Displaying directory breakdown -->
+    <div class="mt-4 text-center">
+        <h3>Directory Breakdown</h3>
+        <table class="table table-bordered mt-3">
+            <thead>
+                <tr>
+                    <th>Directory</th>
+                    <th>Size (MB)</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for label, size, percentage in chart_info %}
+                <tr>
+                    <td>{{ label }}</td>
+                    <td>{{ size }}</td>
+                    <td>{{ percentage }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pie chart and breakdown by file type -->
+    <div class="mt-5 text-center">
+        <h3>File Type Breakdown</h3>
+        <div class="d-flex justify-content-center">
+            <img src="{{ url_for('serve_chart', filename=file_type_chart_filename) }}" alt="File Type Breakdown Chart" class="img-fluid" style="max-width: 80%;">
+        </div>
+
+        <!-- Displaying file type breakdown -->
+        <div class="mt-4">
+            <table class="table table-bordered mt-3">
+                <thead>
+                    <tr>
+                        <th>File Type</th>
+                        <th>Size (MB)</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for label, size, percentage in file_type_chart_info %}
+                    <tr>
+                        <td>{{ label }}</td>
+                        <td>{{ size }}</td>
+                        <td>{{ percentage }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Buttons -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('logout') }}" class="btn btn-danger mx-2">Logout</a>
-        <a href="{{ url_for('index') }}" class="btn btn-primary mx-2">Home</a>
-        {% if session['username'] == 'Admin' %}
-        <a href="{{ url_for('admin') }}" class="btn btn-secondary mx-2">Admin Panel</a>
-        {% endif %}
-        <a href="{{ url_for('feedback') }}" class="btn btn-secondary mx-2">Give Feedback</a>
-        <a href="{{ url_for('chat_page') }}" class="btn btn-primary mx-2">Chat with AI Assistant</a>
-    </div>
+</div>
+
+<div class="mt-4 text-center">
+    <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
+    {% if session['username'] == 'Admin' %}
+    <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
+    {% endif %}
+    <a href="{{ url_for('feedback') }}" class="btn btn-secondary">Give Feedback</a>
+    <a href="{{ url_for('chat_page') }}" class="btn btn-primary">Chat with AI Assistant</a>
 </div>
 {% endblock %}

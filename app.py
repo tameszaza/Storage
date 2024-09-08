@@ -703,23 +703,33 @@ def detail(directory):
         if not os.path.exists(abs_directory_path) or not os.path.isdir(abs_directory_path):
             return "Directory not found!", 404
 
-        # Calculate space usage for the directory
-        directory_data = analyze_directory_space(abs_directory_path)
+        # Calculate space usage for the directory and file types
+        directory_data, file_type_data = analyze_directory_space(abs_directory_path)
 
         # Count total files and calculate total storage size
         file_count = sum(len(files) for _, _, files in os.walk(abs_directory_path))
         total_storage = sum(os.path.getsize(os.path.join(root, f)) for root, _, files in os.walk(abs_directory_path) for f in files) / (1024 ** 2)  # MB
 
-        # Generate a unique filename for the pie chart
-        chart_path = generate_pie_chart(directory_data)
+        # Generate a unique filename for the pie charts
+        chart_path, chart_info = generate_pie_chart(directory_data)
+        file_type_chart_path, file_type_chart_info = generate_pie_chart(file_type_data, is_file_type=True)
 
-        # Pass only the filename to the template
+        # Pass only the filenames to the template
         chart_filename = os.path.basename(chart_path)
+        file_type_chart_filename = os.path.basename(file_type_chart_path)
 
-        return render_template('detail.html', directory=directory, chart_filename=chart_filename, file_count=file_count, total_storage=round(total_storage, 2))
+        return render_template('detail.html', 
+                               directory=directory, 
+                               chart_filename=chart_filename, 
+                               file_type_chart_filename=file_type_chart_filename, 
+                               file_count=file_count, 
+                               total_storage=round(total_storage, 2),
+                               chart_info=chart_info,
+                               file_type_chart_info=file_type_chart_info)  # Pass both pie chart info to the template
     except Exception as e:
         app.logger.error(f"Error generating chart: {e}")
         return str(e), 500
+
 
 
 @app.route('/charts/<filename>')
@@ -732,36 +742,60 @@ def serve_chart(filename):
 
 def analyze_directory_space(directory):
     directory_data = {}
+    file_type_data = {}
     
     for root, dirs, files in os.walk(directory):
-        total_size = sum(os.path.getsize(os.path.join(root, f)) for f in files)
+        total_size = 0
+        for file in files:
+            file_path = os.path.join(root, file)
+            size = os.path.getsize(file_path)
+            total_size += size
+
+            # Collect file type data
+            ext = os.path.splitext(file)[1].lower()  # Get the file extension and normalize it
+            if ext:
+                if ext not in file_type_data:
+                    file_type_data[ext] = 0
+                file_type_data[ext] += size
+        
         directory_data[root] = total_size
     
-    return directory_data
+    return directory_data, file_type_data  # Return both directory and file type data
 
 
 
-def generate_pie_chart(data):
+
+def generate_pie_chart(data, is_file_type=False):
     labels = []
     sizes = []
     total_size = sum(data.values())
     
-    # Define a threshold to merge small sections (e.g., less than 5% of total)
+    # Define a threshold to merge small sections (e.g., less than 1% of total)
     threshold = total_size * 0.01
     other_size = 0
     
     # Process the data to merge small sections
-    for dir_name, size in data.items():
+    chart_info = []  # This will store (label, size, percentage) tuples
+    for key, size in data.items():
         if size < threshold:
             other_size += size
         else:
-            labels.append(f"{os.path.basename(dir_name)} ({size // (1024 ** 2)} MB)")
+            if is_file_type:
+                label = f"{key} ({size // (1024 ** 2)} MB)"  # Use file extension as the label
+            else:
+                label = f"{os.path.basename(key)} ({size // (1024 ** 2)} MB)"  # Use directory name as the label
+            percentage = (size / total_size) * 100
+            labels.append(label)
             sizes.append(size)
+            chart_info.append((label, size // (1024 ** 2), round(percentage, 1)))  # Append as MB and percentage
     
     # Add 'Other' section if needed
     if other_size > 0:
-        labels.append(f"Other ({other_size // (1024 ** 2)} MB)")
+        other_label = f"Other ({other_size // (1024 ** 2)} MB)"
+        labels.append(other_label)
         sizes.append(other_size)
+        percentage = (other_size / total_size) * 100
+        chart_info.append((other_label, other_size // (1024 ** 2), round(percentage, 1)))
     
     fig, ax = plt.subplots(figsize=(10, 10))  # Increase the figure size
     
@@ -795,7 +829,9 @@ def generate_pie_chart(data):
     plt.savefig(chart_path, transparent=True,  dpi=300)
     plt.close()
     
-    return chart_path
+    return chart_path, chart_info  # Return both the chart path and the info
+
+
 
 @app.route('/admin/clear_charts', methods=['POST'])
 def clear_charts():

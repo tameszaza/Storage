@@ -86,18 +86,27 @@
                 };
                 reader.readAsDataURL(imageInput);
             } else {
-                userHtml = `<div class="d-flex justify-content-end mb-4">
-                                <div class="msg_cotainer_send">
-                                    ${userInput}
-                                    <span class="msg_time_send">${str_time}</span>
-                                </div>
-                                <div class="img_cont_msg">
-                                    <img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg">
-                                </div>
-                            </div>`;
-                document.getElementById('chatbox').innerHTML += userHtml;
+                let chatbox = document.getElementById('chatbox');
+            
+                // Create a div element for the new message
+                let userHtml = document.createElement('div');
+                userHtml.className = "d-flex justify-content-end mb-4";
+                
+                // Set the innerHTML for the new message container
+                userHtml.innerHTML = `
+                    <div class="msg_cotainer_send">
+                        ${userInput}
+                        <span class="msg_time_send">${str_time}</span>
+                    </div>
+                    <div class="img_cont_msg">
+                        <img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg">
+                    </div>
+                `;
+            
+                // Append the newly created message to the chatbox
+                chatbox.appendChild(userHtml);
             }
-
+            
             // Show spinner while waiting for response
             const spinnerHtml = `<div id="spinnerContainer" class="d-flex justify-content-end mb-4">
                                     <div class="spinner"></div>

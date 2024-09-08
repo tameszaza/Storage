@@ -460,6 +460,7 @@ body[data-theme="dark"] .progress-bar {
   .uploaded_image {
     max-width: 100%;
     height: auto;
+    margin-bottom: 10px;  /* Add space between the image and the text */
 }
 .user_img_msg {
     width: 40px;
@@ -478,11 +479,18 @@ body[data-theme="dark"] .progress-bar {
     border-radius: 5px; /* Slight border radius for better appearance */
 }
 .text_below_image {
-    text-align: right; /* Align the text to the right under the image */
-    margin-top: 5px; /* Add some space between the image and the text */
-    margin-left: auto; /* Ensure text aligns with the image on the right */
-    margin-right: 0;
+    word-wrap: break-word;
+    max-width: 100%;
+    padding-left: 5px;
+    padding-right: 5px;
+    display: block;
+    text-align: left;
+    margin-top: 5px;
+    margin-right: 0;  /* Set this to 0 to avoid auto margin */
+    margin-left: 0;   /* You can adjust the left margin or leave it to 0 */
+    box-sizing: border-box;  /* Ensure padding doesn't add to the element's width */
 }
+
 /* Ensure the subfolder drag-and-drop area is prioritized */
 .file-row.dragging {
     z-index: 100; /* High enough to be above the general drop area */
@@ -651,6 +659,7 @@ img {
     margin-top: 5px;
 }
 
+
 .msg_cotainer_send {
     background-color: #007bff;
     color: white;
@@ -660,6 +669,9 @@ img {
     margin-bottom: 10px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
     animation: fadeIn 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;  /* Make sure the text aligns properly */
 }
 
 .msg_time_send{
@@ -667,6 +679,7 @@ img {
     margin-top: 5px;
     color: #ccc;
 }
+
 
 @keyframes fadeIn {
     0% { opacity: 0; transform: translateY(10px); }

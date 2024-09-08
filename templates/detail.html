@@ -3,15 +3,36 @@
 {% block title %}Detail View{% endblock %}
 
 {% block content %}
-<div class="container mt-5 text-center"> <!-- Added text-center class -->
-    <h1 class="mb-4">Detail View for {{ directory }}</h1>
-    <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart" class="img-fluid">
+<div class="container mt-5 text-center">
+    <h1 class="mb-4">Detail View for <strong>{{ directory }}</strong></h1>
+    <p class="lead">Analyzing the folder: <strong>{{ directory }}</strong> for <strong>{{ session['username'] }}</strong></p>
+    
+    <!-- Display file count and total storage -->
+    <!-- Display file count and total storage in one line -->
+<div class="text-center mt-3">
+    <p class="lead">
+        <strong>File Count:</strong> {{ file_count }} | 
+        <strong>Total Storage:</strong> {{ total_storage }} MB
+    </p>
 </div>
-<a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
-<a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
-{% if session['username'] == 'Admin' %}
-<a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
-{% endif %}
-<a href="{{ url_for('feedback') }}" class="btn btn-secondary">Give Feedback</a>
-<a href="{{ url_for('chat_page') }}" class="btn btn-primary">Chat with AI Assistant</a>
+
+
+    <!-- Chart Display -->
+    <div class="d-flex justify-content-center">
+        <div class="col-lg-8">
+            <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart">
+        </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('logout') }}" class="btn btn-danger mx-2">Logout</a>
+        <a href="{{ url_for('index') }}" class="btn btn-primary mx-2">Home</a>
+        {% if session['username'] == 'Admin' %}
+        <a href="{{ url_for('admin') }}" class="btn btn-secondary mx-2">Admin Panel</a>
+        {% endif %}
+        <a href="{{ url_for('feedback') }}" class="btn btn-secondary mx-2">Give Feedback</a>
+        <a href="{{ url_for('chat_page') }}" class="btn btn-primary mx-2">Chat with AI Assistant</a>
+    </div>
+</div>
 {% endblock %}

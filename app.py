@@ -706,17 +706,20 @@ def detail(directory):
         # Calculate space usage for the directory
         directory_data = analyze_directory_space(abs_directory_path)
 
+        # Count total files and calculate total storage size
+        file_count = sum(len(files) for _, _, files in os.walk(abs_directory_path))
+        total_storage = sum(os.path.getsize(os.path.join(root, f)) for root, _, files in os.walk(abs_directory_path) for f in files) / (1024 ** 2)  # MB
+
         # Generate a unique filename for the pie chart
         chart_path = generate_pie_chart(directory_data)
 
         # Pass only the filename to the template
         chart_filename = os.path.basename(chart_path)
 
-        return render_template('detail.html', directory=directory, chart_filename=chart_filename)
+        return render_template('detail.html', directory=directory, chart_filename=chart_filename, file_count=file_count, total_storage=round(total_storage, 2))
     except Exception as e:
         app.logger.error(f"Error generating chart: {e}")
         return str(e), 500
-
 
 
 @app.route('/charts/<filename>')

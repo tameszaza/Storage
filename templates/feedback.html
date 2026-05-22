@@ -1,50 +1,30 @@
 {% extends "base.html" %}
-
-{% block title %}
-Feedback
-{% endblock %}
-
+{% block title %}Feedback · Tamestorage{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <h1 class="mb-4">Give Feedback</h1>
-
-    {% if feedback_submitted %}
-    <div class="alert alert-success" role="alert">
-        Thank you! Your feedback has been sent.
-    </div>
-    {% endif %}
-
-    <form action="{{ url_for('feedback') }}" method="POST">
-        <div class="form-group">
-            <label for="feedback_type">Type of Feedback:</label>
-            <select name="feedback_type" id="feedback_type" class="form-control" required>
-                <option value="Bug Report">Bug Report</option>
-                <option value="Feature Request">Feature Request</option>
-                <option value="General Feedback">General Feedback</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="message">Your Feedback:</label>
-            <textarea name="message" id="message" class="form-control" rows="4" required></textarea>
-        </div>
-        <div class="form-group">
-            <label for="rating">Rate Us:</label>
-            <div class="star-rating">
-                <input type="radio" id="star5" name="rating" value="5">
-                <label for="star5" title="5 stars">★</label>
-                <input type="radio" id="star4" name="rating" value="4">
-                <label for="star4" title="4 stars">★</label>
-                <input type="radio" id="star3" name="rating" value="3">
-                <label for="star3" title="3 stars">★</label>
-                <input type="radio" id="star2" name="rating" value="2">
-                <label for="star2" title="2 stars">★</label>
-                <input type="radio" id="star1" name="rating" value="1">
-                <label for="star1" title="1 star">★</label>
-            </div>
-        </div>
-        <button type="submit" class="btn btn-primary">Submit Feedback</button>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary ml-2">Back to Home</a>
+<section class="auth-layout narrow">
+    <form method="POST" class="auth-card glass-card">
+        <p class="eyebrow">Feedback</p>
+        <h2>Tell us what to improve</h2>
+        {% if feedback_submitted %}<div class="alert alert-success">Thanks. Your feedback has been submitted.</div>{% endif %}
+        <label class="form-label" for="feedback_type">Type</label>
+        <select id="feedback_type" class="form-select" name="feedback_type" required>
+            <option value="Bug">Bug</option>
+            <option value="Feature request">Feature request</option>
+            <option value="Design">Design</option>
+            <option value="General">General</option>
+        </select>
+        <label class="form-label mt-3" for="rating">Rating</label>
+        <select id="rating" class="form-select" name="rating">
+            <option value="5">5 · Excellent</option>
+            <option value="4">4 · Good</option>
+            <option value="3">3 · Okay</option>
+            <option value="2">2 · Needs work</option>
+            <option value="1">1 · Bad</option>
+        </select>
+        <label class="form-label mt-3" for="message">Message</label>
+        <textarea id="message" class="form-control" name="message" rows="6" placeholder="Write your feedback here" required></textarea>
+        <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Submit feedback</button>
+        <a class="soft-link d-inline-block mt-3" href="{{ url_for('index') }}">Back to files</a>
     </form>
-</div>
-
+</section>
 {% endblock %}

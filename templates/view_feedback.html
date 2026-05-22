@@ -1,24 +1,23 @@
 {% extends "base.html" %}
-
-{% block title %}View Feedback{% endblock %}
-
+{% block title %}Feedback · Tamestorage{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <h1 class="mb-4">Feedback List</h1>
-    <ul class="list-group">
-        {% for feedback in feedback_list %}
-        <li class="list-group-item">
-            <h5>{{ feedback.username }} <small class="text-muted">({{ feedback.feedback_type }})</small></h5>
+<section class="workspace-header glass-card">
+    <div><p class="eyebrow">Admin inbox</p><h1>User feedback</h1></div>
+    <a class="btn btn-outline-primary" href="{{ url_for('admin') }}">Back to admin</a>
+</section>
+
+<section class="feedback-list">
+    {% for feedback in feedback_list|reverse %}
+        <article class="feedback-item glass-card">
+            <div class="section-heading compact-heading">
+                <div><h2>{{ feedback.feedback_type }}</h2><p class="muted">From {{ feedback.username }} · {{ feedback.timestamp }}</p></div>
+                {% if feedback.rating %}<span class="badge text-bg-primary">{{ feedback.rating }}/5</span>{% endif %}
+            </div>
             <p>{{ feedback.message }}</p>
-            {% if feedback.rating %}
-            <p>Rating: <span class="badge badge-info">{{ feedback.rating }}/5</span></p>
-            {% endif %}
-            <form action="{{ url_for('delete_feedback', feedback_id=feedback.id) }}" method="POST" class="delete-button">
-                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-    <a href="{{ url_for('admin') }}" class="btn btn-secondary mt-4">Back to Admin Panel</a>
-</div>
+            <form action="{{ url_for('delete_feedback', feedback_id=feedback.id) }}" method="POST" data-confirm="Delete this feedback?"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
+        </article>
+    {% else %}
+        <div class="empty-state glass-card"><i class="fa-regular fa-message"></i><h2>No feedback yet</h2><p class="muted">Submitted feedback will appear here.</p></div>
+    {% endfor %}
+</section>
 {% endblock %}

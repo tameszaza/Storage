@@ -1,578 +1,180 @@
-{% extends "base.html" %} {% block title %}Tamestorage{% endblock %}
+{% extends "base.html" %}
+{% block title %}Files · Tamestorage{% endblock %}
 {% block content %}
+{% set folder_count = files|selectattr('is_dir')|list|length %}
+{% set file_count = files|rejectattr('is_dir')|list|length %}
 
-<div id="dropArea" class="drag-and-drop">
-  <form
-  action="/upload{{ '/' + path if path else '' }}"
-  method="POST"
-  enctype="multipart/form-data"
-  class="mb-4"
->
-  <div class="custom-file">
-    <input
-      type="file"
-      class="custom-file-input"
-      id="fileInput"
-      name="file"
-      multiple
-    />
-    <label class="custom-file-label" for="fileInput">Choose file</label>
-  </div>
-  <button type="submit" class="btn btn-primary mt-2" id="uploadButton" disabled>Upload</button>
-</form>
-
-<div class="row mb-4">
-  <div class="col-12 col-md-6 mb-2 mb-md-0">
-      <!-- Create New Folder form -->
-      <form action="/create_folder{{ '/' + path if path else '' }}" method="POST" class="d-flex">
-          <input type="text" name="folder_name" placeholder="New Folder Name" class="form-control flex-grow-1 mr-2" style="min-width: 150px;">
-          <button type="submit" class="btn btn-primary">Create Folder</button>
-      </form>
-  </div>
-
-  <div class="col-12 col-md-6">
-      <!-- Search form -->
-      <form action="{{ url_for('index', path=path) }}" method="GET" class="d-flex">
-          <input type="text" name="search" placeholder="Search files..." class="form-control flex-grow-1 mr-2" style="min-width: 150px;">
-          <button type="submit" class="btn btn-secondary">Search</button>
-      </form>
-  </div>
-</div>
-
-
-{% if request.args.get('search') %}
-    <div class="alert alert-info" role="alert">
-        Displaying {{ files|length }} search result{% if files|length != 1 %}s{% endif %} for "{{ request.args.get('search') }}" in {{ path }}.
-        <a href="{{ url_for('index', path=path) }}" class="btn btn-danger btn-sm ml-2">Exit Search</a>
+<section class="workspace-header glass-card">
+    <div>
+        <p class="eyebrow">File manager</p>
+        <h1>Your storage workspace</h1>
+        <div class="breadcrumb-line">
+            <a href="{{ url_for('index') }}">Root</a>
+            {% if path %}<span>/ {{ path }}</span>{% endif %}
+        </div>
     </div>
+    <div class="stats-grid mini">
+        <div class="stat-card"><span>{{ files|length }}</span><p>Total items</p></div>
+        <div class="stat-card"><span>{{ folder_count }}</span><p>Folders</p></div>
+        <div class="stat-card"><span>{{ file_count }}</span><p>Files</p></div>
+    </div>
+</section>
+
+<section id="dropArea" class="upload-panel glass-card">
+    <form id="uploadForm" action="{% if path %}{{ url_for('upload_file', path=path) }}{% else %}{{ url_for('upload_file') }}{% endif %}" method="POST" enctype="multipart/form-data">
+        <div class="drop-content">
+            <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div>
+                <h2>Drop files here</h2>
+                <p class="muted">or choose one or more files from your device</p>
+            </div>
+        </div>
+        <div class="upload-actions">
+            <label class="btn btn-outline-primary file-picker" for="fileInput">Choose files</label>
+            <input type="file" id="fileInput" name="file" multiple hidden>
+            <span id="fileLabel" class="muted">No file selected</span>
+            <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload</button>
+        </div>
+    </form>
+</section>
+
+<section class="toolbar glass-card">
+    <form action="{% if path %}{{ url_for('create_folder', path=path) }}{% else %}{{ url_for('create_folder') }}{% endif %}" method="POST" class="toolbar-form">
+        <input id="folderNameInput" class="form-control" type="text" name="folder_name" placeholder="New folder name" required>
+        <button id="createFolderButton" class="btn btn-primary" type="submit">Create folder</button>
+    </form>
+
+    <form action="{{ url_for('index', path=path) }}" method="GET" class="toolbar-form search-form">
+        <input class="form-control" type="search" name="search" value="{{ search_query or '' }}" placeholder="Search files and folders">
+        <button class="btn btn-outline-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        {% if search_query %}<a class="btn btn-outline-danger" href="{{ url_for('index', path=path) }}">Clear</a>{% endif %}
+    </form>
+
+    <div class="view-controls">
+        <button id="viewToggleBtn" class="icon-button" type="button" title="Toggle view"><i id="viewToggleIcon" class="fa-solid fa-table-cells-large"></i></button>
+    </div>
+</section>
+
+{% if search_query %}
+<div class="alert alert-info search-alert">Showing {{ files|length }} result{% if files|length != 1 %}s{% endif %} for “{{ search_query }}”.</div>
 {% endif %}
 
-
-  <!-- Toggle Buttons for List/Grid View -->
-  <!-- Toggle Button for List/Grid View -->
-  <div class="mb-3">
-    <button id="viewToggleBtn" class="btn btn-secondary">
-      <i id="viewToggleIcon" class="fas fa-th-large"></i>
-    </button>
-  </div>
-
-  <h2>Files and Folders</h2>
-  {% if path %}
-<p><strong>Current Path:</strong> /{{ path }}</p>
-{% else %}
-<p><strong>Current Path:</strong> / (Root Directory)</p>
-{% endif %}
-  <!-- Container for List/Grid View -->
-  <div id="fileContainer" class="list-view">
-    <table class="table table-striped">
-      <thead>
-          <tr>
-              <th>Name</th>
-              <th>Size</th>
-              <th class="date-column">Date Modified</th>
-              <th>Actions</th>
-          </tr>
-      </thead>
-      <tbody>
-          {% if path and (session['username'] == 'Admin' or (session['username'] != 'Admin' and path != session['username'])) %}
-          <tr>
-              <td colspan="4">
-                  <a href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">..&nbsp;&nbsp;(Go Back)</a>
-              </td>
-          </tr>
-          {% endif %}
-          {% for file in files %}
-<tr class="file-row" data-file-path="{{ path + '/' + file.name if path else file.name }}">
-    <td>
-        {% if file.is_dir %}
-        <a href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}">{{ file.name }}/</a>
-        {% else %}
-            {% if file.name.endswith('.txt') or file.name.endswith('.py') or file.name.endswith('.log') or file.name.endswith('.html') or file.name.endswith('.css') or file.name.endswith('.js') %}
-            <a href="{{ url_for('edit_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-            {% else %}
-            <a href="{{ url_for('uploaded_file', path=path, filename=file.name) }}">{{ file.name }}</a>
-            {% endif %}
-        {% endif %}
-    </td>
-    <td>{{ file.size // (1024 ** 2) if file.size else 0 }} MB</td>
-    <td class="date-column">{{ file.mod_time }}</td> <!-- Display modification time -->
-    <td class='file-actions'>
-        {% if file.is_dir %}
-        <form action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}" method="POST" style="display: inline" onsubmit="event.preventDefault(); confirmAction('Are you sure you want to download this folder as a zip?', this);">
-            <button type="submit" class="btn btn-secondary">Download</button>
-        </form>
-        <form action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('folder', '{{ file.name }}');">
-            <button type="submit" class="btn btn-danger">Delete</button>
-        </form>
-        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)">
-            Rename
-        </button>
-        {% else %}
-        <form action="{{ url_for('download_file', path=path, filename=file.name) }}" method="GET" style="display: inline">
-            <button type="submit" class="btn btn-secondary">Download</button>
-        </form>
-        <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" style="display: inline" onsubmit="return confirmDeletion('file', '{{ file.name }}');">
-            <button type="submit" class="btn btn-danger">Delete</button>
-        </form>
-        <button type="button" class="btn btn-info" onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)">
-            Rename
-        </button>
-        {% endif %}
-    </td>
-</tr>
-{% endfor %}
-      </tbody>
-  </table>
-  
-  </div>
-
-  <!-- Grid View Template (hidden by default) -->
-  <div id="gridContainer" class="grid-view" style="display: none">
-    <div class="row">
-      <!-- Back to upper folder card -->
-      {% if path and (session['username'] == 'Admin' or (session['username'] !=
-      'Admin' and path != session['username'])) %}
-      <div class="col-sm-4">
-        <div class="card mb-3">
-          <div class="card-body text-center">
-            <h5 class="card-title">..</h5>
-            <a
-              href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}"
-              class="btn btn-secondary"
-            >
-              <i class="fas fa-arrow-left"></i> Back
+<section id="fileBrowser" class="file-browser browser-grid">
+    {% if path and (session['username'] == 'Admin' or path != session['username']) %}
+        <article class="file-card back-card">
+            <a class="file-main" href="{{ url_for('index', path='/'.join(path.split('/')[:-1])) }}">
+                <span class="file-icon folder"><i class="fa-solid fa-arrow-turn-up"></i></span>
+                <span><strong>Go back</strong><small>Parent folder</small></span>
             </a>
-          </div>
+        </article>
+    {% endif %}
+
+    {% for file in files %}
+        {% set item_path = path + '/' + file.name if path else file.name %}
+        <article class="file-card" data-kind="{{ file.kind }}">
+            <div class="file-select"><input class="select-item" type="checkbox" value="{{ file.name }}" aria-label="Select {{ file.name }}"></div>
+
+            {% if file.is_dir %}
+                <a class="file-main" href="{{ url_for('index', path=item_path) }}">
+                    <span class="file-icon folder"><i class="fa-solid fa-folder"></i></span>
+                    <span class="file-title"><strong>{{ file.name }}/</strong><small>{{ file.size_label }} · {{ file.mod_time }}</small></span>
+                </a>
+            {% else %}
+                {% if file.kind == 'text' %}
+                    {% set open_url = url_for('edit_file', path=path, filename=file.name) %}
+                {% else %}
+                    {% set open_url = url_for('uploaded_file', path=path, filename=file.name) %}
+                {% endif %}
+                <a class="file-main" href="{{ open_url }}">
+                    <span class="file-icon {{ file.kind }}">
+                        {% if file.kind == 'image' %}<i class="fa-solid fa-image"></i>
+                        {% elif file.kind == 'video' %}<i class="fa-solid fa-film"></i>
+                        {% elif file.kind == 'pdf' %}<i class="fa-solid fa-file-pdf"></i>
+                        {% elif file.kind == 'text' %}<i class="fa-solid fa-file-lines"></i>
+                        {% elif file.kind == 'archive' %}<i class="fa-solid fa-file-zipper"></i>
+                        {% else %}<i class="fa-solid fa-file"></i>{% endif %}
+                    </span>
+                    <span class="file-title"><strong>{{ file.name }}</strong><small>{{ file.size_label }} · {{ file.mod_time }}</small></span>
+                </a>
+                {% if file.kind == 'image' %}
+                    <a href="{{ open_url }}" class="preview-box"><img src="{{ open_url }}" alt="{{ file.name }}"></a>
+                {% elif file.kind == 'video' %}
+                    <video class="preview-box" src="{{ open_url }}" controls></video>
+                {% elif file.kind == 'text' and file.content %}
+                    <a href="{{ open_url }}" class="preview-box text-preview"><pre>{{ file.content }}</pre></a>
+                {% endif %}
+            {% endif %}
+
+            <div class="file-actions">
+                {% if file.is_dir %}
+                    <form action="{{ url_for('download_folder', path=item_path) }}" method="POST" data-confirm="Download this folder as a zip file?">
+                        <button class="btn btn-sm btn-light" type="submit"><i class="fa-solid fa-download"></i></button>
+                    </form>
+                    <form action="{{ url_for('delete_folder', path=item_path) }}" method="POST" data-confirm="Delete folder {{ file.name }}?">
+                        <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    <button class="btn btn-sm btn-light js-rename" type="button" data-action="{{ url_for('rename_folder', path=path, foldername=file.name) }}" data-name="{{ file.name }}" data-type="folder"><i class="fa-solid fa-pen"></i></button>
+                {% else %}
+                    <a class="btn btn-sm btn-light" href="{{ url_for('download_file', path=path, filename=file.name) }}"><i class="fa-solid fa-download"></i></a>
+                    <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" data-confirm="Delete file {{ file.name }}?">
+                        <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                    <button class="btn btn-sm btn-light js-rename" type="button" data-action="{{ url_for('rename_file', path=path, filename=file.name) }}" data-name="{{ file.name }}" data-type="file"><i class="fa-solid fa-pen"></i></button>
+                {% endif %}
+            </div>
+        </article>
+    {% else %}
+        <div class="empty-state glass-card">
+            <i class="fa-regular fa-folder-open"></i>
+            <h2>This folder is empty</h2>
+            <p class="muted">Upload files or create a new folder to start organizing.</p>
         </div>
-      </div>
-      {% endif %} {% for file in files %}
-      <div class="col-sm-4 file-row">
-        <div class="card mb-3">
-          {% if file.is_dir %}
-          <div class="card-body">
-            <h5 class="card-title">
-              <a
-                href="{{ url_for('index', path=path + '/' + file.name if path else file.name) }}"
-                >{{ file.name }}/</a
-              >
-            </h5>
-            <form
-    action="{{ url_for('download_folder', path=(path + '/' + file.name) if path else file.name) }}"
-    method="POST"
-    style="display: inline"
-    onsubmit="return confirmAction('Are you sure you want to download this folder as a zip?', this);"
->
-    <button type="submit" class="btn btn-secondary">Download</button>
-</form>
+    {% endfor %}
+</section>
 
+<section class="bottom-actions glass-card">
+    {% if path %}
+        <a href="{{ url_for('detail', directory=path) }}" class="btn btn-outline-primary"><i class="fa-solid fa-chart-pie"></i> Storage detail</a>
+    {% else %}
+        <a href="{{ url_for('detail', directory='Root') }}" class="btn btn-outline-primary"><i class="fa-solid fa-chart-pie"></i> Storage detail</a>
+    {% endif %}
+    <a href="{{ url_for('chat_page') }}" class="btn btn-primary"><i class="fa-solid fa-robot"></i> Chat with AI</a>
+</section>
 
-            <form
-              action="{{ url_for('delete_folder', path=path + '/' + file.name if path else file.name) }}"
-              method="POST"
-              style="display: inline"
-              onsubmit="return confirmDeletion('folder', '{{ file.name }}');"
-            >
-              <button type="submit" class="btn btn-danger mb-2">
-                Delete Folder
-              </button>
-            </form>
-            <button
-              type="button"
-              class="btn btn-info"
-              onclick="openRenameModal('{{ path }}', '{{ file.name }}', true)"
-            >
-              Rename Folder
-            </button>
-          </div>
-
-          {% else %}
-          <div class="card-body">
-            <h5 class="card-title file-name">
-              <a
-                href="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-                >{{ file.name }}</a
-              >
-            </h5>
-            <div class="file-preview">
-              {% if file.name.endswith('.jpg') or file.name.endswith('.png') or
-              file.name.endswith('.jpeg') or file.name.endswith('.JPG') %}
-              <a
-                href="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-              >
-                <img
-                  src="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-                  class="img-fluid"
-                  alt="{{ file.name }}"
-                />
-              </a>
-              {% elif file.name.endswith('.mp4') or file.name.endswith('.webm')
-              %}
-              <a
-                href="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-              >
-                <video
-                  src="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-                  class="img-fluid"
-                  controls
-                ></video>
-              </a>
-              {% elif file.name.endswith('.pdf') %}
-              <a
-                href="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-              >
-                <iframe
-                  src="{{ url_for('uploaded_file', path=path, filename=file.name) }}"
-                  class="img-fluid"
-                ></iframe>
-              </a>
-              {% elif file.name.endswith('.txt') or file.name.endswith('.py') or
-              file.name.endswith('.log') or file.name.endswith('.html') or
-              file.name.endswith('.css') or file.name.endswith('.js') %}
-              <a
-                href="{{ url_for('edit_file', path=path, filename=file.name) }}"
-              >
-                <div class="txt-preview">
-                  <pre>{{ file.content | safe }}</pre>
+<div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="renameTitle">Rename</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="renameForm" method="POST">
+                <div class="modal-body">
+                    <label class="form-label" for="newName">New name</label>
+                    <input class="form-control" id="newName" name="new_name" required>
                 </div>
-              </a>
-              
-              {% else %}
-              <p>No preview available.</p>
-              {% endif %}
-            </div>
-            <form
-              action="{{ url_for('download_file', path=path, filename=file.name) }}"
-              method="GET"
-              style="display: inline"
-            >
-              <button type="submit" class="btn btn-secondary">Download</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Rename</button>
+                </div>
             </form>
-            <form
-              action="{{ url_for('delete_file', path=path, filename=file.name) }}"
-              method="POST"
-              style="display: inline"
-              onsubmit="return confirmDeletion('file', '{{ file.name }}');"
-            >
-              <button type="submit" class="btn btn-danger">Delete</button>
-            </form>
-            <button
-              type="button"
-              class="btn btn-info"
-              onclick="openRenameModal('{{ path }}', '{{ file.name }}', false)"
-            >
-              Rename
-            </button>
-          </div>
-          {% endif %}
         </div>
-      </div>
-      {% endfor %}
     </div>
-  </div>
-
-  <div
-    class="modal fade"
-    id="renameModal"
-    tabindex="-1"
-    role="dialog"
-    aria-labelledby="renameModalLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="renameTitle">Rename</h5>
-          <button
-            type="button"
-            class="close"
-            data-dismiss="modal"
-            aria-label="Close"
-          >
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <form id="renameForm" method="POST">
-            <div class="form-group">
-              <label for="newName">New Name</label>
-              <input
-                type="text"
-                class="form-control"
-                id="newName"
-                name="new_name"
-                required
-              />
-            </div>
-            <button type="submit" class="btn btn-primary">Rename</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Progress Modal -->
-  <div
-    class="modal fade"
-    id="progressModal"
-    tabindex="-1"
-    role="dialog"
-    aria-labelledby="progressModalLabel"
-    aria-hidden="true"
-  >
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="progressModalLabel">Uploading...</h5>
-        </div>
-        <div class="modal-body">
-          <div class="progress">
-            <div
-              id="progressBar"
-              class="progress-bar progress-bar-striped progress-bar-animated"
-              role="progressbar"
-              style="width: 0%"
-            ></div>
-          </div>
-          <p id="progressPercentage" class="text-center mt-2">0%</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
-  {% if session['username'] == 'Admin' %}
-  <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
-  {% endif %}
-  <a href="{{ url_for('feedback') }}" class="btn btn-secondary"
-    >Give Feedback</a
-  >
-  {% if path %}
-  <a href="{{ url_for('detail', directory=path) }}"class="btn btn-primary">Detail</a>
-  {%else%}
-  <a href="{{ url_for('detail', directory='Root') }}"class="btn btn-primary">Detail</a>
-  {% endif %}
-  <a href="{{ url_for('chat_page') }}" class="btn btn-primary">Chat with AI Assistant</a>
 </div>
 
-<script>
-  function confirmAction(message, formElement) {
-    if (confirm(message)) {
-      formElement.submit();
-    }
-  }
-  document.addEventListener("DOMContentLoaded", function () {
-    const fileContainer = document.getElementById("fileContainer");
-    const gridContainer = document.getElementById("gridContainer");
-    const viewToggleIcon = document.getElementById("viewToggleIcon");
-    const dropArea = document.getElementById("dropArea");
-    const fileInput = document.getElementById("fileInput");
-    const fileLabel = document.querySelector(".custom-file-label");
-    const progressBar = document.getElementById("progressBar");
-    const progressPercentage = document.getElementById("progressPercentage");
+<div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Uploading files</h5></div>
+            <div class="modal-body">
+                <div class="progress"><div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div></div>
+                <p id="progressPercentage" class="text-center mt-3 mb-0">0%</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-    // Retrieve the saved view preference
-    const savedView = localStorage.getItem("viewPreference") || "list";
-
-    if (savedView === "grid") {
-      fileContainer.style.display = "none";
-      gridContainer.style.display = "block";
-      viewToggleIcon.className = "fas fa-list";
-    } else {
-      fileContainer.style.display = "block";
-      gridContainer.style.display = "none";
-      viewToggleIcon.className = "fas fa-th-large";
-    }
-    
-    document
-      .getElementById("viewToggleBtn")
-      .addEventListener("click", function () {
-        if (
-          fileContainer.style.display === "block" ||
-          fileContainer.style.display === ""
-        ) {
-          fileContainer.style.display = "none";
-          gridContainer.style.display = "block";
-          viewToggleIcon.className = "fas fa-list";
-          localStorage.setItem("viewPreference", "grid"); // Save the preference
-        } else {
-          fileContainer.style.display = "block";
-          gridContainer.style.display = "none";
-          viewToggleIcon.className = "fas fa-th-large";
-          localStorage.setItem("viewPreference", "list"); // Save the preference
-        }
-      });
-
-    fileInput.addEventListener("change", function () {
-      const files = fileInput.files;
-      if (files.length === 1) {
-        fileLabel.textContent = files[0].name;
-      } else {
-        fileLabel.textContent = `${files.length} files selected`;
-      }
-    });
-
-    dropArea.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      dropArea.classList.add("dragging");
-    });
-
-    dropArea.addEventListener("dragleave", () => {
-      dropArea.classList.remove("dragging");
-    });
-
-    dropArea.addEventListener("drop", (event) => {
-      event.preventDefault();
-      dropArea.classList.remove("dragging");
-      handleFileUpload(event.dataTransfer.files);
-    });
-
-    document.querySelector("form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      handleFileUpload(fileInput.files);
-    });
-
-    function handleFileUpload(files) {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append("file", files[i]);
-      }
-
-      let uploadPath = window.location.pathname;
-      if (uploadPath.startsWith("/index")) {
-        uploadPath = uploadPath.replace("/index", "");
-      }
-      uploadPath = "/upload" + uploadPath;
-
-      // Show the progress modal
-      $("#progressModal").modal("show");
-
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", uploadPath, true);
-
-      xhr.upload.onprogress = function (event) {
-        if (event.lengthComputable) {
-          let percentComplete = Math.round((event.loaded / event.total) * 100);
-          progressBar.style.width = percentComplete + "%";
-          progressPercentage.textContent = percentComplete + "%";
-        }
-      };
-
-      xhr.onload = function () {
-        $("#progressModal").modal("hide");
-        if (xhr.status === 200) {
-          location.reload();
-        } else {
-          console.error("Upload failed");
-        }
-      };
-
-      xhr.send(formData);
-    }
-
-    function confirmDeletion(itemType, itemName) {
-      return confirm(
-        `Are you sure you want to delete this ${itemType}: ${itemName}?`
-      );
-    }
-    
-    window.confirmDeletion = confirmDeletion;
-
-    function openRenameModal(path, oldName, isFolder) {
-      const form = document.getElementById("renameForm");
-      const newNameInput = document.getElementById("newName");
-      const renameTitle = document.getElementById("renameTitle");
-
-      form.action = isFolder
-        ? `/rename_folder/${path}/${oldName}`
-        : `/rename_file/${path}/${oldName}`;
-      newNameInput.value = oldName;
-      renameTitle.textContent = `Rename ${
-        isFolder ? "Folder" : "File"
-      }: ${oldName}`;
-      $("#renameModal").modal("show");
-    }
-
-    window.openRenameModal = openRenameModal;
-  });
-  document.addEventListener('DOMContentLoaded', function() {
-    const fileInput = document.getElementById('fileInput');
-    const uploadButton = document.getElementById('uploadButton');
-    const folderNameInput = document.getElementById('folderNameInput');
-    const createFolderButton = document.getElementById('createFolderButton');
-
-    // Enable/Disable Upload button based on file input
-    fileInput.addEventListener('change', function() {
-      if (fileInput.files.length > 0) {
-        uploadButton.disabled = false;
-      } else {
-        uploadButton.disabled = true;
-      }
-    });
-
-    // Enable/Disable Create Folder button based on folder name input
-    folderNameInput.addEventListener('input', function() {
-      const folderName = folderNameInput.value.trim();
-      if (folderName !== '' && /^[a-zA-Z0-9_\- ]+$/.test(folderName)) {
-        createFolderButton.disabled = false;
-      } else {
-        createFolderButton.disabled = true;
-      }
-    });
-    // Drag and drop for specific folders
-// Drag and drop for specific folders
-const fileRows = document.querySelectorAll('.file-row');
-let targetFolderPath = null;
-
-fileRows.forEach(row => {
-    if (row.querySelector('a').textContent.endsWith('/')) { // Check if it's a folder
-        row.addEventListener('dragover', function (event) {
-            event.preventDefault();
-            row.classList.add('dragging');
-            targetFolderPath = row.querySelector('a').getAttribute('href'); // Set target folder path
-        });
-
-        row.addEventListener('dragleave', function () {
-            row.classList.remove('dragging');
-            targetFolderPath = null;
-        });
-
-        row.addEventListener('drop', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            row.classList.remove('dragging');
-            handleFileUpload(event.dataTransfer.files, targetFolderPath); // Upload to the specific folder
-        });
-    }
-});
-
-// Function to handle file upload
-function handleFileUpload(files, folderPath = '') {
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-        formData.append("file", files[i]);
-    }
-
-    // Determine the upload path
-    let uploadPath = folderPath ? `/upload${folderPath}` : window.location.pathname;
-    if (uploadPath.startsWith("/index")) {
-        uploadPath = uploadPath.replace("/index", "");
-    }
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", uploadPath, true);
-
-    xhr.onload = function () {
-        if (xhr.status === 200) {
-            // Reload or update the UI after upload
-            location.reload();
-        } else {
-            console.error('Upload failed');
-        }
-    };
-
-    xhr.send(formData);
-}
-
-  });
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/storage.js') }}"></script>
 {% endblock %}

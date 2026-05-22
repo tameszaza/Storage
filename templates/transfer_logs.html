@@ -1,16 +1,14 @@
 {% extends "base.html" %}
-
-{% block title %}Transfer Logs{% endblock %}
-
+{% block title %}Transfer logs · Tamestorage{% endblock %}
 {% block content %}
-<div class="container mt-5">
-    <h1 class="my-4">Transfer Logs</h1>
-    <div class="log-container">
-        <pre style="white-space: pre-wrap;">{{ log_contents }}</pre>
+<section class="log-page glass-card">
+    <div class="section-heading">
+        <div><p class="eyebrow">Network</p><h1>Transfer logs</h1></div>
+        <div class="button-row">
+            <form action="{{ url_for('clear_transfer_logs') }}" method="POST" data-confirm="Clear all transfer logs?"><button class="btn btn-outline-danger" type="submit">Clear logs</button></form>
+            <a class="btn btn-outline-primary" href="{{ url_for('admin') }}">Back to admin</a>
+        </div>
     </div>
-    <form action="{{ url_for('clear_transfer_logs') }}" method="POST" style="display:inline;">
-        <button type="submit" class="btn btn-warning mt-3">Clear Log File</button>
-    </form>
-    <a href="{{ url_for('admin') }}" class="btn btn-primary mt-3">Back to Admin Panel</a>
-</div>
+    <pre class="log-box">{{ log_contents }}</pre>
+</section>
 {% endblock %}

@@ -1,25 +1,23 @@
 {% extends "base.html" %}
-
-{% block title %}Login{% endblock %}
-
+{% block title %}Login · Tamestorage{% endblock %}
 {% block content %}
-<div class="container">
-    <h1 class="my-4">Login</h1>
-    <form action="/" method="POST">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" class="form-control" id="username" name="username" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" class="form-control" id="password" name="password" required>
-        </div>
-        <button type="submit" class="btn btn-primary" style="margin-bottom: 15px;">Login</button>
+<section class="auth-layout">
+    <div class="auth-hero glass-card">
+        <p class="eyebrow">Welcome back</p>
+        <h1>Access your files from a cleaner, faster storage dashboard.</h1>
+        <p class="muted">Upload, preview, rename, analyze storage usage, and chat with the AI assistant from one private workspace.</p>
+        <a href="{{ url_for('introduction') }}" class="soft-link">Learn what Tamestorage can do</a>
+    </div>
+
+    <form method="POST" class="auth-card glass-card">
+        <h2>Sign in</h2>
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+        <label class="form-label" for="username">Username</label>
+        <input class="form-control form-control-lg" id="username" type="text" name="username" autocomplete="username" required>
+        <label class="form-label mt-3" for="password">Password</label>
+        <input class="form-control form-control-lg" id="password" type="password" name="password" autocomplete="current-password" required>
+        <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Login</button>
+        <p class="auth-alt">No account yet? <a href="{{ url_for('register') }}">Create one</a></p>
     </form>
-    <a href="{{ url_for('register') }}" class='link'>Register</a>
-    <!-- Add a link to the introduction page -->
-    <div class="mt-4">
-        <p>New to Tamestorage? <a href="{{ url_for('introduction') }}" class="btn btn-info">Learn More About Us</a></p>
-    </div>  
-</div>
+</section>
 {% endblock %}

@@ -1,188 +1,22 @@
-{% extends "base.html" %} {% block title %}Chat with AI{% endblock %} {% block
-    content %}
-    <div class="container mt-5">
-      <h1 class="mb-4">Chat with Your AI Assistant</h1>
-      <div
-        id="chatbox"
-        class="border rounded p-3"
-        style="height: 600px; overflow-y: scroll"
-      >
-        <!-- Chat messages will appear here -->
-      </div>
-    
-      <form id="chatForm" class="mt-3">
-        <!-- Input Field and Button Styling -->
-        <div class="input-group">
-          <input
-            type="text"
-            id="userInput"
-            class="form-control"
-            placeholder="Type your message..."
-            autocomplete="off"
-            style="border-radius: 30px; padding: 10px 15px"
-          />
-          <div class="input-group-append">
-            <button
-              type="submit"
-              class="btn btn-primary"
-              style="border-radius: 30px; padding: 10px 20px"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-    
-        <div class="custom-file mt-2">
-          <input type="file" id="image" name="image" class="custom-file-input" />
-          <label class="custom-file-label" for="image"
-            >Choose file (optional)</label
-          >
-        </div>
-        <div id="fileNameDisplay" class="mt-2"></div>
-        <!-- To display the selected file name -->
-        <img
-          id="imagePreview"
-          src="#"
-          alt="Image Preview"
-          style="display: none; max-width: 150px"
-        />
-        <!-- Image Preview -->
-      </form>
-      <div class="mt-3">
-        <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
-        <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
-      </div>
+{% extends "base.html" %}
+{% block title %}AI Assistant · Tamestorage{% endblock %}
+{% block content %}
+<section class="chat-layout glass-card">
+    <div class="chat-header">
+        <div><p class="eyebrow">AI assistant</p><h1>Ask about your files</h1><p class="muted">Send text or an image. The assistant can use your file structure as context.</p></div>
+        <a class="btn btn-outline-primary" href="{{ url_for('index') }}">Back to files</a>
+    </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('chatForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            
-            const date = new Date();
-            const hour = date.getHours();
-            const minute = date.getMinutes();
-            const str_time = hour + ":" + (minute < 10 ? '0' : '') + minute;
-            const userInput = document.getElementById('userInput').value.trim();
-            const imageInput = document.getElementById('image').files[0];
-            let userHtml = '';
+    <div id="chatMessages" class="chat-messages">
+        <div class="message assistant">Hi. Ask me anything about your storage workspace.</div>
+    </div>
 
-            if (userInput === '' && !imageInput) {
-                return;
-            }
-
-            if (imageInput) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    userHtml = `<div class="d-flex justify-content-end mb-4">
-                                    <div class="msg_cotainer_send">
-                                        <img src="${e.target.result}" class="uploaded_image" alt="uploaded image"/> <!-- Uploaded image -->
-                                        <div class="text_below_image">
-                                            ${userInput}
-                                            <span class="msg_time_send">${str_time}</span>
-                                        </div>
-                                    </div>
-                                </div>`;
-                    document.getElementById('chatbox').innerHTML += userHtml;
-                };
-                reader.readAsDataURL(imageInput);
-            } else {
-                let chatbox = document.getElementById('chatbox');
-            
-                // Create a div element for the new message
-                let userHtml = document.createElement('div');
-                userHtml.className = "d-flex justify-content-end mb-4";
-                
-                // Set the innerHTML for the new message container
-                userHtml.innerHTML = `
-                    <div class="msg_cotainer_send">
-                        ${userInput}
-                        <span class="msg_time_send">${str_time}</span>
-                    </div>
-                    <div class="img_cont_msg">
-                        <img src="https://i.ibb.co/d5b84Xw/Untitled-design.png" class="rounded-circle user_img_msg">
-                    </div>
-                `;
-            
-                // Append the newly created message to the chatbox
-                chatbox.appendChild(userHtml);
-            }
-            
-            // Show spinner while waiting for response
-            const spinnerHtml = `<div id="spinnerContainer" class="d-flex justify-content-end mb-4">
-                                    <div class="spinner"></div>
-                                </div>`;
-            document.getElementById('chatbox').innerHTML += spinnerHtml;
-
-            const formData = new FormData();
-            formData.append('msg', userInput);
-            if (imageInput) {
-                formData.append('image', imageInput);
-            }
-
-            document.getElementById('userInput').value = '';
-            document.getElementById('image').value = ''; // Deselect the image
-            document.getElementById('fileNameDisplay').innerText = ''; // Clear file name display
-            document.getElementById('imagePreview').style.display = 'none'; // Hide image preview
-
-            fetch("{{ url_for('chat') }}", {
-                method: "POST",
-                body: formData,
-                processData: false,
-                contentType: false
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Remove spinner
-                const spinnerElement = document.getElementById('spinnerContainer');
-                if (spinnerElement) {
-                    spinnerElement.remove();
-                }
-
-                const botHtml = `<div class="d-flex justify-content-start mb-4">
-                                    <div class="img_cont_msg">
-                                        <img src="https://i.ibb.co/fSNP7Rz/icons8-chatgpt-512.png" class="rounded-circle user_img_msg">
-                                    </div>
-                                    <div class="msg_cotainer">
-                                        ${data.response}
-                                        <span class="msg_time">${str_time}</span>
-                                    </div>
-                                </div>`;
-                document.getElementById('chatbox').innerHTML += botHtml;
-            })
-            .catch(error => {
-                // Remove spinner
-                const spinnerElement = document.getElementById('spinnerContainer');
-                if (spinnerElement) {
-                    spinnerElement.remove();
-                }
-
-                console.error('Error:', error);
-                const errorHtml = `<div class="d-flex justify-content-start mb-4">
-                                    <div class="msg_cotainer">
-                                        Sorry, something went wrong.
-                                    </div>
-                                </div>`;
-                document.getElementById('chatbox').innerHTML += errorHtml;
-            });
-        });
-
-        // Show selected file name and preview
-        document.getElementById('image').addEventListener('change', function() {
-            const fileName = this.files[0] ? this.files[0].name : 'No file selected';
-            document.getElementById('fileNameDisplay').innerText = fileName;
-
-            if (this.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('imagePreview').src = e.target.result;
-                    document.getElementById('imagePreview').style.display = 'block';
-                };
-                reader.readAsDataURL(this.files[0]);
-            } else {
-                document.getElementById('imagePreview').style.display = 'none';
-            }
-        });
-    });
-</script>
-
+    <form id="chatForm" class="chat-form" action="{{ url_for('chat') }}" method="POST" enctype="multipart/form-data">
+        <input id="chatInput" class="form-control" name="msg" placeholder="Type a message">
+        <input id="imageInput" class="form-control" type="file" name="image" accept="image/*">
+        <input class="form-control" name="prompt" placeholder="Optional image prompt">
+        <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+</section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/chat.js') }}"></script>{% endblock %}

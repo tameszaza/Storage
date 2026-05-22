@@ -1,80 +1,36 @@
 {% extends "base.html" %}
-
-{% block title %}Detail View{% endblock %}
-
+{% block title %}Storage detail · Tamestorage{% endblock %}
 {% block content %}
-<div class="container mt-5 text-center">
-    <h1 class="mb-4">Detail View for {{ directory }}</h1>
-    <p class="lead">Analyzing the folder: for {{ session['username'] }}</p>
-    <p>File Count: <strong>{{ file_count }}</strong> | Total Storage: <strong>{{ total_storage }} MB</strong></p>
-
-    <!-- Centering the image -->
-    <div class="d-flex justify-content-center">
-        <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Space Analysis Chart" class="img-fluid" style="max-width: 80%;">
+<section class="workspace-header glass-card">
+    <div>
+        <p class="eyebrow">Storage analytics</p>
+        <h1>{{ directory }}</h1>
+        <p class="muted">{{ file_count }} files · {{ total_storage }} MB used</p>
     </div>
-
-    <!-- Displaying directory breakdown -->
-    <div class="mt-4 text-center">
-        <h3>Directory Breakdown</h3>
-        <table class="table table-bordered mt-3">
-            <thead>
-                <tr>
-                    <th>Directory</th>
-                    <th>Size (MB)</th>
-                    <th>Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for label, size, percentage in chart_info %}
-                <tr>
-                    <td>{{ label }}</td>
-                    <td>{{ size }}</td>
-                    <td>{{ percentage }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="button-row">
+        <a class="btn btn-outline-primary" href="{{ url_for('index') }}">Back to files</a>
+        {% if session.get('username') == 'Admin' %}<a class="btn btn-outline-secondary" href="{{ url_for('admin') }}">Admin</a>{% endif %}
     </div>
+</section>
 
-    <!-- Pie chart and breakdown by file type -->
-    <div class="mt-5 text-center">
-        <h3>File Type Breakdown</h3>
-        <div class="d-flex justify-content-center">
-            <img src="{{ url_for('serve_chart', filename=file_type_chart_filename) }}" alt="File Type Breakdown Chart" class="img-fluid" style="max-width: 80%;">
+<section class="analytics-grid">
+    <article class="glass-card chart-card">
+        <h2>Folder usage</h2>
+        <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Folder usage chart">
+        <div class="chart-table">
+            {% for label, size, percentage in chart_info %}
+                <div><span>{{ label }}</span><strong>{{ percentage }}%</strong></div>
+            {% endfor %}
         </div>
-
-        <!-- Displaying file type breakdown -->
-        <div class="mt-4">
-            <table class="table table-bordered mt-3">
-                <thead>
-                    <tr>
-                        <th>File Type</th>
-                        <th>Size (MB)</th>
-                        <th>Percentage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for label, size, percentage in file_type_chart_info %}
-                    <tr>
-                        <td>{{ label }}</td>
-                        <td>{{ size }}</td>
-                        <td>{{ percentage }}%</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    </article>
+    <article class="glass-card chart-card">
+        <h2>File types</h2>
+        <img src="{{ url_for('serve_chart', filename=file_type_chart_filename) }}" alt="File type usage chart">
+        <div class="chart-table">
+            {% for label, size, percentage in file_type_chart_info %}
+                <div><span>{{ label }}</span><strong>{{ percentage }}%</strong></div>
+            {% endfor %}
         </div>
-    </div>
-
-</div>
-
-<div class="mt-4 text-center">
-    <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
-    <a href="{{ url_for('index') }}" class="btn btn-primary">Home</a>
-    {% if session['username'] == 'Admin' %}
-    <a href="{{ url_for('admin') }}" class="btn btn-secondary">Admin Panel</a>
-    {% endif %}
-    <a href="{{ url_for('feedback') }}" class="btn btn-secondary">Give Feedback</a>
-    <a href="{{ url_for('chat_page') }}" class="btn btn-primary">Chat with AI Assistant</a>
-</div>
+    </article>
+</section>
 {% endblock %}

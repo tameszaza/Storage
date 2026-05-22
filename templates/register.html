@@ -1,21 +1,17 @@
 {% extends "base.html" %}
-
-{% block title %}Register{% endblock %}
-
+{% block title %}Register · Tamestorage{% endblock %}
 {% block content %}
-<div class="container">
-    <h1 class="my-4">Register</h1>
-    <form action="/register" method="POST">
-        <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" class="form-control" id="username" name="username" required>
-        </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" class="form-control" id="password" name="password" required>
-        </div>
-        <button type="submit" class="btn btn-primary"style="margin-bottom: 15px;">Register</button>
+<section class="auth-layout narrow">
+    <form method="POST" class="auth-card glass-card">
+        <p class="eyebrow">New workspace</p>
+        <h2>Create account</h2>
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+        <label class="form-label" for="username">Username</label>
+        <input class="form-control form-control-lg" id="username" type="text" name="username" autocomplete="username" required>
+        <label class="form-label mt-3" for="password">Password</label>
+        <input class="form-control form-control-lg" id="password" type="password" name="password" autocomplete="new-password" required>
+        <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Create account</button>
+        <p class="auth-alt">Already registered? <a href="{{ url_for('login') }}">Login</a></p>
     </form>
-    <a href="{{ url_for('login') }}" class='link'>Back to Login</a>
-</div>
+</section>
 {% endblock %}

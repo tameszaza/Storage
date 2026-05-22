@@ -1,9 +1,6 @@
-import os
-
 import google.generativeai as genai
-from dotenv import load_dotenv
-
-load_dotenv()
+import PIL.Image
+import os
 
 genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
@@ -12,3 +9,4 @@ response = model.generate_content(["Tell me about this instrument"])
 print(response.text)
 
       
+

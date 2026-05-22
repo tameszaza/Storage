@@ -1,22 +1,46 @@
 {% extends "base.html" %}
 {% block title %}AI Assistant · Tamestorage{% endblock %}
 {% block content %}
-<section class="chat-layout glass-card">
-    <div class="chat-header">
-        <div><p class="eyebrow">AI assistant</p><h1>Ask about your files</h1><p class="muted">Send text or an image. The assistant can use your file structure as context.</p></div>
-        <a class="btn btn-outline-primary" href="{{ url_for('index') }}">Back to files</a>
+<section class="chat-layout chat-page glass-card">
+    <div class="chat-header refined-header">
+        <div class="header-copy">
+            <p class="eyebrow">AI assistant</p>
+            <h1>Ask about your files</h1>
+            <p class="muted">Send a message, attach an image, or ask about the structure of your storage workspace.</p>
+        </div>
+        <a class="btn btn-soft back-button" href="{{ url_for('index') }}">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to files
+        </a>
     </div>
 
-    <div id="chatMessages" class="chat-messages">
-        <div class="message assistant">Hi. Ask me anything about your storage workspace.</div>
-    </div>
+    <div class="chat-panel">
+        <div id="chatMessages" class="chat-messages">
+            <div class="message assistant">
+                <span class="message-avatar"><i class="fa-solid fa-robot"></i></span>
+                <div class="message-bubble">
+                    <div class="message-body">Hi. Ask me anything about your storage workspace.</div>
+                </div>
+            </div>
+        </div>
 
-    <form id="chatForm" class="chat-form" action="{{ url_for('chat') }}" method="POST" enctype="multipart/form-data">
-        <input id="chatInput" class="form-control" name="msg" placeholder="Type a message">
-        <input id="imageInput" class="form-control" type="file" name="image" accept="image/*">
-        <input class="form-control" name="prompt" placeholder="Optional image prompt">
-        <button class="btn btn-primary" type="submit">Send</button>
-    </form>
+        <form id="chatForm" class="chat-form chat-composer" action="{{ url_for('chat') }}" method="POST" enctype="multipart/form-data">
+            <input id="chatInput" class="form-control composer-input" name="msg" placeholder="Ask about your files..." autocomplete="off">
+
+            <input id="imageInput" class="visually-hidden" type="file" name="image" accept="image/*">
+            <label class="btn btn-soft attach-button" for="imageInput">
+                <i class="fa-solid fa-paperclip"></i>
+                <span id="imageLabel">Attach image</span>
+            </label>
+
+            <input class="form-control prompt-input" name="prompt" placeholder="Image prompt, optional" autocomplete="off">
+
+            <button id="sendButton" class="btn btn-primary send-button" type="submit">
+                <i class="fa-solid fa-paper-plane"></i>
+                Send
+            </button>
+        </form>
+    </div>
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/chat.js') }}"></script>{% endblock %}

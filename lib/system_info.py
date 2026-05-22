@@ -1,6 +1,16 @@
 import time
-from datetime import timedelta
 import psutil
+
+
+def format_uptime(seconds: int) -> str:
+    days, seconds = divmod(max(0, seconds), 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, _ = divmod(seconds, 60)
+    if days:
+        return f"{days}d {hours}h {minutes}m"
+    if hours:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
 
 
 def system_usage() -> dict:
@@ -15,5 +25,5 @@ def system_usage() -> dict:
         "disk_usage": disk_info.percent,
         "disk_used": disk_info.used // (1024 ** 3),
         "disk_total": disk_info.total // (1024 ** 3),
-        "uptime": str(timedelta(seconds=int(time.time() - psutil.boot_time()))),
+        "uptime": format_uptime(int(time.time() - psutil.boot_time())),
     }

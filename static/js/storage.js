@@ -2,6 +2,7 @@
     const state = {
         progressModal: null,
         renameModal: null,
+        selectedItems: [],
     };
 
     function setView(view) {
@@ -14,16 +15,53 @@
         localStorage.setItem("storageView", view);
     }
 
-    function uploadFiles(files) {
+    function describeSelection(items) {
+        const count = items.length;
+        if (count === 0) return "No file selected";
+
+        const folderNames = new Set();
+        items.forEach((item) => {
+            const file = item.file || item;
+            const relativePath = item.relativePath || file.webkitRelativePath || "";
+            const topFolder = relativePath.includes("/") ? relativePath.split("/")[0] : "";
+            if (topFolder) folderNames.add(topFolder);
+        });
+
+        if (folderNames.size === 1) return `${count} file${count === 1 ? "" : "s"} from ${Array.from(folderNames)[0]}`;
+        if (folderNames.size > 1) return `${count} files from ${folderNames.size} folders`;
+        return count === 1 ? (items[0].name || items[0].file?.name || "1 file selected") : `${count} files selected`;
+    }
+
+    function setSelectedItems(items) {
+        state.selectedItems = Array.from(items || []);
+        const fileLabel = document.getElementById("fileLabel");
+        const uploadButton = document.getElementById("uploadButton");
+        if (fileLabel) fileLabel.textContent = describeSelection(state.selectedItems);
+        if (uploadButton) uploadButton.disabled = state.selectedItems.length === 0;
+    }
+
+    function appendUploadItem(formData, item) {
+        const file = item.file || item;
+        const relativeName = item.relativePath || file.webkitRelativePath || file.name;
+        formData.append("file", file, relativeName);
+    }
+
+    function uploadFiles(items) {
         const form = document.getElementById("uploadForm");
         const progressBar = document.getElementById("progressBar");
         const progressPercentage = document.getElementById("progressPercentage");
-        if (!form || !files || files.length === 0) return;
+        const uploadButton = document.getElementById("uploadButton");
+        const uploadItems = Array.from(items || []).filter(Boolean);
+        if (!form || uploadItems.length === 0) return;
 
         const formData = new FormData();
-        Array.from(files).forEach((file) => formData.append("file", file));
+        uploadItems.forEach((item) => appendUploadItem(formData, item));
 
+        if (uploadButton) uploadButton.disabled = true;
+        if (progressBar) progressBar.style.width = "0%";
+        if (progressPercentage) progressPercentage.textContent = "0%";
         if (state.progressModal) state.progressModal.show();
+
         const xhr = new XMLHttpRequest();
         xhr.open("POST", form.action, true);
         xhr.upload.onprogress = (event) => {
@@ -35,13 +73,67 @@
         xhr.onload = () => {
             if (state.progressModal) state.progressModal.hide();
             if (xhr.status >= 200 && xhr.status < 400) window.location.reload();
-            else alert("Upload failed. Please try again.");
+            else {
+                if (uploadButton) uploadButton.disabled = false;
+                alert("Upload failed. Please try again.");
+            }
         };
         xhr.onerror = () => {
             if (state.progressModal) state.progressModal.hide();
+            if (uploadButton) uploadButton.disabled = false;
             alert("Upload failed because the connection was interrupted.");
         };
         xhr.send(formData);
+    }
+
+    function readEntry(entry, prefix = "") {
+        return new Promise((resolve) => {
+            if (!entry) {
+                resolve([]);
+                return;
+            }
+
+            if (entry.isFile) {
+                entry.file((file) => {
+                    resolve([{ file, relativePath: prefix + file.name }]);
+                }, () => resolve([]));
+                return;
+            }
+
+            if (entry.isDirectory) {
+                const reader = entry.createReader();
+                const entries = [];
+                const readBatch = () => {
+                    reader.readEntries(async (batch) => {
+                        if (!batch.length) {
+                            const nested = await Promise.all(entries.map((child) => readEntry(child, prefix + entry.name + "/")));
+                            resolve(nested.flat());
+                            return;
+                        }
+                        entries.push(...batch);
+                        readBatch();
+                    }, () => resolve([]));
+                };
+                readBatch();
+                return;
+            }
+
+            resolve([]);
+        });
+    }
+
+    async function filesFromDataTransfer(dataTransfer) {
+        const items = Array.from(dataTransfer.items || []);
+        const entries = items
+            .map((item) => (typeof item.webkitGetAsEntry === "function" ? item.webkitGetAsEntry() : null))
+            .filter(Boolean);
+
+        if (entries.length > 0) {
+            const nested = await Promise.all(entries.map((entry) => readEntry(entry)));
+            return nested.flat();
+        }
+
+        return Array.from(dataTransfer.files || []);
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -61,13 +153,19 @@
         }
 
         const fileInput = document.getElementById("fileInput");
-        const fileLabel = document.getElementById("fileLabel");
-        const uploadButton = document.getElementById("uploadButton");
+        const folderInput = document.getElementById("folderInput");
+
         if (fileInput) {
             fileInput.addEventListener("change", () => {
-                const count = fileInput.files.length;
-                if (fileLabel) fileLabel.textContent = count === 0 ? "No file selected" : count === 1 ? fileInput.files[0].name : count + " files selected";
-                if (uploadButton) uploadButton.disabled = count === 0;
+                if (folderInput) folderInput.value = "";
+                setSelectedItems(Array.from(fileInput.files || []));
+            });
+        }
+
+        if (folderInput) {
+            folderInput.addEventListener("change", () => {
+                if (fileInput) fileInput.value = "";
+                setSelectedItems(Array.from(folderInput.files || []));
             });
         }
 
@@ -75,7 +173,7 @@
         if (uploadForm) {
             uploadForm.addEventListener("submit", (event) => {
                 event.preventDefault();
-                uploadFiles(fileInput.files);
+                uploadFiles(state.selectedItems);
             });
         }
 
@@ -93,7 +191,11 @@
                     dropArea.classList.remove("dragging");
                 });
             });
-            dropArea.addEventListener("drop", (event) => uploadFiles(event.dataTransfer.files));
+            dropArea.addEventListener("drop", async (event) => {
+                const items = await filesFromDataTransfer(event.dataTransfer);
+                setSelectedItems(items);
+                uploadFiles(items);
+            });
         }
 
         document.querySelectorAll(".js-rename").forEach((button) => {

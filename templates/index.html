@@ -25,14 +25,16 @@
         <div class="drop-content">
             <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
             <div>
-                <h2>Drop files here</h2>
-                <p class="muted">or choose one or more files from your device</p>
+                <h2>Drop files or folders here</h2>
+                <p class="muted">Choose normal files, a whole folder, or drag them into this panel.</p>
             </div>
         </div>
         <div class="upload-actions">
-            <label class="btn btn-outline-primary file-picker" for="fileInput">Choose files</label>
+            <label class="btn btn-outline-primary file-picker" for="fileInput"><i class="fa-solid fa-file-arrow-up"></i> Choose files</label>
             <input type="file" id="fileInput" name="file" multiple hidden>
-            <span id="fileLabel" class="muted">No file selected</span>
+            <label class="btn btn-outline-primary file-picker" for="folderInput"><i class="fa-solid fa-folder-plus"></i> Choose folder</label>
+            <input type="file" id="folderInput" name="file" multiple webkitdirectory directory hidden>
+            <span id="fileLabel" class="muted upload-label">No file selected</span>
             <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload</button>
         </div>
     </form>

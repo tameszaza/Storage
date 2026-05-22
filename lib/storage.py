@@ -33,9 +33,31 @@ def normalize_relative_path(path: str | None) -> str:
     return "/".join(parts)
 
 
+def safe_path_part(value: str, fallback: str = "unnamed") -> str:
+    """Clean one filename or folder segment without destroying Unicode names."""
+    value = str(value or "").replace("\x00", "").replace("\\", "_").replace("/", "_").strip()
+    value = value.rstrip(".")
+    if value in {"", ".", ".."}:
+        return fallback
+    return value
+
+
 def safe_filename(filename: str) -> str:
-    filename = filename.replace("\\", "/").split("/")[-1].strip()
-    return filename or "unnamed-file"
+    filename = str(filename or "").replace("\\", "/").split("/")[-1]
+    return safe_path_part(filename, "unnamed-file")
+
+
+def safe_relative_upload_name(filename: str) -> str:
+    """Preserve safe nested folder paths from browser folder uploads."""
+    normalized = str(filename or "").replace("\\", "/").strip("/")
+    safe_parts: list[str] = []
+    for index, part in enumerate(normalized.split("/")):
+        part = part.strip()
+        if part in {"", ".", ".."}:
+            continue
+        fallback = "unnamed-file" if index == len(normalized.split("/")) - 1 else "folder"
+        safe_parts.append(safe_path_part(part, fallback))
+    return "/".join(safe_parts) if safe_parts else "unnamed-file"
 
 
 def safe_upload_path(*parts: str) -> str:

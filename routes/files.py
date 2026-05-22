@@ -15,6 +15,7 @@ from lib.storage import (
     normalize_relative_path,
     rename_path,
     safe_filename,
+    safe_relative_upload_name,
     safe_upload_path,
     upload_root,
     valid_folder_name,
@@ -70,8 +71,8 @@ def upload_file(path=""):
     for uploaded in files:
         if not uploaded or not uploaded.filename:
             continue
-        filename = safe_filename(uploaded.filename)
-        filepath = safe_upload_path(path, filename)
+        relative_name = safe_relative_upload_name(uploaded.filename)
+        filepath = safe_upload_path(path, relative_name)
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         uploaded.save(filepath)
         logging.info("File uploaded: %s", filepath)
@@ -314,6 +315,7 @@ def register_routes(app):
     app.add_url_rule("/save_file/<path:path>/<filename>", "save_file", save_file, methods=["POST"])
     app.add_url_rule("/rename_file/<filename>", "rename_file", rename_file, methods=["POST"], defaults={"path": ""})
     app.add_url_rule("/rename_file/<path:path>/<filename>", "rename_file", rename_file, methods=["POST"])
+    app.add_url_rule("/rename_folder/<foldername>", "rename_folder", rename_folder, methods=["POST"], defaults={"path": ""})
     app.add_url_rule("/rename_folder/<path:path>/<foldername>", "rename_folder", rename_folder, methods=["POST"])
     app.add_url_rule("/create_folder", "create_folder", create_folder, methods=["POST"], defaults={"path": ""})
     app.add_url_rule("/create_folder/<path:path>", "create_folder", create_folder, methods=["POST"])

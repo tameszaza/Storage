@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Duplicates · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Cleanup</p><h1>Duplicate files</h1><p class="muted">Exact duplicate detection uses SHA-256 hashes.</p></div></section>
+{% for group in groups %}<section class="glass-card duplicate-group"><p class="eyebrow">{{ group.size_label }} duplicate group</p><code>{{ group.hash }}</code><div class="file-browser browser-list mt-3">{% for file in group.files %}<article class="file-card"><a class="file-main" href="{{ url_for('preview_file', target=file.path) }}"><span class="file-icon file"><i class="fa-solid fa-file"></i></span><span class="file-title"><strong>{{ file.path }}</strong><small>{{ group.size_label }}</small></span></a></article>{% endfor %}</div></section>{% else %}<section class="empty-state glass-card"><i class="fa-solid fa-clone"></i><h2>No exact duplicates found</h2></section>{% endfor %}
+{% endblock %}

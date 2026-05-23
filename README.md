@@ -124,3 +124,40 @@ You can change their locations with:
 export SHARE_DATA_FILE=/path/to/shares.json
 export SHARE_AUDIT_FILE=/path/to/share_audit.json
 ```
+
+## Storage feature pack
+
+This build includes a larger personal-cloud feature set:
+
+- Trash bin with restore, delete forever, and empty trash.
+- Browser previews for images, video, audio, PDF, CSV, JSON, code, markdown, and text.
+- Version history for files edited in the browser or replaced by upload.
+- Tags, notes, and starred files.
+- Advanced search by name, note, tag, file kind, content, size, and modified date.
+- Exact duplicate detection using SHA-256.
+- Gallery mode for image folders.
+- Move and copy actions.
+- File requests for public upload-only links.
+- Notifications for file request uploads.
+- Activity audit log.
+- Admin backup export.
+- Admin integrity scan.
+- Per-user storage quota setting.
+- PWA manifest and service worker shell cache.
+
+Runtime metadata files created by these features:
+
+```text
+trash_index.json
+versions.json
+file_metadata.json
+activity_log.json
+notifications.json
+file_requests.json
+```
+
+The internal recovery/version storage is kept under:
+
+```text
+uploads/.tamestorage_system/
+```

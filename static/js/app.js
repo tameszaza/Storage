@@ -54,5 +54,25 @@
                 if (!window.confirm(message)) event.preventDefault();
             });
         });
+
+
+        document.querySelectorAll(".js-copy").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const value = button.dataset.copy || "";
+                if (!value) return;
+                try {
+                    await navigator.clipboard.writeText(value);
+                    const original = button.innerHTML;
+                    button.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+                    setTimeout(() => { button.innerHTML = original; }, 1400);
+                } catch (error) {
+                    window.prompt("Copy this", value);
+                }
+            });
+        });
+
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("/static/service-worker.js").catch(() => {});
+        }
     });
 })();

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Activity · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Audit log</p><h1>Activity</h1><p class="muted">Recent file, sharing, and admin activity.</p></div></section>
+<section class="glass-card table-card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>IP</th></tr></thead><tbody>{% for e in entries %}<tr><td>{{ e.time }}</td><td>{{ e.user }}</td><td><span class="mini-badge">{{ e.action }}</span></td><td>{{ e.target }}</td><td>{{ e.ip }}</td></tr>{% else %}<tr><td colspan="5" class="text-center muted py-5">No activity yet.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

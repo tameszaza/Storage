@@ -249,7 +249,21 @@
             });
         });
 
-                document.querySelectorAll(".js-rename").forEach((button) => {
+        
+
+        const moveCopyElement = document.getElementById("moveCopyModal");
+        const moveCopyModal = moveCopyElement && window.bootstrap ? new bootstrap.Modal(moveCopyElement) : null;
+        document.querySelectorAll(".js-move-copy").forEach((button) => {
+            button.addEventListener("click", () => {
+                const source = document.getElementById("moveCopySource");
+                const name = document.getElementById("newMoveName");
+                if (source) source.value = button.dataset.path || "";
+                if (name) name.value = button.dataset.name || "";
+                if (moveCopyModal) moveCopyModal.show();
+            });
+        });
+
+        document.querySelectorAll(".js-rename").forEach((button) => {
             button.addEventListener("click", () => {
                 const form = document.getElementById("renameForm");
                 const input = document.getElementById("newName");

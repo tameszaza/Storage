@@ -4,6 +4,11 @@ import shutil
 import tempfile
 from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 from lib.charts import analyze_directory_space, generate_pie_chart
+from lib.activity import log_activity
+from lib.metadata import get_metadata, move_metadata
+from lib.trash import move_to_trash
+from lib.versions import create_version, move_versions
+from lib.users import load_users
 from lib.security import login_required
 from lib.storage import (
     TEXT_PREVIEW_EXTENSIONS,
@@ -47,7 +52,14 @@ def index(path=""):
 
     search_query = request.args.get("search", "").strip() or None
     files = list_directory(path, search_query)
-    return render_template("index.html", files=files, path=path, search_query=search_query)
+    for item in files:
+        item["metadata"] = get_metadata(item.get("relative_path", ""))
+    readme_path = safe_upload_path(path, "README.md")
+    folder_readme = None
+    if os.path.isfile(readme_path):
+        with open(readme_path, "r", encoding="utf-8", errors="replace") as readme_file:
+            folder_readme = readme_file.read(4000)
+    return render_template("index.html", files=files, path=path, search_query=search_query, folder_readme=folder_readme)
 
 
 @login_required
@@ -68,14 +80,38 @@ def upload_file(path=""):
 
     current_path = safe_upload_path(path)
     os.makedirs(current_path, exist_ok=True)
+
+    username = session.get("username")
+    if username != "Admin":
+        users = load_users()
+        quota = int(users.get(username, {}).get("quota_bytes") or current_app.config.get("DEFAULT_USER_QUOTA_BYTES", 0) or 0)
+        if quota:
+            incoming = 0
+            for uploaded in files:
+                try:
+                    position = uploaded.stream.tell()
+                    uploaded.stream.seek(0, os.SEEK_END)
+                    incoming += uploaded.stream.tell()
+                    uploaded.stream.seek(position)
+                except Exception:
+                    pass
+            used = get_folder_size(safe_upload_path(username))
+            if used + incoming > quota:
+                flash("Upload blocked because it would exceed your storage quota.", "warning")
+                return redirect(url_for("index", path=path))
+
     for uploaded in files:
         if not uploaded or not uploaded.filename:
             continue
         relative_name = safe_relative_upload_name(uploaded.filename)
-        filepath = safe_upload_path(path, relative_name)
+        relative_target = normalize_relative_path(os.path.join(path, relative_name))
+        filepath = safe_upload_path(relative_target)
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            create_version(relative_target, "before upload replace")
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         uploaded.save(filepath)
         logging.info("File uploaded: %s", filepath)
+        log_activity("file.upload", relative_target)
     return redirect(url_for("index", path=path))
 
 
@@ -91,6 +127,7 @@ def download_file(path, filename):
     path = _require_path_access(path)
     filename = safe_filename(filename)
     logging.info("File downloaded: %s", os.path.join(path, filename))
+    log_activity("file.download", os.path.join(path, filename))
     return send_from_directory(safe_upload_path(path), filename, as_attachment=True)
 
 
@@ -161,15 +198,19 @@ def delete_selected():
     if not selected_files:
         return jsonify(success=False, message="No files selected."), 400
     for name in selected_files:
-        delete_path(os.path.join(current_path, safe_filename(name)))
+        target = os.path.join(current_path, safe_filename(name))
+        move_to_trash(target)
+        log_activity("file.trash", target)
     return jsonify(success=True)
 
 
 @login_required
 def delete_file(path, filename):
     path = _require_path_access(path)
-    delete_path(os.path.join(path, safe_filename(filename)))
-    logging.info("File deleted: %s", os.path.join(path, filename))
+    target = os.path.join(path, safe_filename(filename))
+    move_to_trash(target)
+    logging.info("File moved to trash: %s", target)
+    log_activity("file.trash", target)
     return redirect(url_for("index", path=path))
 
 
@@ -178,8 +219,9 @@ def delete_folder(path=""):
     path = _require_path_access(path)
     if not path:
         abort(400)
-    delete_path(path)
-    logging.info("Folder deleted: %s", path)
+    move_to_trash(path)
+    logging.info("Folder moved to trash: %s", path)
+    log_activity("folder.trash", path)
     return redirect(url_for("index", path=_parent_path(path)))
 
 
@@ -207,8 +249,10 @@ def save_file(path, filename):
     path = _require_path_access(path)
     filename = safe_filename(filename)
     file_path = safe_upload_path(path, filename)
+    create_version(os.path.join(path, filename), "before browser edit")
     with open(file_path, "w", encoding="utf-8") as file:
         file.write(request.form.get("file_content", ""))
+    log_activity("file.edit", os.path.join(path, filename))
     flash("File saved successfully.", "success")
     return redirect(url_for("index", path=path))
 
@@ -221,7 +265,12 @@ def rename_file(path, filename):
         flash("Please provide a new file name.", "warning")
         return redirect(url_for("index", path=path))
     try:
+        old_target = normalize_relative_path(os.path.join(path, filename))
+        new_target = normalize_relative_path(os.path.join(path, new_filename))
         rename_path(path, filename, new_filename)
+        move_metadata(old_target, new_target)
+        move_versions(old_target, new_target)
+        log_activity("file.rename", old_target, details={"new_path": new_target})
     except FileExistsError:
         flash("A file with that name already exists.", "warning")
     except FileNotFoundError:
@@ -237,7 +286,11 @@ def rename_folder(path, foldername):
         flash("Invalid folder name.", "warning")
         return redirect(url_for("index", path=path))
     try:
+        old_target = normalize_relative_path(os.path.join(path, foldername))
+        new_target = normalize_relative_path(os.path.join(path, new_folder_name))
         rename_path(path, foldername, new_folder_name)
+        move_metadata(old_target, new_target)
+        log_activity("folder.rename", old_target, details={"new_path": new_target})
     except FileExistsError:
         flash("A folder with that name already exists.", "warning")
     except FileNotFoundError:
@@ -254,6 +307,7 @@ def create_folder(path=""):
         return redirect(url_for("index", path=path))
     os.makedirs(safe_upload_path(path, folder_name), exist_ok=True)
     logging.info("Folder created: %s", os.path.join(path, folder_name))
+    log_activity("folder.create", os.path.join(path, folder_name))
     return redirect(url_for("index", path=path))
 
 

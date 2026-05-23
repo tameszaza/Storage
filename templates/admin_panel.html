@@ -23,12 +23,13 @@
         </div>
         <div class="table-responsive modern-table-wrap">
             <table class="table modern-table align-middle">
-                <thead><tr><th>Username</th><th>Storage used</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Username</th><th>Storage used</th><th>Quota</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
                         <td><strong>{{ user }}</strong></td>
                         <td>{{ format_bytes(user_storage[user]) if user in user_storage else '0 B' }}</td>
+                        <td><form class="quota-form" action="{{ url_for('set_user_quota', username=user) }}" method="POST"><input class="form-control form-control-sm" name="quota_gb" value="{{ ((users[user].get('quota_bytes') or 0) / 1024 / 1024 / 1024)|round(2) if users[user].get('quota_bytes') else '' }}" placeholder="Unlimited"><button class="btn btn-sm btn-outline-primary">Save</button></form></td>
                         <td>{% if users[user].get('suspended') %}<span class="badge text-bg-warning">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}</td>
                         <td class="table-actions">
                             {% if not users[user].get('suspended') %}
@@ -52,6 +53,9 @@
         <div class="action-stack">
             <a href="{{ url_for('admin_logs') }}" class="btn btn-outline-primary w-100">View server logs</a>
             <a href="{{ url_for('view_transfer_logs') }}" class="btn btn-outline-primary w-100">View transfer logs</a>
+            <a href="{{ url_for('backup_page') }}" class="btn btn-outline-primary w-100">Backup export</a>
+            <a href="{{ url_for('activity_page') }}" class="btn btn-outline-primary w-100">Activity audit</a>
+            <a href="{{ url_for('integrity_page') }}" class="btn btn-outline-primary w-100">Integrity scan</a>
             <a href="{{ url_for('view_feedback') }}" class="btn btn-outline-primary w-100">Read feedback {% if unread_count > 0 %}<span class="badge text-bg-danger ms-2">{{ unread_count }}</span>{% endif %}</a>
             <form action="{{ url_for('clear_charts') }}" method="POST" data-confirm="Clear all generated chart images?"><button class="btn btn-outline-danger w-100" type="submit">Clear charts</button></form>
         </div>

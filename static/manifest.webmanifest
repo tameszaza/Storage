@@ -1,0 +1,11 @@
+{
+  "name": "Tamestorage",
+  "short_name": "Storage",
+  "start_url": "/index",
+  "display": "standalone",
+  "background_color": "#f6f8ff",
+  "theme_color": "#5b5ce6",
+  "icons": [
+    {"src": "/static/images/logo-light.png", "sizes": "192x192", "type": "image/png"}
+  ]
+}

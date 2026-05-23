@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Metadata · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Tags and notes</p><h1>{{ target }}</h1><p class="muted">Use tags, notes, and stars to organize without moving files.</p></div></section>
+<section class="glass-card form-card"><form method="POST"><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="starred" name="starred" {% if metadata.starred %}checked{% endif %}><label class="form-check-label" for="starred">Star this item</label></div><label class="form-label">Tags</label><input class="form-control" name="tags" value="{{ (metadata.tags or [])|join(', ') }}" placeholder="physics, posn, important"><label class="form-label mt-3">Note</label><textarea class="form-control" name="note" rows="6" placeholder="Write a useful note about this file or folder">{{ metadata.note or '' }}</textarea><button class="btn btn-primary mt-4">Save metadata</button></form></section>
+{% endblock %}

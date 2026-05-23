@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Integrity · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Integrity scan</p><h1>Storage health</h1><p class="muted">Scanned {{ total }} item(s), total file size {{ total_size }}.</p></div></section>
+<section class="glass-card"><h2>Result</h2>{% if missing %}<div class="alert alert-warning">Missing records detected.</div>{% else %}<div class="alert alert-success">No missing files detected in the scan.</div>{% endif %}</section>
+{% endblock %}

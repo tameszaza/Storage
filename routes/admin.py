@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 import subprocess
-from flask import current_app, flash, jsonify, redirect, render_template, session, url_for
+from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from lib.charts import clear_charts
 from lib.feedback_store import delete_feedback as delete_feedback_item, load_feedback, mark_all_as_read
 from lib.security import admin_required
@@ -179,6 +179,23 @@ def shutdown():
     return "Server shutting down..."
 
 
+
+@admin_required
+def set_user_quota(username):
+    users = load_users()
+    if username not in users:
+        flash("User not found.", "warning")
+        return redirect(url_for("admin"))
+    quota_gb = request.form.get("quota_gb", "").strip()
+    try:
+        quota = float(quota_gb)
+    except ValueError:
+        quota = 0
+    users[username]["quota_bytes"] = int(quota * 1024 * 1024 * 1024) if quota > 0 else 0
+    save_users(users)
+    flash(f"Quota updated for {username}.", "success")
+    return redirect(url_for("admin"))
+
 def register_routes(app):
     app.add_url_rule("/admin", "admin", admin)
     app.add_url_rule("/system_usage", "system_usage", system_usage)
@@ -192,6 +209,7 @@ def register_routes(app):
     app.add_url_rule("/admin/remove/<username>", "remove_user", remove_user, methods=["POST"])
     app.add_url_rule("/admin/suspend/<username>", "suspend_user", suspend_user, methods=["POST"])
     app.add_url_rule("/admin/unsuspend/<username>", "unsuspend_user", unsuspend_user, methods=["POST"])
+    app.add_url_rule("/admin/quota/<username>", "set_user_quota", set_user_quota, methods=["POST"])
     app.add_url_rule("/admin/git_pull", "git_pull", git_pull, methods=["POST"])
     app.add_url_rule("/admin/clear_charts", "clear_charts", clear_all_charts, methods=["POST"])
     app.add_url_rule("/admin/shutdown", "shutdown", shutdown, methods=["POST"])

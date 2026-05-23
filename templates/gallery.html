@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Gallery · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Media gallery</p><h1>Images in {{ path or 'Root' }}</h1><p class="muted">Quick visual browsing for photos and screenshots.</p></div></section>
+<section class="gallery-grid">{% for image in images %}<a class="gallery-card glass-card" href="{{ url_for('preview_file', target=image.path) }}"><img src="{{ url_for('raw_file', target=image.path) }}" alt="{{ image.name }}"><strong>{{ image.name }}</strong><small>{{ image.size_label }}</small></a>{% else %}<div class="empty-state glass-card"><i class="fa-solid fa-images"></i><h2>No images here</h2></div>{% endfor %}</section>
+{% endblock %}

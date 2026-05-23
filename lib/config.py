@@ -11,3 +11,5 @@ class Config:
     DATA_TRANSFER_LOG = os.environ.get("DATA_TRANSFER_LOG", "data_transfer.log")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
     GEMINI_CONFIG_PATH = os.environ.get("GEMINI_CONFIG_PATH", os.path.join("uploads", "Admin", "config.txt"))
+    SHARE_DATA_FILE = os.environ.get("SHARE_DATA_FILE", "shares.json")
+    SHARE_AUDIT_FILE = os.environ.get("SHARE_AUDIT_FILE", "share_audit.json")

@@ -24,9 +24,14 @@
                 </span>
             </a>
 
-            <div class="topbar-actions">
+            <button id="mobileNavToggle" class="mobile-menu-button icon-button" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="topbarActions">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+
+            <div id="topbarActions" class="topbar-actions">
                 {% if session.get('logged_in') %}
                     <a class="nav-pill" href="{{ url_for('index') }}"><i class="fa-solid fa-folder-open"></i> Files</a>
+                    <a class="nav-pill" href="{{ url_for('shares_dashboard') }}"><i class="fa-solid fa-share-nodes"></i> Shares</a>
                     <a class="nav-pill" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</a>
                     <a class="nav-pill" href="{{ url_for('feedback') }}"><i class="fa-solid fa-message"></i> Feedback</a>
                     {% if session.get('username') == 'Admin' %}

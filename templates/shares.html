@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Sharing center · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card share-hero">
+    <div>
+        <p class="eyebrow">Sharing center</p>
+        <h1>Secure file sharing</h1>
+        <p class="muted">Create, copy, revoke, and audit every shared file or folder from one place.</p>
+    </div>
+    <div class="stats-grid mini">
+        <div class="stat-card"><span>{{ owned_shares|length }}</span><p>Owned shares</p></div>
+        <div class="stat-card"><span>{{ received_shares|length }}</span><p>Shared with me</p></div>
+        <div class="stat-card"><span>{{ audit|length }}</span><p>Recent events</p></div>
+    </div>
+</section>
+
+{% if created_token %}
+    {% for share in owned_shares %}
+        {% if share.token == created_token %}
+            <section class="glass-card created-share-card">
+                <div>
+                    <p class="eyebrow">New share link</p>
+                    <h2>{{ share.name }}</h2>
+                    <p class="muted">Copy this link and send it to the people who need access.</p>
+                </div>
+                <div class="copy-row">
+                    <input class="form-control js-copy-source" value="{{ share.url }}" readonly>
+                    <button class="btn btn-primary js-copy" type="button" data-copy="{{ share.url }}"><i class="fa-solid fa-copy"></i> Copy</button>
+                    <a class="btn btn-outline-primary" href="{{ share.url }}" target="_blank" rel="noopener">Open</a>
+                </div>
+            </section>
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+<section class="share-dashboard-grid">
+    <div class="glass-card share-list-card">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Owned by you</p>
+                <h2>Active sharing rules</h2>
+            </div>
+        </div>
+
+        {% if owned_shares %}
+            <div class="share-list">
+                {% for share in owned_shares %}
+                    <article class="share-row {% if not share.active %}is-inactive{% endif %}">
+                        <div class="share-row-main">
+                            <span class="file-icon {{ 'folder' if share.is_dir else 'file' }}">
+                                <i class="fa-solid {{ 'fa-folder' if share.is_dir else 'fa-file' }}"></i>
+                            </span>
+                            <div>
+                                <h3>{{ share.name }}</h3>
+                                <p class="muted">{{ share.path }} · {{ share.permission_label }} · {{ share.access_mode }}</p>
+                                <div class="share-tags">
+                                    <span class="status-pill {{ 'success' if share.active else 'danger' }}">{{ share.status_text }}</span>
+                                    {% if share.password_hash %}<span class="status-pill">Password</span>{% endif %}
+                                    {% if share.expires_at %}<span class="status-pill">Expires {{ share.expires_at }}</span>{% endif %}
+                                    {% if share.max_downloads %}<span class="status-pill">{{ share.download_count }}/{{ share.max_downloads }} downloads</span>{% else %}<span class="status-pill">{{ share.download_count }} downloads</span>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="share-row-actions">
+                            <button class="btn btn-sm btn-primary js-copy" type="button" data-copy="{{ share.url }}"><i class="fa-solid fa-copy"></i> Copy</button>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ share.url }}" target="_blank" rel="noopener">Open</a>
+                            {% if not share.revoked %}
+                                <form action="{{ url_for('revoke_share_route', token=share.token) }}" method="POST" data-confirm="Revoke this share link?">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button>
+                                </form>
+                            {% endif %}
+                            <form action="{{ url_for('delete_share_route', token=share.token) }}" method="POST" data-confirm="Delete this share record?">
+                                <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state compact">
+                <i class="fa-solid fa-share-nodes"></i>
+                <h3>No shares yet</h3>
+                <p class="muted">Open Files, press the share icon on a file or folder, then create a secure link.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <aside class="glass-card share-side-card">
+        <p class="eyebrow">Permission presets</p>
+        <div class="preset-list">
+            {% for key, preset in permission_presets.items() %}
+                <div class="preset-item">
+                    <strong>{{ preset.label }}</strong>
+                    <small>{{ preset.description }}</small>
+                </div>
+            {% endfor %}
+        </div>
+    </aside>
+</section>
+
+<section class="share-dashboard-grid secondary">
+    <div class="glass-card share-list-card">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Incoming</p>
+                <h2>Shared with me</h2>
+            </div>
+        </div>
+        {% if received_shares %}
+            <div class="share-list">
+                {% for share in received_shares %}
+                    <article class="share-row">
+                        <div class="share-row-main">
+                            <span class="file-icon {{ 'folder' if share.is_dir else 'file' }}"><i class="fa-solid {{ 'fa-folder' if share.is_dir else 'fa-file' }}"></i></span>
+                            <div>
+                                <h3>{{ share.name }}</h3>
+                                <p class="muted">Owner: {{ share.owner }} · {{ share.permission_label }}</p>
+                            </div>
+                        </div>
+                        <a class="btn btn-sm btn-primary" href="{{ share.url }}">Open</a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">Nothing has been shared directly with your account yet.</p>
+        {% endif %}
+    </div>
+
+    <aside class="glass-card audit-card">
+        <p class="eyebrow">Audit log</p>
+        <h2>Recent share activity</h2>
+        {% if audit %}
+            <div class="audit-list">
+                {% for item in audit %}
+                    <div class="audit-item">
+                        <strong>{{ item.action }}</strong>
+                        <span>{{ item.actor }} · {{ item.time }}</span>
+                        {% if item.detail %}<small>{{ item.detail }}</small>{% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">Share events will appear here.</p>
+        {% endif %}
+    </aside>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/storage.js') }}"></script>
+{% endblock %}

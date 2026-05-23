@@ -198,7 +198,58 @@
             });
         }
 
-        document.querySelectorAll(".js-rename").forEach((button) => {
+
+        const shareElement = document.getElementById("shareModal");
+        const shareModal = shareElement && window.bootstrap ? new bootstrap.Modal(shareElement) : null;
+        const shareAccessMode = document.getElementById("shareAccessMode");
+        const shareRestrictedField = document.querySelector(".share-restricted-field");
+
+        const updateRestrictedField = () => {
+            if (!shareRestrictedField || !shareAccessMode) return;
+            shareRestrictedField.style.display = shareAccessMode.value === "restricted" ? "block" : "none";
+        };
+
+        if (shareAccessMode) {
+            shareAccessMode.addEventListener("change", updateRestrictedField);
+            updateRestrictedField();
+        }
+
+        document.querySelectorAll(".js-share").forEach((button) => {
+            button.addEventListener("click", () => {
+                const targetPath = document.getElementById("shareTargetPath");
+                const targetName = document.getElementById("shareTargetName");
+                const pathLabel = document.getElementById("shareTargetPathLabel");
+                const title = document.getElementById("shareTitle");
+                const icon = document.getElementById("shareTargetIcon");
+                const permission = document.getElementById("sharePermission");
+                const kind = button.dataset.kind || "file";
+
+                if (targetPath) targetPath.value = button.dataset.path || "";
+                if (targetName) targetName.textContent = button.dataset.name || "Selected item";
+                if (pathLabel) pathLabel.textContent = button.dataset.path || "";
+                if (title) title.textContent = `Share ${button.dataset.name || "item"}`;
+                if (icon) icon.className = kind === "folder" ? "fa-solid fa-folder" : "fa-solid fa-file";
+                if (permission && kind !== "folder" && ["upload", "manage"].includes(permission.value)) permission.value = "download";
+                if (shareModal) shareModal.show();
+            });
+        });
+
+        document.querySelectorAll(".js-copy").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const value = button.dataset.copy || "";
+                if (!value) return;
+                try {
+                    await navigator.clipboard.writeText(value);
+                    const oldText = button.innerHTML;
+                    button.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
+                    setTimeout(() => { button.innerHTML = oldText; }, 1600);
+                } catch (error) {
+                    window.prompt("Copy this link", value);
+                }
+            });
+        });
+
+                document.querySelectorAll(".js-rename").forEach((button) => {
             button.addEventListener("click", () => {
                 const form = document.getElementById("renameForm");
                 const input = document.getElementById("newName");

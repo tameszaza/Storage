@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Shared access · Tamestorage{% endblock %}
+{% block content %}
+<section class="shared-public-shell glass-card">
+    <div class="shared-public-icon"><i class="fa-solid fa-lock"></i></div>
+    <p class="eyebrow">Shared access</p>
+    <h1>{{ share.name }}</h1>
+    <p class="muted">{{ message }}</p>
+
+    {% if password_required %}
+        <form class="shared-password-form" action="{{ url_for('shared_password', token=share.token) }}" method="POST">
+            <label class="form-label" for="sharePasswordInput">Enter share password</label>
+            <div class="copy-row">
+                <input id="sharePasswordInput" class="form-control" type="password" name="password" required autofocus>
+                <button class="btn btn-primary" type="submit">Unlock</button>
+            </div>
+        </form>
+    {% else %}
+        {% if not session.get('logged_in') %}
+            <a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>
+        {% endif %}
+    {% endif %}
+</section>
+{% endblock %}

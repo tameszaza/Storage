@@ -116,12 +116,14 @@
                         <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
                     </form>
                     <button class="btn btn-sm btn-light js-rename" type="button" data-action="{{ url_for('rename_folder', path=path, foldername=file.name) }}" data-name="{{ file.name }}" data-type="folder"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-sm btn-light js-share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="folder"><i class="fa-solid fa-share-nodes"></i></button>
                 {% else %}
                     <a class="btn btn-sm btn-light" href="{{ url_for('download_file', path=path, filename=file.name) }}"><i class="fa-solid fa-download"></i></a>
                     <form action="{{ url_for('delete_file', path=path, filename=file.name) }}" method="POST" data-confirm="Delete file {{ file.name }}?">
                         <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
                     </form>
                     <button class="btn btn-sm btn-light js-rename" type="button" data-action="{{ url_for('rename_file', path=path, filename=file.name) }}" data-name="{{ file.name }}" data-type="file"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-sm btn-light js-share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="file"><i class="fa-solid fa-share-nodes"></i></button>
                 {% endif %}
             </div>
         </article>
@@ -158,6 +160,83 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Rename</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="shareModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow mb-1">Access control</p>
+                    <h5 class="modal-title" id="shareTitle">Share item</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('create_share_route') }}" method="POST">
+                <div class="modal-body share-modal-grid">
+                    <input id="shareTargetPath" type="hidden" name="target_path">
+
+                    <div class="share-target-card">
+                        <span class="file-icon folder"><i id="shareTargetIcon" class="fa-solid fa-folder"></i></span>
+                        <div>
+                            <strong id="shareTargetName">Selected item</strong>
+                            <small id="shareTargetPathLabel">Path</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="sharePermission">Permission preset</label>
+                        <select id="sharePermission" name="permission" class="form-select">
+                            <option value="view">View only</option>
+                            <option value="download" selected>View and download</option>
+                            <option value="upload">Folder drop box</option>
+                            <option value="edit">Editor</option>
+                            <option value="manage">Full control</option>
+                        </select>
+                        <small class="muted">Use full control only for people you trust.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="shareAccessMode">Who can open it?</label>
+                        <select id="shareAccessMode" name="access_mode" class="form-select">
+                            <option value="link" selected>Anyone with the link</option>
+                            <option value="restricted">Only specific Tamestorage users</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group share-restricted-field">
+                        <label class="form-label" for="shareAllowedUsers">Allowed usernames</label>
+                        <input id="shareAllowedUsers" class="form-control" name="allowed_users" placeholder="Admin, Tames, family_user">
+                        <small class="muted">Comma separated. Owner and Admin always keep access.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="sharePassword">Password protection</label>
+                        <input id="sharePassword" class="form-control" type="password" name="password" placeholder="Optional password">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="shareExpiresAt">Expire at</label>
+                        <input id="shareExpiresAt" class="form-control" type="datetime-local" name="expires_at">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="shareMaxDownloads">Max downloads</label>
+                        <input id="shareMaxDownloads" class="form-control" type="number" min="1" name="max_downloads" placeholder="Unlimited">
+                    </div>
+
+                    <div class="form-group share-note-field">
+                        <label class="form-label" for="shareNote">Note</label>
+                        <textarea id="shareNote" class="form-control" name="note" rows="2" placeholder="Optional note for yourself"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-link"></i> Create secure link</button>
                 </div>
             </form>
         </div>

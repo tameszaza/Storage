@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Shared {{ share.name }} · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card share-hero">
+    <div>
+        <p class="eyebrow">Shared {{ 'folder' if share.is_dir else 'file' }}</p>
+        <h1>{{ share.name }}</h1>
+        <p class="muted">Shared by {{ share.owner }}{% if share.note %} · {{ share.note }}{% endif %}</p>
+        <div class="share-tags mt-2">
+            <span class="status-pill">{{ share.permission }}</span>
+            {% if share.password_hash %}<span class="status-pill">Password protected</span>{% endif %}
+            {% if share.expires_at %}<span class="status-pill">Expires {{ share.expires_at }}</span>{% endif %}
+            {% if share.max_downloads %}<span class="status-pill">{{ share.download_count }}/{{ share.max_downloads }} downloads</span>{% endif %}
+        </div>
+    </div>
+    <div class="share-open-actions">
+        <button class="btn btn-outline-primary js-copy" type="button" data-copy="{{ share_url }}"><i class="fa-solid fa-copy"></i> Copy link</button>
+        {% if permissions.can_download %}
+            <a class="btn btn-primary" href="{{ url_for('shared_download_root', token=share.token) if not subpath else url_for('shared_download', token=share.token, item_path=subpath) }}"><i class="fa-solid fa-download"></i> Download</a>
+        {% endif %}
+    </div>
+</section>
+
+{% if share.is_dir and permissions.can_upload and not is_file %}
+<section id="dropArea" class="upload-panel glass-card shared-upload-panel">
+    <form id="uploadForm" action="{{ url_for('shared_upload', token=share.token) if not subpath else url_for('shared_upload_path', token=share.token, subpath=subpath) }}" method="POST" enctype="multipart/form-data">
+        <div class="drop-content">
+            <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div>
+                <h2>Upload into this shared folder</h2>
+                <p class="muted">Drop files here or choose files from your device.</p>
+            </div>
+        </div>
+        <div class="upload-actions">
+            <label class="btn btn-outline-primary file-picker" for="fileInput"><i class="fa-solid fa-file-arrow-up"></i> Choose files</label>
+            <input type="file" id="fileInput" name="file" multiple hidden>
+            <label class="btn btn-outline-primary file-picker" for="folderInput"><i class="fa-solid fa-folder-plus"></i> Choose folder</label>
+            <input type="file" id="folderInput" name="file" multiple webkitdirectory directory hidden>
+            <span id="fileLabel" class="muted upload-label">No file selected</span>
+            <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload</button>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+{% if is_file %}
+    <section class="glass-card shared-file-preview">
+        <div class="file-preview-heading">
+            <span class="file-icon {{ item.kind }}"><i class="fa-solid fa-file"></i></span>
+            <div>
+                <h2>{{ item.name }}</h2>
+                <p class="muted">{{ item.size_label }} · {{ item.mod_time }}</p>
+            </div>
+        </div>
+
+        {% if item.kind == 'image' %}
+            <img class="shared-large-preview" src="{{ url_for('shared_raw_root', token=share.token) }}" alt="{{ item.name }}">
+        {% elif item.kind == 'video' %}
+            <video class="shared-large-preview" src="{{ url_for('shared_raw_root', token=share.token) }}" controls></video>
+        {% elif item.kind == 'pdf' %}
+            <iframe class="shared-document-frame" src="{{ url_for('shared_raw_root', token=share.token) }}"></iframe>
+        {% elif item.kind == 'text' and item.content %}
+            <pre class="shared-text-preview">{{ item.content }}</pre>
+        {% else %}
+            <p class="muted">Preview is not available for this file type.</p>
+        {% endif %}
+
+        <div class="bottom-actions compact-actions">
+            {% if permissions.can_download %}<a class="btn btn-primary" href="{{ url_for('shared_download_root', token=share.token) }}">Download file</a>{% endif %}
+            {% if permissions.can_edit and item.kind == 'text' %}<a class="btn btn-outline-primary" href="{{ url_for('shared_edit_root', token=share.token) }}">Edit text</a>{% endif %}
+        </div>
+    </section>
+{% else %}
+    <section class="toolbar glass-card shared-path-bar">
+        <div class="breadcrumb-line">
+            <a href="{{ url_for('shared_view', token=share.token) }}">{{ share.name }}</a>
+            {% if subpath %}<span>/ {{ subpath }}</span>{% endif %}
+        </div>
+        {% if subpath %}<a class="btn btn-outline-primary" href="{{ url_for('shared_view_path', token=share.token, subpath=parent_subpath) if parent_subpath else url_for('shared_view', token=share.token) }}">Go back</a>{% endif %}
+    </section>
+
+    <section id="fileBrowser" class="file-browser browser-grid shared-browser">
+        {% for file in files %}
+            {% set item_path = subpath + '/' + file.name if subpath else file.name %}
+            <article class="file-card" data-kind="{{ file.kind }}">
+                {% if file.is_dir %}
+                    <a class="file-main" href="{{ url_for('shared_view_path', token=share.token, subpath=item_path) }}">
+                        <span class="file-icon folder"><i class="fa-solid fa-folder"></i></span>
+                        <span class="file-title"><strong>{{ file.name }}/</strong><small>{{ file.size_label }} · {{ file.mod_time }}</small></span>
+                    </a>
+                {% else %}
+                    <a class="file-main" href="{{ url_for('shared_raw', token=share.token, item_path=item_path) }}" target="_blank" rel="noopener">
+                        <span class="file-icon {{ file.kind }}"><i class="fa-solid fa-file"></i></span>
+                        <span class="file-title"><strong>{{ file.name }}</strong><small>{{ file.size_label }} · {{ file.mod_time }}</small></span>
+                    </a>
+                    {% if file.kind == 'image' %}<a href="{{ url_for('shared_raw', token=share.token, item_path=item_path) }}" class="preview-box"><img src="{{ url_for('shared_raw', token=share.token, item_path=item_path) }}" alt="{{ file.name }}"></a>{% endif %}
+                    {% if file.kind == 'text' and file.content %}<a href="{{ url_for('shared_raw', token=share.token, item_path=item_path) }}" class="preview-box text-preview"><pre>{{ file.content }}</pre></a>{% endif %}
+                {% endif %}
+
+                <div class="file-actions">
+                    {% if permissions.can_download %}<a class="btn btn-sm btn-light" href="{{ url_for('shared_download', token=share.token, item_path=item_path) }}"><i class="fa-solid fa-download"></i></a>{% endif %}
+                    {% if permissions.can_edit and not file.is_dir and file.kind == 'text' %}<a class="btn btn-sm btn-light" href="{{ url_for('shared_edit', token=share.token, item_path=item_path) }}"><i class="fa-solid fa-pen"></i></a>{% endif %}
+                    {% if permissions.can_delete %}
+                        <form action="{{ url_for('shared_delete', token=share.token, item_path=item_path) }}" method="POST" data-confirm="Delete this shared item?">
+                            <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    {% endif %}
+                </div>
+            </article>
+        {% else %}
+            <div class="empty-state glass-card">
+                <i class="fa-regular fa-folder-open"></i>
+                <h2>This shared folder is empty</h2>
+                <p class="muted">No files are available here yet.</p>
+            </div>
+        {% endfor %}
+    </section>
+{% endif %}
+
+<div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Uploading files</h5></div>
+            <div class="modal-body">
+                <div class="progress"><div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div></div>
+                <p id="progressPercentage" class="text-center mt-3 mb-0">0%</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/storage.js') }}"></script>
+{% endblock %}

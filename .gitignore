@@ -3,4 +3,7 @@ server.log
 users.json
 data_transfer.log
 feedback.json
-*__pycache__/
+shares.json
+share_audit.json
+*__pycache__/*
+*.pyc

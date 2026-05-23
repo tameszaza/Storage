@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Edit shared file · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card">
+    <div>
+        <p class="eyebrow">Shared editor</p>
+        <h1>Edit text file</h1>
+        <p class="muted">{{ item_path or share.name }}</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('shared_view', token=share.token) }}">Back to share</a>
+</section>
+
+<section class="glass-card editor-card">
+    <form method="POST">
+        <textarea class="code-editor" name="file_content" spellcheck="false">{{ content }}</textarea>
+        <div class="bottom-actions compact-actions">
+            <button class="btn btn-primary" type="submit">Save changes</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('shared_view', token=share.token) }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

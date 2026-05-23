@@ -40,7 +40,7 @@
             }
 
             window.addEventListener("resize", () => {
-                if (window.innerWidth > 720) setMobileMenu(false);
+                if (window.innerWidth > 860) setMobileMenu(false);
             });
 
             document.addEventListener("keydown", (event) => {
@@ -54,7 +54,6 @@
                 if (!window.confirm(message)) event.preventDefault();
             });
         });
-
 
         document.querySelectorAll(".js-copy").forEach((button) => {
             button.addEventListener("click", async () => {

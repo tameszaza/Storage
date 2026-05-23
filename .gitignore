@@ -5,5 +5,5 @@ data_transfer.log
 feedback.json
 shares.json
 share_audit.json
-*__pycache__/*
+__pycache__/
 *.pyc

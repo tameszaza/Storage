@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Upload request · Tamestorage{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header request-hero">
-    <div>
-        <p class="eyebrow">File request</p>
-        <h1>{{ item.title }}</h1>
-        <p class="muted">Upload files to <strong>{{ item.destination }}</strong>.</p>
-    </div>
-</section>
+<div class="page-narrow">
+    <section class="workspace-header glass-card compact-header request-hero clean-hero">
+        <div>
+            <p class="eyebrow">File request</p>
+            <h1>{{ item.title }}</h1>
+            <p class="muted">Upload files to <strong>{{ item.destination }}</strong>. Normal files and full folders are both supported.</p>
+        </div>
+    </section>
 
-<section class="glass-card form-card request-upload-card">
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-    {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
+    <section class="glass-card form-card request-upload-card clean-form-card">
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+        {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
 
-    <form id="requestUploadForm" method="POST" enctype="multipart/form-data">
-        <div class="request-form-grid">
+        <form id="requestUploadForm" method="POST" enctype="multipart/form-data">
             <div class="form-group request-password-field">
                 <label class="form-label" for="requestPassword">Password, if required</label>
                 <input id="requestPassword" class="form-control" name="password" type="password" placeholder="Leave blank if this request has no password">
             </div>
 
-            <div class="request-picker-panel">
+            <div id="requestDropZone" class="request-picker-panel request-drop-zone">
                 <div class="request-picker-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                 <div class="request-picker-copy">
                     <h2>Choose what to upload</h2>
-                    <p class="muted">Use normal files for documents and photos. Use folder upload only when you really want to submit a whole folder tree.</p>
+                    <p class="muted">Drag files here, choose normal files for documents/photos, or choose folder when you need to submit a whole folder tree.</p>
                 </div>
 
                 <input id="requestFileInput" name="file" type="file" multiple hidden>
@@ -36,43 +36,85 @@
                     <span id="requestFileLabel" class="request-file-label muted">No files selected</span>
                 </div>
             </div>
-        </div>
 
-        <div class="request-upload-footer">
-            <button id="requestUploadButton" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-upload"></i> Upload selected files</button>
-        </div>
-    </form>
-</section>
+            <div class="request-upload-footer">
+                <button id="requestUploadButton" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-upload"></i> Upload selected files</button>
+            </div>
+        </form>
+    </section>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
+    const form = document.getElementById("requestUploadForm");
     const fileInput = document.getElementById("requestFileInput");
     const folderInput = document.getElementById("requestFolderInput");
     const label = document.getElementById("requestFileLabel");
     const uploadButton = document.getElementById("requestUploadButton");
+    const dropZone = document.getElementById("requestDropZone");
+    let droppedFiles = [];
 
-    function describeFiles(input, mode) {
-        const count = input.files ? input.files.length : 0;
+    function describeFiles(files, mode) {
+        const count = files ? files.length : 0;
         if (!count) {
             label.textContent = "No files selected";
             uploadButton.disabled = true;
             return;
         }
-        const firstName = input.files[0].webkitRelativePath || input.files[0].name;
+        const first = files[0];
+        const firstName = first.webkitRelativePath || first.relativePath || first.name || "selected file";
         label.textContent = count === 1 ? firstName : `${count} ${mode} selected`;
         uploadButton.disabled = false;
     }
 
+    function resetDroppedFiles() {
+        droppedFiles = [];
+    }
+
     fileInput?.addEventListener("change", () => {
         if (fileInput.files.length) folderInput.value = "";
-        describeFiles(fileInput, "files");
+        resetDroppedFiles();
+        describeFiles(Array.from(fileInput.files || []), "files");
     });
 
     folderInput?.addEventListener("change", () => {
         if (folderInput.files.length) fileInput.value = "";
-        describeFiles(folderInput, "folder files");
+        resetDroppedFiles();
+        describeFiles(Array.from(folderInput.files || []), "folder files");
+    });
+
+    dropZone?.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragging");
+    });
+    dropZone?.addEventListener("dragleave", () => dropZone.classList.remove("dragging"));
+    dropZone?.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragging");
+        fileInput.value = "";
+        folderInput.value = "";
+        droppedFiles = Array.from(event.dataTransfer.files || []);
+        describeFiles(droppedFiles, "dropped files");
+    });
+
+    form?.addEventListener("submit", (event) => {
+        if (!droppedFiles.length) return;
+        event.preventDefault();
+        const data = new FormData(form);
+        data.delete("file");
+        droppedFiles.forEach((file) => data.append("file", file, file.webkitRelativePath || file.name));
+        uploadButton.disabled = true;
+        uploadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading';
+        fetch(form.action || window.location.href, { method: "POST", body: data })
+            .then((response) => response.text())
+            .then((html) => { document.open(); document.write(html); document.close(); })
+            .catch(() => {
+                uploadButton.disabled = false;
+                uploadButton.innerHTML = '<i class="fa-solid fa-upload"></i> Upload selected files';
+                alert("Upload failed. Please try again.");
+            });
     });
 })();
 </script>

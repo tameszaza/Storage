@@ -33,15 +33,27 @@
                 {% if session.get('logged_in') %}
                     <a class="nav-pill" href="{{ url_for('index') }}"><i class="fa-solid fa-folder-open"></i> Files</a>
                     <a class="nav-pill" href="{{ url_for('shares_dashboard') }}"><i class="fa-solid fa-share-nodes"></i> Shares</a>
-                    <a class="nav-pill" href="{{ url_for('advanced_search') }}"><i class="fa-solid fa-magnifying-glass"></i> Search</a>
-                    <a class="nav-pill" href="{{ url_for('trash_page') }}"><i class="fa-solid fa-trash-can"></i> Trash</a>
                     <a class="nav-pill" href="{{ url_for('file_requests_page') }}"><i class="fa-solid fa-inbox"></i> Requests</a>
                     <a class="nav-pill" href="{{ url_for('notifications_page') }}"><i class="fa-solid fa-bell"></i> Alerts</a>
-                    <a class="nav-pill" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</a>
-                    <a class="nav-pill" href="{{ url_for('feedback') }}"><i class="fa-solid fa-message"></i> Feedback</a>
-                    {% if session.get('username') == 'Admin' %}
-                        <a class="nav-pill" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i> Admin</a>
-                    {% endif %}
+                    <div class="dropdown topbar-more">
+                        <button class="nav-pill more-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open more navigation">
+                            <i class="fa-solid fa-bars"></i> More
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end nav-more-menu">
+                            <a class="dropdown-item" href="{{ url_for('advanced_search') }}"><i class="fa-solid fa-magnifying-glass"></i><span>Advanced search</span></a>
+                            <a class="dropdown-item" href="{{ url_for('starred_files') }}"><i class="fa-solid fa-star"></i><span>Starred files</span></a>
+                            <a class="dropdown-item" href="{{ url_for('trash_page') }}"><i class="fa-solid fa-trash-can"></i><span>Trash</span></a>
+                            <a class="dropdown-item" href="{{ url_for('duplicates_page') }}"><i class="fa-solid fa-clone"></i><span>Duplicates</span></a>
+                            <a class="dropdown-item" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
+                            <a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fa-solid fa-message"></i><span>Feedback</span></a>
+                            {% if session.get('username') == 'Admin' %}
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>
+                                <a class="dropdown-item" href="{{ url_for('activity_page') }}"><i class="fa-solid fa-clock-rotate-left"></i><span>Activity log</span></a>
+                                <a class="dropdown-item" href="{{ url_for('backup_page') }}"><i class="fa-solid fa-box-archive"></i><span>Backup</span></a>
+                            {% endif %}
+                        </div>
+                    </div>
                     <a class="nav-pill danger" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
                 {% else %}
                     <a class="nav-pill" href="{{ url_for('introduction') }}">About</a>

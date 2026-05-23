@@ -8,12 +8,12 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from flask import abort, after_this_request, current_app, flash, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from lib.activity import list_activity, log_activity
 from lib.backup import create_backup_zip
 from lib.file_requests import create_request, get_request, is_expired, list_requests, update_request
-from lib.metadata import all_metadata, get_metadata, set_metadata
+from lib.metadata import all_metadata, get_metadata, move_metadata, set_metadata
 from lib.notifications import list_notifications, mark_read, notify, unread_count
 from lib.search_index import duplicate_groups, search_files
 from lib.security import admin_required, login_required
@@ -31,7 +31,7 @@ from lib.storage import (
     visible_path_for_user,
 )
 from lib.trash import delete_forever, empty_trash, list_trash, restore
-from lib.versions import get_version, list_versions, restore_version, version_file_path
+from lib.versions import get_version, list_versions, move_versions, restore_version, version_file_path
 
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".flac"}
 
@@ -155,6 +155,16 @@ def metadata_page():
 
 
 @login_required
+def toggle_star_route():
+    target = _target_from_request()
+    meta = get_metadata(target)
+    new_state = not bool(meta.get("starred"))
+    updated = set_metadata(target, starred=new_state)
+    log_activity("metadata.star", target, details={"starred": new_state})
+    return jsonify(success=True, starred=bool(updated.get("starred")))
+
+
+@login_required
 def advanced_search():
     username = session.get("username")
     base = "" if username == "Admin" else username
@@ -191,30 +201,91 @@ def duplicates_page():
 
 @login_required
 def move_copy_item():
-    source = _require_access(request.form.get("source_path", ""))
-    destination_folder = visible_path_for_user(request.form.get("destination_folder", ""), session.get("username"))
-    operation = request.form.get("operation", "move")
-    source_absolute = safe_upload_path(source)
-    if not os.path.exists(source_absolute):
-        abort(404)
-    filename = safe_path_part(request.form.get("new_name") or os.path.basename(source))
-    dest_absolute = safe_upload_path(destination_folder, filename)
-    if os.path.exists(dest_absolute):
-        flash("Destination already exists.", "warning")
-        return redirect(url_for("index", path=os.path.dirname(source)))
-    os.makedirs(os.path.dirname(dest_absolute), exist_ok=True)
-    if operation == "copy":
-        if os.path.isdir(source_absolute):
-            shutil.copytree(source_absolute, dest_absolute)
-        else:
-            shutil.copy2(source_absolute, dest_absolute)
-        log_activity("file.copy", source, details={"destination": normalize_relative_path(os.path.join(destination_folder, filename))})
-    else:
-        shutil.move(source_absolute, dest_absolute)
-        log_activity("file.move", source, details={"destination": normalize_relative_path(os.path.join(destination_folder, filename))})
-    flash("File operation completed.", "success")
-    return redirect(url_for("index", path=destination_folder))
+    is_json = request.is_json
+    payload = request.get_json(silent=True) if is_json else None
+    payload = payload or {}
 
+    if is_json:
+        raw_sources = payload.get("source_paths") or payload.get("selected_paths") or []
+        if isinstance(raw_sources, str):
+            raw_sources = [raw_sources]
+        source_path = payload.get("source_path")
+        if source_path:
+            raw_sources.insert(0, source_path)
+        destination_raw = payload.get("destination_folder", "")
+        operation = payload.get("operation", "move")
+        new_name = payload.get("new_name", "")
+    else:
+        raw_sources = request.form.getlist("source_paths") or request.form.getlist("selected_paths")
+        source_path = request.form.get("source_path")
+        if source_path:
+            raw_sources.insert(0, source_path)
+        destination_raw = request.form.get("destination_folder", "")
+        operation = request.form.get("operation", "move")
+        new_name = request.form.get("new_name", "")
+
+    sources = []
+    for value in raw_sources:
+        value = normalize_relative_path(value)
+        if value and value not in sources:
+            sources.append(_require_access(value))
+
+    def finish(success: bool, message: str, status: int = 200, redirect_path: str | None = None):
+        if is_json:
+            return jsonify(success=success, message=message), status
+        flash(message, "success" if success else "warning")
+        return redirect(url_for("index", path=redirect_path or destination_folder))
+
+    destination_folder = visible_path_for_user(destination_raw, session.get("username"))
+    destination_folder = normalize_relative_path(destination_folder)
+    operation = "copy" if operation == "copy" else "move"
+
+    if not sources:
+        return finish(False, "No source item selected.", 400, getattr(request, "referrer", None) or "")
+
+    destination_folder_abs = safe_upload_path(destination_folder)
+    os.makedirs(destination_folder_abs, exist_ok=True)
+    if not os.path.isdir(destination_folder_abs):
+        return finish(False, "Destination is not a folder.", 400, os.path.dirname(sources[0]))
+
+    completed = 0
+    for index, source in enumerate(sources):
+        source_absolute = safe_upload_path(source)
+        if not os.path.exists(source_absolute):
+            return finish(False, f"Source does not exist: {source}", 404, os.path.dirname(source))
+
+        filename = safe_path_part(new_name or os.path.basename(source)) if len(sources) == 1 else safe_path_part(os.path.basename(source))
+        destination = normalize_relative_path(os.path.join(destination_folder, filename))
+        dest_absolute = safe_upload_path(destination)
+
+        if normalize_relative_path(source) == destination:
+            return finish(False, "Source and destination are the same.", 400, os.path.dirname(source))
+
+        if operation == "move" and os.path.isdir(source_absolute):
+            source_prefix = normalize_relative_path(source).rstrip("/") + "/"
+            destination_prefix = destination.rstrip("/") + "/"
+            if destination_prefix.startswith(source_prefix):
+                return finish(False, "A folder cannot be moved inside itself.", 400, os.path.dirname(source))
+
+        if os.path.exists(dest_absolute):
+            return finish(False, f"Destination already exists: {destination}", 409, destination_folder)
+
+        os.makedirs(os.path.dirname(dest_absolute), exist_ok=True)
+        if operation == "copy":
+            if os.path.isdir(source_absolute):
+                shutil.copytree(source_absolute, dest_absolute)
+            else:
+                shutil.copy2(source_absolute, dest_absolute)
+            log_activity("file.copy", source, details={"destination": destination})
+        else:
+            shutil.move(source_absolute, dest_absolute)
+            move_metadata(source, destination)
+            move_versions(source, destination)
+            log_activity("file.move", source, details={"destination": destination})
+        completed += 1
+
+    action = "Copied" if operation == "copy" else "Moved"
+    return finish(True, f"{action} {completed} item(s).", 200, destination_folder)
 
 @login_required
 def gallery_page():
@@ -324,6 +395,7 @@ def register_routes(app):
     app.add_url_rule("/versions/download/<version_id>", "download_version", download_version)
     app.add_url_rule("/versions/restore/<version_id>", "restore_version_route", restore_version_route, methods=["POST"])
     app.add_url_rule("/metadata", "metadata_page", metadata_page, methods=["GET", "POST"])
+    app.add_url_rule("/metadata/toggle-star", "toggle_star_route", toggle_star_route, methods=["POST"])
     app.add_url_rule("/search", "advanced_search", advanced_search)
     app.add_url_rule("/starred", "starred_files", starred_files)
     app.add_url_rule("/duplicates", "duplicates_page", duplicates_page)

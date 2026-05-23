@@ -1,34 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Preview · Tamestorage{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header">
-    <div>
-        <p class="eyebrow">Preview</p>
-        <h1>{{ name }}</h1>
-        <div class="breadcrumb-line"><span>{{ target }}</span></div>
-    </div>
-    <div class="header-actions">
-        <a class="btn btn-outline-primary" href="{{ url_for('raw_file', target=target) }}"><i class="fa-solid fa-up-right-from-square"></i> Open raw</a>
-        {% if '/' in target %}<a class="btn btn-primary" href="{{ url_for('download_file', path='/'.join(target.split('/')[:-1]), filename=name) }}"><i class="fa-solid fa-download"></i> Download</a>{% else %}<a class="btn btn-primary" href="{{ url_for('download_file', filename=name) }}"><i class="fa-solid fa-download"></i> Download</a>{% endif %}
-    </div>
-</section>
-<section class="glass-card preview-shell">
-    {% if image %}
-        <img class="full-preview-image" src="{{ url_for('raw_file', target=target) }}" alt="{{ name }}">
-    {% elif video %}
-        <video class="full-preview-video" src="{{ url_for('raw_file', target=target) }}" controls></video>
-    {% elif audio %}
-        <audio class="full-preview-audio" src="{{ url_for('raw_file', target=target) }}" controls></audio>
-    {% elif ext == '.pdf' %}
-        <iframe class="pdf-preview" src="{{ url_for('raw_file', target=target) }}"></iframe>
-    {% elif rows %}
-        <div class="table-responsive"><table class="table data-table"><tbody>{% for row in rows %}<tr>{% for col in row %}<td>{{ col }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-    {% elif json_text %}
-        <pre class="code-preview">{{ json_text }}</pre>
-    {% elif content is not none %}
-        <pre class="code-preview">{{ content }}</pre>
-    {% else %}
-        <div class="empty-state"><i class="fa-solid fa-file"></i><h2>No browser preview for this file type</h2><p class="muted">Download the file or open it raw.</p></div>
-    {% endif %}
-</section>
+<div class="preview-page page-wide">
+    <section class="workspace-header glass-card compact-header clean-hero preview-hero">
+        <div>
+            <p class="eyebrow">Preview</p>
+            <h1>{{ name }}</h1>
+            <div class="breadcrumb-line"><span>{{ target }}</span></div>
+        </div>
+        <div class="header-actions compact-actions">
+            <a class="btn btn-outline-primary" href="{{ url_for('index', path='/'.join(target.split('/')[:-1])) if '/' in target else url_for('index') }}"><i class="fa-solid fa-arrow-left"></i> Back to folder</a>
+            <a class="btn btn-outline-primary" href="{{ url_for('raw_file', target=target) }}"><i class="fa-solid fa-up-right-from-square"></i> Open raw</a>
+            {% if '/' in target %}<a class="btn btn-primary" href="{{ url_for('download_file', path='/'.join(target.split('/')[:-1]), filename=name) }}"><i class="fa-solid fa-download"></i> Download</a>{% else %}<a class="btn btn-primary" href="{{ url_for('download_file', filename=name) }}"><i class="fa-solid fa-download"></i> Download</a>{% endif %}
+        </div>
+    </section>
+
+    <section class="glass-card preview-shell clean-preview-shell">
+        {% if image %}
+            <div class="preview-stage image-stage"><img class="full-preview-image" src="{{ url_for('raw_file', target=target) }}" alt="{{ name }}"></div>
+        {% elif video %}
+            <div class="preview-stage media-stage"><video class="full-preview-video" src="{{ url_for('raw_file', target=target) }}" controls></video></div>
+        {% elif audio %}
+            <div class="preview-stage audio-stage"><audio class="full-preview-audio" src="{{ url_for('raw_file', target=target) }}" controls></audio></div>
+        {% elif ext == '.pdf' %}
+            <div class="preview-stage pdf-stage"><iframe class="pdf-preview" src="{{ url_for('raw_file', target=target) }}#toolbar=1&navpanes=0"></iframe></div>
+        {% elif rows %}
+            <div class="table-responsive preview-table-wrap"><table class="table data-table"><tbody>{% for row in rows %}<tr>{% for col in row %}<td>{{ col }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+        {% elif json_text %}
+            <pre class="code-preview">{{ json_text }}</pre>
+        {% elif content is not none %}
+            <pre class="code-preview">{{ content }}</pre>
+        {% else %}
+            <div class="empty-state"><i class="fa-solid fa-file"></i><h2>No browser preview for this file type</h2><p class="muted">Download the file or open it raw.</p></div>
+        {% endif %}
+    </section>
+</div>
 {% endblock %}

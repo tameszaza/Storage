@@ -1,7 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Search · Tamestorage{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Advanced search</p><h1>{% if starred_page %}Starred files{% else %}Find anything{% endif %}</h1><p class="muted">Search by name, type, tag, content, size, or recent modification.</p></div></section>
-{% if not starred_page %}<section class="glass-card form-card"><form method="GET" class="advanced-search-grid"><input class="form-control" name="q" value="{{ request.args.get('q','') }}" placeholder="Name, path, or note"><input class="form-control" name="content" value="{{ request.args.get('content','') }}" placeholder="Text inside files"><select class="form-select" name="kind"><option value="">Any type</option>{% for k in ['folder','image','video','text','pdf','document','archive','file'] %}<option value="{{ k }}" {% if request.args.get('kind') == k %}selected{% endif %}>{{ k }}</option>{% endfor %}</select><input class="form-control" name="tag" value="{{ request.args.get('tag','') }}" placeholder="Tag"><input class="form-control" name="min_size" value="{{ request.args.get('min_size','') }}" placeholder="Min bytes"><input class="form-control" name="max_size" value="{{ request.args.get('max_size','') }}" placeholder="Max bytes"><input class="form-control" name="modified_days" value="{{ request.args.get('modified_days','') }}" placeholder="Modified in last N days"><label class="form-check"><input class="form-check-input" type="checkbox" name="starred" value="1" {% if request.args.get('starred') %}checked{% endif %}> Starred only</label><button class="btn btn-primary">Search</button></form></section>{% endif %}
-<section class="file-browser browser-list mt-4">{% for item in results %}<article class="file-card"><a class="file-main" href="{% if item.is_dir %}{{ url_for('index', path=item.path) }}{% else %}{{ url_for('preview_file', target=item.path) }}{% endif %}"><span class="file-icon {{ item.kind }}"><i class="fa-solid fa-{% if item.kind == 'folder' %}folder{% elif item.kind == 'image' %}image{% elif item.kind == 'video' %}film{% else %}file{% endif %}"></i></span><span class="file-title"><strong>{{ item.path }}</strong><small>{{ item.size_label }} · {{ item.modified }} · {{ item.kind }}</small></span></a><div class="file-actions"><a class="btn btn-sm btn-light" href="{{ url_for('metadata_page', target=item.path) }}"><i class="fa-solid fa-tags"></i></a></div></article>{% else %}<div class="empty-state glass-card"><i class="fa-solid fa-magnifying-glass"></i><h2>No results</h2><p class="muted">Try a broader search.</p></div>{% endfor %}</section>
+<section class="workspace-header glass-card compact-header clean-hero">
+    <div>
+        <p class="eyebrow">Search</p>
+        <h1>{% if starred_page %}Starred files{% else %}Find anything{% endif %}</h1>
+        <p class="muted">Use filters when you need precision, or search by normal filename/path text.</p>
+    </div>
+</section>
+
+{% if not starred_page %}
+<section class="glass-card search-card">
+    <form method="GET" class="advanced-search-grid improved-search-grid">
+        <div class="search-primary-field">
+            <label class="form-label" for="q">File or folder name</label>
+            <input id="q" class="form-control" name="q" value="{{ request.args.get('q','') }}" placeholder="Example: physics, main.pdf, Docs">
+        </div>
+        <div>
+            <label class="form-label" for="content">Text inside files</label>
+            <input id="content" class="form-control" name="content" value="{{ request.args.get('content','') }}" placeholder="Search inside text, markdown, code">
+        </div>
+        <div>
+            <label class="form-label" for="kind">Type</label>
+            <select id="kind" class="form-select" name="kind">
+                <option value="">Any type</option>
+                {% for k in ['folder','image','video','text','pdf','document','archive','file'] %}<option value="{{ k }}" {% if request.args.get('kind') == k %}selected{% endif %}>{{ k }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="tag">Tag</label>
+            <input id="tag" class="form-control" name="tag" value="{{ request.args.get('tag','') }}" list="knownTags" placeholder="tag name">
+            <datalist id="knownTags">{% for tag in tags %}<option value="{{ tag }}">{% endfor %}</datalist>
+        </div>
+        <div>
+            <label class="form-label" for="min_size">Min bytes</label>
+            <input id="min_size" class="form-control" name="min_size" value="{{ request.args.get('min_size','') }}" placeholder="0">
+        </div>
+        <div>
+            <label class="form-label" for="max_size">Max bytes</label>
+            <input id="max_size" class="form-control" name="max_size" value="{{ request.args.get('max_size','') }}" placeholder="10485760">
+        </div>
+        <div>
+            <label class="form-label" for="modified_days">Modified recently</label>
+            <input id="modified_days" class="form-control" name="modified_days" value="{{ request.args.get('modified_days','') }}" placeholder="Last N days">
+        </div>
+        <label class="form-check search-check"><input class="form-check-input" type="checkbox" name="starred" value="1" {% if request.args.get('starred') %}checked{% endif %}> Starred only</label>
+        <div class="search-actions-row">
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('advanced_search') }}">Reset</a>
+        </div>
+    </form>
+</section>
+{% endif %}
+
+<section class="search-results-head">
+    <p class="muted mb-0">{{ results|length }} result{% if results|length != 1 %}s{% endif %}</p>
+</section>
+
+<section class="file-browser browser-list search-results-list mt-2">
+    {% for item in results %}
+        <article class="file-card search-result-card">
+            <a class="file-main" href="{% if item.is_dir %}{{ url_for('index', path=item.path) }}{% else %}{{ url_for('preview_file', target=item.path) }}{% endif %}">
+                <span class="file-icon {{ item.kind }}"><i class="fa-solid fa-{% if item.kind == 'folder' %}folder{% elif item.kind == 'image' %}image{% elif item.kind == 'video' %}film{% elif item.kind == 'pdf' %}file-pdf{% else %}file{% endif %}"></i></span>
+                <span class="file-title"><strong>{{ item.path }}</strong><small>{{ item.size_label }} · {{ item.modified }} · {{ item.kind }}</small></span>
+            </a>
+            <div class="search-result-actions">
+                {% if item.is_dir %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('index', path=item.path) }}">Open</a>{% else %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('preview_file', target=item.path) }}">Preview</a>{% endif %}
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('metadata_page', target=item.path) }}"><i class="fa-solid fa-tags"></i></a>
+            </div>
+        </article>
+    {% else %}
+        <div class="empty-state glass-card"><i class="fa-solid fa-magnifying-glass"></i><h2>No results</h2><p class="muted">Try a broader search or remove filters.</p></div>
+    {% endfor %}
+</section>
 {% endblock %}

@@ -23,7 +23,24 @@
         {% elif audio %}
             <div class="preview-stage audio-stage"><audio class="full-preview-audio" src="{{ url_for('raw_file', target=target) }}" controls></audio></div>
         {% elif ext == '.pdf' %}
-            <div class="preview-stage pdf-stage"><iframe class="pdf-preview" src="{{ url_for('raw_file', target=target) }}#toolbar=1&navpanes=0"></iframe></div>
+            <div class="pdf-viewer" data-pdf-viewer data-pdf-url="{{ url_for('raw_file', target=target) }}">
+                <div class="pdf-toolbar">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-prev><i class="fa-solid fa-chevron-left"></i> Prev</button>
+                    <span class="pdf-page-indicator"><span data-pdf-page>1</span> / <span data-pdf-pages>?</span></span>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-next>Next <i class="fa-solid fa-chevron-right"></i></button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-out><i class="fa-solid fa-minus"></i></button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-in><i class="fa-solid fa-plus"></i></button>
+                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('raw_file', target=target) }}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> Browser viewer</a>
+                </div>
+                <div class="pdf-canvas-stage">
+                    <canvas class="pdf-canvas" data-pdf-canvas></canvas>
+                    <div class="pdf-fallback" data-pdf-fallback hidden>
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <h2>PDF preview could not load</h2>
+                        <p class="muted">Open the browser viewer or download the file.</p>
+                    </div>
+                </div>
+            </div>
         {% elif rows %}
             <div class="table-responsive preview-table-wrap"><table class="table data-table"><tbody>{% for row in rows %}<tr>{% for col in row %}<td>{{ col }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
         {% elif json_text %}
@@ -35,4 +52,7 @@
         {% endif %}
     </section>
 </div>
+{% endblock %}
+{% block scripts %}
+{% if ext == '.pdf' %}<script type="module" src="{{ url_for('static', filename='js/pdf_preview.js') }}"></script>{% endif %}
 {% endblock %}

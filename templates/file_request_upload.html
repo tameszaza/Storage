@@ -1,35 +1,34 @@
 {% extends "base.html" %}
 {% block title %}Upload request · Tamestorage{% endblock %}
 {% block content %}
-<div class="page-narrow">
-    <section class="workspace-header glass-card compact-header request-hero clean-hero">
+<div class="request-submit-page page-wide">
+    <section class="request-submit-hero glass-card">
         <div>
             <p class="eyebrow">File request</p>
             <h1>{{ item.title }}</h1>
-            <p class="muted">Upload files to <strong>{{ item.destination }}</strong>. Normal files and full folders are both supported.</p>
+            <p class="muted">Upload to <strong>{{ item.destination }}</strong>. You can submit normal files, photos, documents, or a whole folder tree.</p>
         </div>
+        <span class="request-submit-badge"><i class="fa-solid fa-shield-halved"></i> Controlled upload</span>
     </section>
 
-    <section class="glass-card form-card request-upload-card clean-form-card">
+    <section class="glass-card request-submit-card">
         {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
         {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
 
         <form id="requestUploadForm" method="POST" enctype="multipart/form-data">
-            <div class="form-group request-password-field">
+            <div class="request-form-row">
                 <label class="form-label" for="requestPassword">Password, if required</label>
                 <input id="requestPassword" class="form-control" name="password" type="password" placeholder="Leave blank if this request has no password">
             </div>
 
-            <div id="requestDropZone" class="request-picker-panel request-drop-zone">
-                <div class="request-picker-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-                <div class="request-picker-copy">
+            <div id="requestDropZone" class="request-drop-card">
+                <div class="request-drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                <div class="request-drop-copy">
                     <h2>Choose what to upload</h2>
-                    <p class="muted">Drag files here, choose normal files for documents/photos, or choose folder when you need to submit a whole folder tree.</p>
+                    <p class="muted">Normal file upload is the default. Folder upload is separate so the browser does not accidentally select a whole directory.</p>
                 </div>
-
                 <input id="requestFileInput" name="file" type="file" multiple hidden>
                 <input id="requestFolderInput" name="file" type="file" multiple webkitdirectory directory hidden>
-
                 <div class="request-picker-actions">
                     <label class="btn btn-outline-primary" for="requestFileInput"><i class="fa-solid fa-file-arrow-up"></i> Choose files</label>
                     <label class="btn btn-outline-primary" for="requestFolderInput"><i class="fa-solid fa-folder-plus"></i> Choose folder</label>
@@ -37,7 +36,8 @@
                 </div>
             </div>
 
-            <div class="request-upload-footer">
+            <div class="request-submit-footer">
+                <div class="muted small"><i class="fa-solid fa-circle-info"></i> Drag and drop is supported. The destination is controlled by the request owner.</div>
                 <button id="requestUploadButton" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-upload"></i> Upload selected files</button>
             </div>
         </form>
@@ -48,13 +48,11 @@
 {% block scripts %}
 <script>
 (function () {
-    const form = document.getElementById("requestUploadForm");
     const fileInput = document.getElementById("requestFileInput");
     const folderInput = document.getElementById("requestFolderInput");
     const label = document.getElementById("requestFileLabel");
     const uploadButton = document.getElementById("requestUploadButton");
     const dropZone = document.getElementById("requestDropZone");
-    let droppedFiles = [];
 
     function describeFiles(files, mode) {
         const count = files ? files.length : 0;
@@ -64,24 +62,18 @@
             return;
         }
         const first = files[0];
-        const firstName = first.webkitRelativePath || first.relativePath || first.name || "selected file";
+        const firstName = first.webkitRelativePath || first.name || "selected file";
         label.textContent = count === 1 ? firstName : `${count} ${mode} selected`;
         uploadButton.disabled = false;
     }
 
-    function resetDroppedFiles() {
-        droppedFiles = [];
-    }
-
     fileInput?.addEventListener("change", () => {
-        if (fileInput.files.length) folderInput.value = "";
-        resetDroppedFiles();
+        if (folderInput) folderInput.value = "";
         describeFiles(Array.from(fileInput.files || []), "files");
     });
 
     folderInput?.addEventListener("change", () => {
-        if (folderInput.files.length) fileInput.value = "";
-        resetDroppedFiles();
+        if (fileInput) fileInput.value = "";
         describeFiles(Array.from(folderInput.files || []), "folder files");
     });
 
@@ -93,28 +85,10 @@
     dropZone?.addEventListener("drop", (event) => {
         event.preventDefault();
         dropZone.classList.remove("dragging");
-        fileInput.value = "";
-        folderInput.value = "";
-        droppedFiles = Array.from(event.dataTransfer.files || []);
-        describeFiles(droppedFiles, "dropped files");
-    });
-
-    form?.addEventListener("submit", (event) => {
-        if (!droppedFiles.length) return;
-        event.preventDefault();
-        const data = new FormData(form);
-        data.delete("file");
-        droppedFiles.forEach((file) => data.append("file", file, file.webkitRelativePath || file.name));
-        uploadButton.disabled = true;
-        uploadButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading';
-        fetch(form.action || window.location.href, { method: "POST", body: data })
-            .then((response) => response.text())
-            .then((html) => { document.open(); document.write(html); document.close(); })
-            .catch(() => {
-                uploadButton.disabled = false;
-                uploadButton.innerHTML = '<i class="fa-solid fa-upload"></i> Upload selected files';
-                alert("Upload failed. Please try again.");
-            });
+        if (!event.dataTransfer || !fileInput) return;
+        fileInput.files = event.dataTransfer.files;
+        if (folderInput) folderInput.value = "";
+        describeFiles(Array.from(fileInput.files || []), "dropped files");
     });
 })();
 </script>

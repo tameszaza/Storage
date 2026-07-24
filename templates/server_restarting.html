@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f8fafc">
+    <title>Restarting Tamestorage</title>
+    <style>
+        :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        * { box-sizing: border-box; }
+        body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; background: #f8fafc; color: #111827; }
+        main { width: min(480px, 100%); padding: 28px; border: 1px solid #e5eaf1; border-radius: 16px; background: #fff; text-align: center; }
+        .spinner { width: 44px; height: 44px; margin: 0 auto 20px; border: 4px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: spin .8s linear infinite; }
+        h1 { margin: 0 0 8px; font-size: 1.5rem; }
+        p { margin: 0; color: #6b7280; line-height: 1.55; }
+        #restartStatus { margin-top: 18px; font-weight: 650; color: #2563eb; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-color-scheme: dark) {
+            body { background: #0b1120; color: #f8fafc; }
+            main { background: #111827; border-color: #263249; }
+            p { color: #a7b0c0; }
+            .spinner { border-color: #263249; border-top-color: #60a5fa; }
+            #restartStatus { color: #60a5fa; }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="spinner" aria-hidden="true"></div>
+        <h1>Restarting Tamestorage</h1>
+        <p>The server will be unavailable for a moment. This page will return to the Admin center when it is ready.</p>
+        <div id="restartStatus" role="status" aria-live="polite">Waiting for the server to stop...</div>
+    </main>
+    <script>
+        (() => {
+            const status = document.getElementById("restartStatus");
+            let attempts = 0;
+            const startedAt = Date.now();
+
+            async function checkServer() {
+                attempts += 1;
+                try {
+                    const response = await fetch(`/admin/restart/status?t=${Date.now()}`, {
+                        credentials: "same-origin",
+                        cache: "no-store",
+                    });
+                    if (response.ok && Date.now() - startedAt > 1800) {
+                        status.textContent = "Server is ready. Returning to Admin center...";
+                        window.location.replace(`/admin?restarted=${Date.now()}#server-control`);
+                        return;
+                    }
+                } catch (_error) {
+                    status.textContent = "Server is restarting...";
+                }
+
+                if (attempts > 80) {
+                    status.textContent = "The restart is taking longer than expected. Refresh this page in a moment.";
+                    return;
+                }
+                window.setTimeout(checkServer, 750);
+            }
+
+            window.setTimeout(checkServer, 1200);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+Extract this project over the existing Tamestorage server directory and replace matching files.
+
+The cycling speedometer route and its assets have been removed.
+
+After extraction:
+1. Restart Flask once from the terminal for this initial update.
+2. Sign in as Admin and open /admin.
+3. In Hall aircon control, enter the MacroDroid HTTP server root URL, for example http://127.0.0.1:8080.
+4. Tamestorage automatically adds /ac_on and /ac_off.
+5. Save the settings and test the manual ON and OFF buttons.
+6. Adjust the timeline schedule and press Save and start.
+
+Future code or template updates can be loaded with Server control -> Restart server, without opening SSH.
+
+The controller creates ac_control.json at runtime. Keep that file private and do not commit it to Git.

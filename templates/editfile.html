@@ -1,21 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Edit {{ filename }} · Tamestorage{% endblock %}
 {% block content %}
-<section class="editor-card glass-card">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Text editor</p>
+<div class="editor-page page-wide">
+    <section class="workspace-header glass-card compact-header clean-hero editor-hero">
+        <div class="editor-title-wrap">
+            <p class="eyebrow">Browser text editor</p>
             <h1>{{ filename }}</h1>
-            <p class="muted">/{{ path }}</p>
+            <div class="breadcrumb-line"><span>{{ path or 'Root' }}</span><span>/</span><strong>{{ filename }}</strong></div>
         </div>
-        <a class="btn btn-outline-primary" href="{{ url_for('index', path=path) }}">Back</a>
-    </div>
-    <form action="{{ url_for('save_file', path=path, filename=filename) }}" method="POST">
-        <textarea class="code-editor" name="file_content" spellcheck="false">{{ content }}</textarea>
-        <div class="button-row mt-3">
-            <button class="btn btn-primary" type="submit">Save file</button>
-            <a class="btn btn-outline-secondary" href="{{ url_for('index', path=path) }}">Cancel</a>
+        <div class="header-actions compact-actions">
+            <a class="btn btn-outline-primary" href="{{ url_for('preview_file', target=(path + '/' + filename if path else filename)) }}" title="Preview the current saved version"><i class="fa-regular fa-eye" aria-hidden="true"></i> Preview</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('index', path=path) }}" title="Return to the containing folder"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to folder</a>
         </div>
-    </form>
-</section>
+    </section>
+
+    <section class="editor-card glass-card modern-editor-card">
+        <form id="textEditorForm" action="{{ url_for('save_file', path=path, filename=filename) }}" method="POST" data-draft-key="tamestorage:draft:{{ path }}/{{ filename }}">
+            <div class="editor-toolbar" role="toolbar" aria-label="Text editor controls">
+                <div class="editor-toolbar-left">
+                    <span class="editor-language"><i class="fa-solid fa-code" aria-hidden="true"></i> {{ filename.split('.')[-1]|upper if '.' in filename else 'TEXT' }}</span>
+                    <span id="editorSaveState" class="editor-save-state" role="status" aria-live="polite"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Saved on server</span>
+                </div>
+                <div class="editor-toolbar-right">
+                    <button id="toggleWrapButton" class="editor-tool-button" type="button" aria-pressed="false" title="Toggle long-line wrapping" data-tooltip="true"><i class="fa-solid fa-text-width" aria-hidden="true"></i><span>Wrap</span></button>
+                    <button id="restoreDraftButton" class="editor-tool-button" type="button" hidden title="Restore the locally saved browser draft"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span>Restore draft</span></button>
+                    <button id="discardDraftButton" class="editor-tool-button" type="button" hidden title="Discard the locally saved browser draft"><i class="fa-regular fa-trash-can" aria-hidden="true"></i><span>Discard draft</span></button>
+                </div>
+            </div>
+
+            <div class="editor-workspace">
+                <div id="editorLineNumbers" class="editor-line-numbers" aria-hidden="true">1</div>
+                <textarea id="fileContentEditor" class="code-editor modern-code-editor" name="file_content" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Contents of {{ filename }}">{{ content }}</textarea>
+            </div>
+
+            <div class="editor-statusbar">
+                <span id="editorPosition">Ln 1, Col 1</span>
+                <span id="editorLineCount">1 line</span>
+                <span id="editorWordCount">0 words</span>
+                <span id="editorCharacterCount">0 characters</span>
+                <span class="editor-shortcut-hint"><kbd>Ctrl</kbd> + <kbd>S</kbd> to save</span>
+            </div>
+
+            <div class="editor-footer">
+                <p class="muted mb-0"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Unsaved work is backed up locally in this browser while you type.</p>
+                <div class="button-row">
+                    <button class="btn btn-outline-primary" type="submit" name="save_action" value="continue" title="Save and keep editing"><i class="fa-regular fa-floppy-disk" aria-hidden="true"></i> Save and continue</button>
+                    <button class="btn btn-primary" type="submit" name="save_action" value="close" title="Save and return to the folder"><i class="fa-solid fa-check" aria-hidden="true"></i> Save and close</button>
+                </div>
+            </div>
+        </form>
+    </section>
+</div>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/editor.js') }}"></script>{% endblock %}

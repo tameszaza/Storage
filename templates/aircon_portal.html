@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Hall aircon controller</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/aircon-favicon.svg') }}?v={{ asset_version }}" type="image/svg+xml">
+    <link href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/aircon.css') }}?v={{ asset_version }}" rel="stylesheet">
+</head>
+<body class="aircon-portal-page"
+      data-status-url="{{ url_for('aircon_status_api') }}"
+      data-settings-url="{{ url_for('aircon_settings_api') }}"
+      data-start-url="{{ url_for('aircon_start_api') }}"
+      data-stop-url="{{ url_for('aircon_stop_api') }}"
+      data-skip-url="{{ url_for('aircon_skip_api') }}"
+      data-on-url="{{ url_for('aircon_action_api', action='on') }}"
+      data-off-url="{{ url_for('aircon_action_api', action='off') }}"
+      data-login-url="{{ url_for('aircon_login') }}">
+    <header class="aircon-topbar">
+        <a class="aircon-brand" href="{{ url_for('aircon_portal') }}">
+            <span class="aircon-brand-mark"><i class="fa-solid fa-snowflake" aria-hidden="true"></i></span>
+            <span><strong>Hall aircon</strong><small>Private controller</small></span>
+        </a>
+        <div class="aircon-topbar-actions">
+            <span id="connectionStatus" class="aircon-connection"><span></span> Connecting</span>
+            <form method="POST" action="{{ url_for('aircon_logout') }}">
+                <button class="aircon-icon-button" type="submit" aria-label="Log out" title="Log out"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i></button>
+            </form>
+        </div>
+    </header>
+
+    <main class="aircon-page-shell">
+        <section class="aircon-status-hero" aria-labelledby="controllerTitle">
+            <div class="aircon-state-block">
+                <span id="stateIcon" class="aircon-state-icon is-unknown"><i class="fa-solid fa-circle-question" aria-hidden="true"></i></span>
+                <div>
+                    <p class="aircon-eyebrow">Current state</p>
+                    <h1 id="controllerTitle"><span id="currentState">Unknown</span></h1>
+                    <p id="currentPhase" class="aircon-muted">Stopped</p>
+                </div>
+            </div>
+            <div class="aircon-primary-actions">
+                <button id="startSchedule" class="aircon-button is-primary" type="button"><i class="fa-solid fa-play" aria-hidden="true"></i> Start</button>
+                <button id="stopSchedule" class="aircon-button is-danger-soft" type="button"><i class="fa-solid fa-stop" aria-hidden="true"></i> Stop</button>
+                <button id="skipPhase" class="aircon-button is-secondary" type="button"><i class="fa-solid fa-forward-step" aria-hidden="true"></i> Skip phase</button>
+            </div>
+        </section>
+
+        <section class="aircon-metric-grid" aria-label="Aircon schedule summary">
+            <article class="aircon-metric">
+                <small>Next change</small>
+                <strong id="nextChange">None scheduled</strong>
+                <span id="phaseProgressText">Waiting to start</span>
+            </article>
+            <article class="aircon-metric">
+                <small>Cycle</small>
+                <strong id="cyclePosition">Not running</strong>
+                <span id="cycleDetail">Continuous</span>
+            </article>
+            <article class="aircon-metric">
+                <small>Session spent</small>
+                <strong id="sessionSpent">$0.00</strong>
+                <span>At $0.39 per ON hour</span>
+            </article>
+            <article class="aircon-metric">
+                <small>Session saved</small>
+                <strong id="sessionSaved">$0.00</strong>
+                <span>Compared with always ON</span>
+            </article>
+        </section>
+
+        <section class="aircon-card aircon-schedule-card" aria-labelledby="scheduleTitle">
+            <div class="aircon-section-heading">
+                <div>
+                    <p class="aircon-eyebrow">Live schedule</p>
+                    <h2 id="scheduleTitle">ON and OFF timeline</h2>
+                    <p id="scheduleSummary" class="aircon-muted">Adjustments can be applied while the schedule is running.</p>
+                </div>
+                <div class="aircon-save-area">
+                    <span id="saveState" class="aircon-save-state">All changes applied</span>
+                    <button id="applyChanges" class="aircon-button is-primary" type="button" disabled><i class="fa-solid fa-check" aria-hidden="true"></i> Apply changes</button>
+                </div>
+            </div>
+
+            <div id="timelineTrack" class="aircon-timeline" role="img" aria-label="Aircon schedule timeline">
+                <button id="onTimelineSegment" class="aircon-timeline-segment is-on" type="button" data-focus="onDurationValue" style="--weight: 600">
+                    <span id="onProgress" class="aircon-timeline-fill"></span>
+                    <span class="aircon-timeline-copy"><i class="fa-solid fa-snowflake" aria-hidden="true"></i><strong id="onTimelineLabel">ON · 10 min</strong></span>
+                </button>
+                <button id="offTimelineSegment" class="aircon-timeline-segment is-off" type="button" data-focus="offDurationValue" style="--weight: 1200">
+                    <span id="offProgress" class="aircon-timeline-fill"></span>
+                    <span class="aircon-timeline-copy"><i class="fa-regular fa-moon" aria-hidden="true"></i><strong id="offTimelineLabel">OFF · 20 min</strong></span>
+                </button>
+                <span id="timelinePlayhead" class="aircon-timeline-playhead" hidden><span></span></span>
+            </div>
+
+            <div class="aircon-phase-grid">
+                <article class="aircon-phase-card is-on">
+                    <div class="aircon-phase-heading">
+                        <span class="aircon-phase-label is-on">ON</span>
+                        <div class="aircon-stepper" aria-label="Adjust ON duration in minutes">
+                            <button type="button" data-adjust="on" data-seconds="-300">−5</button>
+                            <button type="button" data-adjust="on" data-seconds="-60">−1</button>
+                            <button type="button" data-adjust="on" data-seconds="60">+1</button>
+                            <button type="button" data-adjust="on" data-seconds="300">+5</button>
+                        </div>
+                    </div>
+                    <label class="aircon-field">
+                        <span>Aircon stays on</span>
+                        <div class="aircon-duration-input">
+                            <input id="onDurationValue" inputmode="decimal" type="number" min="0.1" step="0.1" aria-label="ON duration value">
+                            <select id="onDurationUnit" aria-label="ON duration unit">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes">Minutes</option>
+                                <option value="hours">Hours</option>
+                            </select>
+                        </div>
+                    </label>
+                </article>
+
+                <article class="aircon-phase-card is-off">
+                    <div class="aircon-phase-heading">
+                        <span class="aircon-phase-label is-off">OFF</span>
+                        <div class="aircon-stepper" aria-label="Adjust OFF duration in minutes">
+                            <button type="button" data-adjust="off" data-seconds="-300">−5</button>
+                            <button type="button" data-adjust="off" data-seconds="-60">−1</button>
+                            <button type="button" data-adjust="off" data-seconds="60">+1</button>
+                            <button type="button" data-adjust="off" data-seconds="300">+5</button>
+                        </div>
+                    </div>
+                    <label class="aircon-field">
+                        <span>Aircon stays off</span>
+                        <div class="aircon-duration-input">
+                            <input id="offDurationValue" inputmode="decimal" type="number" min="0.1" step="0.1" aria-label="OFF duration value">
+                            <select id="offDurationUnit" aria-label="OFF duration unit">
+                                <option value="seconds">Seconds</option>
+                                <option value="minutes">Minutes</option>
+                                <option value="hours">Hours</option>
+                            </select>
+                        </div>
+                    </label>
+                </article>
+            </div>
+
+            <div class="aircon-repeat-row">
+                <label class="aircon-field">
+                    <span>Repeat</span>
+                    <select id="cycleMode">
+                        <option value="continuous">Until stopped</option>
+                        <option value="fixed">Fixed number of cycles</option>
+                    </select>
+                </label>
+                <label id="cycleCountField" class="aircon-field" hidden>
+                    <span>Cycles</span>
+                    <input id="maxCycles" type="number" inputmode="numeric" min="1" max="10000" step="1" value="1">
+                </label>
+                <div class="aircon-duty-cycle">
+                    <small>Duty cycle</small>
+                    <strong id="dutyCycle">33%</strong>
+                </div>
+            </div>
+
+            <div class="aircon-cost-strip" aria-label="Projected cost">
+                <div><small>Per cycle spent</small><strong id="cycleSpent">$0.07</strong></div>
+                <div><small>Per cycle saved</small><strong id="cycleSaved">$0.13</strong></div>
+                <div><small id="projectedLabel">Projected total</small><strong id="projectedTotal">Continuous</strong></div>
+            </div>
+        </section>
+
+        <section class="aircon-lower-grid">
+            <article class="aircon-card">
+                <div class="aircon-section-heading is-compact">
+                    <div>
+                        <p class="aircon-eyebrow">Direct control</p>
+                        <h2>Send a command now</h2>
+                    </div>
+                </div>
+                <div class="aircon-direct-actions">
+                    <button id="turnOnNow" class="aircon-button is-success" type="button"><i class="fa-solid fa-power-off" aria-hidden="true"></i> Turn on</button>
+                    <button id="turnOffNow" class="aircon-button is-danger-soft" type="button"><i class="fa-regular fa-circle-stop" aria-hidden="true"></i> Turn off</button>
+                </div>
+                <p class="aircon-helper">Direct commands are locked while the automatic schedule is running.</p>
+            </article>
+
+            <article class="aircon-card">
+                <div class="aircon-section-heading is-compact">
+                    <div>
+                        <p class="aircon-eyebrow">Connection</p>
+                        <h2>MacroDroid</h2>
+                    </div>
+                </div>
+                <label class="aircon-field">
+                    <span>Root URL</span>
+                    <input id="rootUrl" type="url" placeholder="http://127.0.0.1:8080" autocomplete="off" spellcheck="false">
+                    <small id="endpointPreview">Adds /ac_on and /ac_off automatically.</small>
+                </label>
+                <div class="aircon-advanced-grid">
+                    <label class="aircon-field">
+                        <span>Request timeout</span>
+                        <div class="aircon-suffix-input"><input id="requestTimeout" type="number" min="2" max="60" step="1"><span>sec</span></div>
+                    </label>
+                    <label class="aircon-switch-row">
+                        <input id="offOnStop" type="checkbox">
+                        <span><strong>Send OFF after stop</strong><small>Prevents a stopped schedule from leaving the aircon running.</small></span>
+                    </label>
+                </div>
+            </article>
+        </section>
+
+        <div id="lastResult" class="aircon-result" role="status"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Ready.</span></div>
+    </main>
+
+    <div id="airconToast" class="aircon-toast" role="status" aria-live="polite" hidden></div>
+    <script id="airconInitialData" type="application/json">{{ initial_data|tojson }}</script>
+    <script src="{{ url_for('static', filename='js/aircon.js') }}?v={{ asset_version }}"></script>
+</body>
+</html>

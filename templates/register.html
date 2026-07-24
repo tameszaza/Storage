@@ -1,17 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Register · Tamestorage{% endblock %}
+{% block title %}Create account · Tamestorage{% endblock %}
 {% block content %}
-<section class="auth-layout narrow">
-    <form method="POST" class="auth-card glass-card">
+<section class="auth-layout">
+    <form method="POST" class="auth-card">
         <p class="eyebrow">New workspace</p>
-        <h2>Create account</h2>
+        <h2>Create your account</h2>
+        <p class="auth-intro">Start a private file workspace on this Tamestorage server.</p>
         {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
         <label class="form-label" for="username">Username</label>
-        <input class="form-control form-control-lg" id="username" type="text" name="username" autocomplete="username" required>
+        <input class="form-control" id="username" type="text" name="username" autocomplete="username" placeholder="Choose a username" minlength="2" required autofocus>
         <label class="form-label mt-3" for="password">Password</label>
-        <input class="form-control form-control-lg" id="password" type="password" name="password" autocomplete="new-password" required>
+        <input class="form-control" id="password" type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters recommended" required>
         <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Create account</button>
-        <p class="auth-alt">Already registered? <a href="{{ url_for('login') }}">Login</a></p>
+        <p class="auth-alt">Already registered? <a href="{{ url_for('login') }}">Log in</a></p>
     </form>
+    <div class="auth-visual">
+        <div class="auth-visual-content"><i class="fa-solid fa-shield-halved"></i><h2>Your own private cloud.</h2><p>Upload, organize, preview, share, and recover files through one clean interface on any screen size.</p></div>
+    </div>
 </section>
 {% endblock %}

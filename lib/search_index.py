@@ -61,7 +61,9 @@ def search_files(base_path: str, query: str = "", kind: str = "", tag: str = "",
             except OSError:
                 continue
         item["size_label"] = format_bytes(item["size"])
-        item["modified"] = datetime.fromtimestamp(item["mtime"]).strftime("%Y-%m-%d %H:%M")
+        item["modified"] = datetime.fromtimestamp(item["mtime"]).strftime("%d %b %Y, %H:%M")
+        item["parent_path"] = normalize_relative_path(os.path.dirname(item["path"]))
+        item["extension"] = "" if item["is_dir"] else os.path.splitext(item["name"])[1].lower()
         item["metadata"] = meta
         results.append(item)
     return results[:500]

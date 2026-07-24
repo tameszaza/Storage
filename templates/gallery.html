@@ -1,6 +1,63 @@
 {% extends "base.html" %}
 {% block title %}Gallery · Tamestorage{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Media gallery</p><h1>Images in {{ path or 'Root' }}</h1><p class="muted">Quick visual browsing for photos and screenshots.</p></div></section>
-<section class="gallery-grid">{% for image in images %}<a class="gallery-card glass-card" href="{{ url_for('preview_file', target=image.path) }}"><img src="{{ url_for('raw_file', target=image.path) }}" alt="{{ image.name }}"><strong>{{ image.name }}</strong><small>{{ image.size_label }}</small></a>{% else %}<div class="empty-state glass-card"><i class="fa-solid fa-images"></i><h2>No images here</h2></div>{% endfor %}</section>
+<section class="gallery-hero glass-card">
+    <div>
+        <p class="eyebrow">Media gallery</p>
+        <h1>Images in {{ path or 'Root' }}</h1>
+        <p class="muted">A cleaner visual view for photos, screenshots, and image documents.</p>
+    </div>
+    <div class="gallery-hero-actions">
+        <span class="gallery-count"><i class="fa-solid fa-images"></i> {{ images|length }} image{% if images|length != 1 %}s{% endif %}</span>
+        <a class="btn btn-outline-primary" href="{{ url_for('index', path=path) if path else url_for('index') }}"><i class="fa-solid fa-folder-open"></i> Back to folder</a>
+    </div>
+</section>
+
+<section class="gallery-toolbar glass-card">
+    <div class="gallery-search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="gallerySearch" class="form-control" type="search" placeholder="Filter images in this gallery">
+    </div>
+    <div class="gallery-tip muted"><i class="fa-solid fa-arrow-pointer"></i> Click an image to preview it.</div>
+</section>
+
+<section id="galleryGrid" class="gallery-grid polished-gallery-grid">
+    {% for image in images %}
+        <article class="gallery-card glass-card polished-gallery-card" data-name="{{ image.name|lower }}">
+            <a class="gallery-image-link" href="{{ url_for('preview_file', target=image.path) }}" aria-label="Preview {{ image.name }}">
+                <img src="{{ url_for('raw_file', target=image.path) }}" alt="{{ image.name }}" loading="lazy">
+            </a>
+            <div class="gallery-card-body">
+                <strong title="{{ image.name }}">{{ image.name }}</strong>
+                <small>{{ image.size_label }}</small>
+            </div>
+            <div class="gallery-card-actions">
+                <a class="icon-button" href="{{ url_for('preview_file', target=image.path) }}" title="Preview"><i class="fa-solid fa-eye"></i></a>
+                <a class="icon-button" href="{{ url_for('raw_file', target=image.path) }}" title="Open raw"><i class="fa-solid fa-up-right-from-square"></i></a>
+            </div>
+        </article>
+    {% else %}
+        <div class="empty-state glass-card gallery-empty">
+            <i class="fa-solid fa-images"></i>
+            <h2>No images here</h2>
+            <p class="muted">Upload JPG, PNG, WebP, GIF, BMP, or SVG files and they will appear here.</p>
+            <a class="btn btn-primary" href="{{ url_for('index', path=path) if path else url_for('index') }}">Back to files</a>
+        </div>
+    {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const input = document.getElementById("gallerySearch");
+    const cards = Array.from(document.querySelectorAll(".polished-gallery-card"));
+    input?.addEventListener("input", () => {
+        const query = input.value.trim().toLowerCase();
+        cards.forEach((card) => {
+            card.hidden = query && !(card.dataset.name || "").includes(query);
+        });
+    });
+})();
+</script>
 {% endblock %}

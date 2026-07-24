@@ -10,3 +10,6 @@ __pycache__/
 file_requests.json
 notifications.json
 activity_log.json
+.venv/
+node_modules/
+ac_control.json

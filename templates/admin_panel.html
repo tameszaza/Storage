@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Admin · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/admin.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
 {% block content %}
 <section class="workspace-header glass-card">
     <div>
         <p class="eyebrow">Admin center</p>
         <h1>System control panel</h1>
-        <p class="muted">Monitor usage, manage users, inspect logs, and maintain the server.</p>
+        <p class="muted">Manage accounts, inspect logs, and maintain the server.</p>
     </div>
     <div class="stats-grid mini admin-stats">
         <div class="stat-card"><span id="cpuUsage">...</span><p>CPU</p></div>
@@ -16,22 +17,22 @@
 </section>
 
 <section class="admin-grid">
-    <article class="glass-card admin-card wide">
+    <article class="glass-card admin-card admin-full-span">
         <div class="section-heading">
             <div><p class="eyebrow">Accounts</p><h2>User accounts</h2></div>
             <span class="badge text-bg-primary">{{ users|length }} users</span>
         </div>
         <div class="table-responsive modern-table-wrap">
-            <table class="table modern-table align-middle">
+            <table class="table modern-table responsive-cards-table align-middle">
                 <thead><tr><th>Username</th><th>Storage used</th><th>Quota</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td><strong>{{ user }}</strong></td>
-                        <td>{{ format_bytes(user_storage[user]) if user in user_storage else '0 B' }}</td>
-                        <td><form class="quota-form" action="{{ url_for('set_user_quota', username=user) }}" method="POST"><input class="form-control form-control-sm" name="quota_gb" value="{{ ((users[user].get('quota_bytes') or 0) / 1024 / 1024 / 1024)|round(2) if users[user].get('quota_bytes') else '' }}" placeholder="Unlimited"><button class="btn btn-sm btn-outline-primary">Save</button></form></td>
-                        <td>{% if users[user].get('suspended') %}<span class="badge text-bg-warning">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}</td>
-                        <td class="table-actions">
+                        <td data-label="Username"><strong>{{ user }}</strong></td>
+                        <td data-label="Storage used">{{ format_bytes(user_storage[user]) if user in user_storage else '0 B' }}</td>
+                        <td data-label="Quota"><form class="quota-form" action="{{ url_for('set_user_quota', username=user) }}" method="POST"><input class="form-control form-control-sm" name="quota_gb" value="{{ ((users[user].get('quota_bytes') or 0) / 1024 / 1024 / 1024)|round(2) if users[user].get('quota_bytes') else '' }}" placeholder="Unlimited"><button class="btn btn-sm btn-outline-primary">Save</button></form></td>
+                        <td data-label="Status">{% if users[user].get('suspended') %}<span class="badge text-bg-warning">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}</td>
+                        <td class="table-actions" data-label="Actions">
                             {% if not users[user].get('suspended') %}
                                 <form action="{{ url_for('suspend_user', username=user) }}" method="POST"><button class="btn btn-sm btn-outline-warning" type="submit">Suspend</button></form>
                             {% else %}
@@ -61,14 +62,16 @@
         </div>
     </article>
 
-    <article class="glass-card admin-card danger-zone">
-        <p class="eyebrow">Danger zone</p>
-        <h2>Server commands</h2>
+    <article id="server-control" class="glass-card admin-card danger-zone">
+        <p class="eyebrow">Server control</p>
+        <h2>Runtime commands</h2>
+        <p class="muted server-control-copy">Restart after updating code or templates without opening SSH. The page reconnects automatically.</p>
         <div class="action-stack">
-            <form action="{{ url_for('git_pull') }}" method="POST" data-confirm="Run git pull on the server?"><button class="btn btn-warning w-100" type="submit">Git pull</button></form>
-            <form action="{{ url_for('shutdown') }}" method="POST" data-confirm="Shut down this Flask server?"><button class="btn btn-danger w-100" type="submit">Shutdown server</button></form>
+            <form action="{{ url_for('restart_server') }}" method="POST" data-confirm="Restart Tamestorage now? The site will be unavailable briefly."><button class="btn btn-warning w-100" type="submit"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Restart server</button></form>
+            <form action="{{ url_for('git_pull') }}" method="POST" data-confirm="Run git pull on the server?"><button class="btn btn-outline-warning w-100" type="submit">Git pull</button></form>
+            <form action="{{ url_for('shutdown') }}" method="POST" data-confirm="Shut down this Flask server? You will need another way to start it again."><button class="btn btn-danger w-100" type="submit">Shutdown server</button></form>
         </div>
     </article>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}

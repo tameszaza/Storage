@@ -6,9 +6,9 @@
         <div>
             <p class="eyebrow">File request</p>
             <h1>{{ item.title }}</h1>
-            <p class="muted">Upload to <strong>{{ item.destination }}</strong>. You can submit normal files, photos, documents, or a whole folder tree.</p>
+            <p class="muted">Upload to <strong>{{ item.destination }}</strong>. Normal files, photos, documents, folders, and drag/drop are supported.</p>
         </div>
-        <span class="request-submit-badge"><i class="fa-solid fa-shield-halved"></i> Controlled upload</span>
+        <span class="request-submit-badge"><i class="fa-solid fa-shield-halved"></i> Secure drop-off</span>
     </section>
 
     <section class="glass-card request-submit-card">
@@ -25,10 +25,12 @@
                 <div class="request-drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                 <div class="request-drop-copy">
                     <h2>Choose what to upload</h2>
-                    <p class="muted">Normal file upload is the default. Folder upload is separate so the browser does not accidentally select a whole directory.</p>
+                    <p class="muted">Use normal files for documents/photos. Use folder upload only when you intentionally want to submit a whole folder tree.</p>
                 </div>
+
                 <input id="requestFileInput" name="file" type="file" multiple hidden>
                 <input id="requestFolderInput" name="file" type="file" multiple webkitdirectory directory hidden>
+
                 <div class="request-picker-actions">
                     <label class="btn btn-outline-primary" for="requestFileInput"><i class="fa-solid fa-file-arrow-up"></i> Choose files</label>
                     <label class="btn btn-outline-primary" for="requestFolderInput"><i class="fa-solid fa-folder-plus"></i> Choose folder</label>
@@ -37,7 +39,7 @@
             </div>
 
             <div class="request-submit-footer">
-                <div class="muted small"><i class="fa-solid fa-circle-info"></i> Drag and drop is supported. The destination is controlled by the request owner.</div>
+                <div class="request-help muted"><i class="fa-solid fa-circle-info"></i> The owner controls the destination. You cannot browse their storage from this page.</div>
                 <button id="requestUploadButton" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-upload"></i> Upload selected files</button>
             </div>
         </form>
@@ -54,27 +56,27 @@
     const uploadButton = document.getElementById("requestUploadButton");
     const dropZone = document.getElementById("requestDropZone");
 
-    function describeFiles(files, mode) {
-        const count = files ? files.length : 0;
-        if (!count) {
+    function setLabel(files, mode) {
+        const selected = Array.from(files || []);
+        if (!selected.length) {
             label.textContent = "No files selected";
             uploadButton.disabled = true;
             return;
         }
-        const first = files[0];
+        const first = selected[0];
         const firstName = first.webkitRelativePath || first.name || "selected file";
-        label.textContent = count === 1 ? firstName : `${count} ${mode} selected`;
+        label.textContent = selected.length === 1 ? firstName : `${selected.length} ${mode} selected`;
         uploadButton.disabled = false;
     }
 
     fileInput?.addEventListener("change", () => {
-        if (folderInput) folderInput.value = "";
-        describeFiles(Array.from(fileInput.files || []), "files");
+        if (fileInput.files.length && folderInput) folderInput.value = "";
+        setLabel(fileInput.files, "files");
     });
 
     folderInput?.addEventListener("change", () => {
-        if (fileInput) fileInput.value = "";
-        describeFiles(Array.from(folderInput.files || []), "folder files");
+        if (folderInput.files.length && fileInput) fileInput.value = "";
+        setLabel(folderInput.files, "folder files");
     });
 
     dropZone?.addEventListener("dragover", (event) => {
@@ -86,9 +88,13 @@
         event.preventDefault();
         dropZone.classList.remove("dragging");
         if (!event.dataTransfer || !fileInput) return;
-        fileInput.files = event.dataTransfer.files;
-        if (folderInput) folderInput.value = "";
-        describeFiles(Array.from(fileInput.files || []), "dropped files");
+        try {
+            fileInput.files = event.dataTransfer.files;
+            if (folderInput) folderInput.value = "";
+            setLabel(fileInput.files, "dropped files");
+        } catch (error) {
+            label.textContent = "Please use Choose files for this browser.";
+        }
     });
 })();
 </script>

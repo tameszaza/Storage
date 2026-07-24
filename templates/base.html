@@ -3,89 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <title>{% block title %}Tamestorage{% endblock %}</title>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/polish.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/reference-ui.css') }}" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     {% block link %}{% endblock %}
 </head>
-<body>
-    <div class="app-shell">
-        <nav class="topbar glass-card" aria-label="Primary navigation">
-            <a class="brand" href="{{ url_for('index') if session.get('logged_in') else url_for('introduction') }}">
-                <span class="brand-mark">
-                    <img id="lightLogo" src="{{ url_for('static', filename='images/logo-light.png') }}" alt="Tamestorage light logo">
-                    <img id="darkLogo" src="{{ url_for('static', filename='images/logo-dark.png') }}" alt="Tamestorage dark logo">
-                </span>
-                <span>
-                    <span class="brand-title">Tamestorage</span>
-                    <span class="brand-subtitle">Private cloud storage</span>
-                </span>
+<body class="antialiased{% if session.get('logged_in') %} authenticated{% else %} public-page{% endif %}">
+<a class="skip-link" href="#mainContent">Skip to main content</a>
+{% if session.get('logged_in') %}
+    <div class="app-layout">
+        <div id="sidebarBackdrop" class="sidebar-backdrop" hidden></div>
+        <aside id="appSidebar" class="app-sidebar" aria-label="Storage navigation">
+            <a class="sidebar-brand" href="{{ url_for('index') }}">
+                <span class="sidebar-brand-mark"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                <span class="sidebar-brand-copy"><strong>Tamestorage</strong><small>Personal cloud</small></span>
             </a>
-
-            <button id="mobileNavToggle" class="mobile-menu-button icon-button" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="topbarActions">
-                <i class="fa-solid fa-bars"></i>
-            </button>
-
-            <div id="topbarActions" class="topbar-actions">
-                {% if session.get('logged_in') %}
-                    <a class="nav-pill nav-primary" href="{{ url_for('index') }}"><i class="fa-solid fa-folder-open"></i><span>Files</span></a>
-                    <a class="nav-pill nav-primary" href="{{ url_for('shares_dashboard') }}"><i class="fa-solid fa-share-nodes"></i><span>Shares</span></a>
-                    <a class="nav-pill nav-primary" href="{{ url_for('file_requests_page') }}"><i class="fa-solid fa-inbox"></i><span>Requests</span></a>
-                    <a class="nav-pill nav-wide-only" href="{{ url_for('notifications_page') }}"><i class="fa-solid fa-bell"></i><span>Alerts</span></a>
-                    <a class="nav-pill nav-wide-only" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI</span></a>
-                    <div class="dropdown topbar-more">
-                        <button class="nav-pill more-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open more navigation">
-                            <i class="fa-solid fa-bars"></i><span>More</span>
+            <nav class="sidebar-nav">
+                <p class="sidebar-label">Workspace</p>
+                <a class="sidebar-link {% if request.endpoint in ['index', 'user_folder'] %}active{% endif %}" href="{{ url_for('index') }}"><i class="fa-regular fa-folder-open"></i><span>My Files</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'recent_page' %}active{% endif %}" href="{{ url_for('recent_page') }}"><i class="fa-regular fa-clock"></i><span>Recent</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'shares_dashboard' %}active{% endif %}" href="{{ url_for('shares_dashboard') }}"><i class="fa-solid fa-user-group"></i><span>Shared</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'starred_files' %}active{% endif %}" href="{{ url_for('starred_files') }}"><i class="fa-regular fa-star"></i><span>Starred</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'trash_page' %}active{% endif %}" href="{{ url_for('trash_page') }}"><i class="fa-regular fa-trash-can"></i><span>Trash</span></a>
+                <p class="sidebar-label sidebar-label-spaced">Tools</p>
+                <a class="sidebar-link {% if request.endpoint == 'advanced_search' %}active{% endif %}" href="{{ url_for('advanced_search') }}"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'file_requests_page' %}active{% endif %}" href="{{ url_for('file_requests_page') }}"><i class="fa-regular fa-paper-plane"></i><span>File requests</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'notifications_page' %}active{% endif %}" href="{{ url_for('notifications_page') }}"><i class="fa-regular fa-bell"></i><span>Notifications</span></a>
+                <a class="sidebar-link {% if request.endpoint == 'chat_page' %}active{% endif %}" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
+                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
+            </nav>
+            <div class="sidebar-bottom">
+                <div class="sidebar-storage">
+                    <div class="sidebar-storage-head"><span>Storage</span><strong>{{ shell_storage_percent|default(0) }}%</strong></div>
+                    <div class="storage-track"><span style="width: {{ shell_storage_percent|default(0) }}%"></span></div>
+                    <small>{{ shell_storage_used|default('0 B') }} of {{ shell_storage_quota|default('Unlimited') }}</small>
+                    <a href="{{ url_for('settings_page') }}">Manage storage</a>
+                </div>
+                <a class="sidebar-profile" href="{{ url_for('settings_page') }}"><span class="avatar">{{ shell_initials|default('TS') }}</span><span><strong>{{ shell_username|default('Account') }}</strong><small>Account settings</small></span><i class="fa-solid fa-chevron-right"></i></a>
+            </div>
+        </aside>
+        <div class="app-main">
+            <header class="app-topbar">
+                <button id="mobileNavToggle" class="topbar-icon mobile-menu-button" type="button" aria-label="Open navigation" title="Open navigation" data-tooltip="true" aria-expanded="false" aria-controls="appSidebar"><i class="fa-solid fa-bars" aria-hidden="true"></i></button>
+                <form action="{{ url_for('advanced_search') }}" method="GET" class="global-search" role="search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" name="q" value="{{ request.args.get('q', '') if request.endpoint == 'advanced_search' else '' }}" placeholder="Search files and folders" aria-label="Search files and folders"><span class="search-shortcut">/</span></form>
+                <div class="topbar-actions">
+                    <div class="dropdown new-menu">
+                        <button class="new-button" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Create or upload an item" title="Create or upload an item">
+                            <i class="fa-solid fa-plus" aria-hidden="true"></i><span>New</span><i class="fa-solid fa-chevron-down new-button-chevron" aria-hidden="true"></i>
                         </button>
-                        <div class="dropdown-menu dropdown-menu-end nav-more-menu">
-                            <a class="dropdown-item" href="{{ url_for('notifications_page') }}"><i class="fa-solid fa-bell"></i><span>Alerts</span></a>
-                            <a class="dropdown-item" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
-                            <a class="dropdown-item" href="{{ url_for('advanced_search') }}"><i class="fa-solid fa-magnifying-glass"></i><span>Advanced search</span></a>
-                            <a class="dropdown-item" href="{{ url_for('starred_files') }}"><i class="fa-solid fa-star"></i><span>Starred files</span></a>
-                            <a class="dropdown-item" href="{{ url_for('trash_page') }}"><i class="fa-solid fa-trash-can"></i><span>Trash</span></a>
-                            <a class="dropdown-item" href="{{ url_for('duplicates_page') }}"><i class="fa-solid fa-clone"></i><span>Duplicates</span></a>
-                            <a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fa-solid fa-message"></i><span>Feedback</span></a>
-                            {% if session.get('username') == 'Admin' %}
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>
-                                <a class="dropdown-item" href="{{ url_for('activity_page') }}"><i class="fa-solid fa-clock-rotate-left"></i><span>Activity log</span></a>
-                                <a class="dropdown-item" href="{{ url_for('backup_page') }}"><i class="fa-solid fa-box-archive"></i><span>Backup</span></a>
-                                <a class="dropdown-item" href="{{ url_for('integrity_page') }}"><i class="fa-solid fa-shield-halved"></i><span>Integrity scan</span></a>
-                            {% endif %}
+                        <div class="dropdown-menu dropdown-menu-end new-dropdown">
+                            <a class="dropdown-item" href="{{ url_for('index', path=path|default('')) if request.endpoint == 'index' else url_for('index') }}#dropArea"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span><strong>Upload</strong><small>Files or a whole folder</small></span></a>
+                            <a class="dropdown-item" href="{{ url_for('index', path=path|default(''), new='folder') if request.endpoint == 'index' else url_for('index', new='folder') }}"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span><strong>New folder</strong><small>Organize your files</small></span></a>
+                            <a class="dropdown-item" href="{{ url_for('index', path=path|default(''), new='text') if request.endpoint == 'index' else url_for('index', new='text') }}"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i><span><strong>New text file</strong><small>Open the web editor</small></span></a>
                         </div>
                     </div>
-                    <a class="nav-pill danger nav-logout" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a>
-                {% else %}
-                    <a class="nav-pill" href="{{ url_for('introduction') }}"><i class="fa-solid fa-circle-info"></i><span>About</span></a>
-                    <a class="nav-pill" href="{{ url_for('login') }}"><i class="fa-solid fa-right-to-bracket"></i><span>Login</span></a>
-                    <a class="nav-pill" href="{{ url_for('register') }}"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>
-                {% endif %}
-                <button id="themeToggle" class="icon-button" type="button" aria-label="Toggle theme">
-                    <i id="themeIcon" class="fa-solid fa-moon"></i>
-                </button>
-            </div>
-        </nav>
-
-        <main class="page-content">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-stack">
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }} shadow-sm">{{ message }}</div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
+                    <a class="topbar-icon" href="{{ url_for('notifications_page') }}" aria-label="Notifications" title="Notifications" data-tooltip="true"><i class="fa-regular fa-bell" aria-hidden="true"></i></a>
+                    <button id="themeToggle" class="topbar-icon" type="button" aria-label="Toggle light or dark theme" title="Toggle light or dark theme" data-tooltip="true"><i id="themeIcon" class="fa-regular fa-moon" aria-hidden="true"></i></button>
+                    <div class="dropdown account-menu"><button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="avatar small">{{ shell_initials|default('TS') }}</span><span class="account-trigger-copy"><strong>{{ shell_username|default('Account') }}</strong><small>Personal</small></span><i class="fa-solid fa-chevron-down"></i></button><div class="dropdown-menu dropdown-menu-end account-dropdown"><a class="dropdown-item" href="{{ url_for('settings_page') }}"><i class="fa-regular fa-user"></i> Account settings</a><a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fa-regular fa-message"></i> Send feedback</a><div class="dropdown-divider"></div><a class="dropdown-item danger-text" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</a></div></div>
+                </div>
+            </header>
+            <main id="mainContent" class="app-content" tabindex="-1">
+{% else %}
+    <div class="public-shell">
+        <header class="public-header"><a class="public-brand" href="{{ url_for('introduction') }}"><span class="sidebar-brand-mark"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Tamestorage</strong></a><nav class="public-nav" aria-label="Public navigation"><a href="{{ url_for('introduction') }}#features">Features</a><a href="{{ url_for('introduction') }}#security">Security</a><a href="{{ url_for('introduction') }}#workflow">How it works</a></nav><div class="public-actions"><a class="btn btn-outline-secondary" href="{{ url_for('login') }}">Log in</a><a class="btn btn-primary" href="{{ url_for('register') }}">Sign up</a><button id="themeToggle" class="topbar-icon" type="button" aria-label="Toggle light or dark theme" title="Toggle light or dark theme" data-tooltip="true"><i id="themeIcon" class="fa-regular fa-moon" aria-hidden="true"></i></button></div></header>
+        <main id="mainContent" class="public-content" tabindex="-1">
+{% endif %}
+            {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
             {% block content %}{% endblock %}
         </main>
+{% if session.get('logged_in') %}
+        </div>
     </div>
+{% else %}
+    </div>
+{% endif %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    {% block scripts %}{% endblock %}
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

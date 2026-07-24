@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f7fb">
+    <title>Aircon controller login</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/aircon-favicon.svg') }}?v={{ asset_version }}" type="image/svg+xml">
+    <link href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/aircon.css') }}?v={{ asset_version }}" rel="stylesheet">
+</head>
+<body class="aircon-auth-page">
+    <main class="aircon-login-shell">
+        <section class="aircon-login-card" aria-labelledby="loginTitle">
+            <div class="aircon-login-mark"><i class="fa-solid fa-snowflake" aria-hidden="true"></i></div>
+            <p class="aircon-eyebrow">Private controller</p>
+            <h1 id="loginTitle">Hall aircon</h1>
+            <p class="aircon-muted">Enter the separate aircon portal password.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="aircon-flash-stack">
+                        {% for category, message in messages %}
+                            <div class="aircon-flash is-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form class="aircon-login-form" method="POST" action="{{ url_for('aircon_login') }}">
+                <label class="aircon-field">
+                    <span>Password</span>
+                    <div class="aircon-password-field">
+                        <input id="airconPassword" type="password" name="password" autocomplete="current-password" required {% if not configured %}disabled{% endif %} autofocus>
+                        <button id="toggleAirconPassword" type="button" aria-label="Show password"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
+                    </div>
+                </label>
+                <button class="aircon-button is-primary is-large" type="submit" {% if not configured %}disabled{% endif %}>Open controller</button>
+            </form>
+
+            {% if not configured %}
+                <div class="aircon-setup-warning">
+                    <strong>Password not configured</strong>
+                    <span>Add <code>AIRCON_PORTAL_PASSWORD</code> to your <code>.env</code> file, then restart Tamestorage.</span>
+                </div>
+            {% endif %}
+
+            <a class="aircon-back-link" href="{{ url_for('login') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Main Tamestorage login</a>
+        </section>
+    </main>
+    <script>
+        (function () {
+            "use strict";
+            const button = document.getElementById("toggleAirconPassword");
+            const input = document.getElementById("airconPassword");
+            if (!button || !input) return;
+            button.addEventListener("click", function () {
+                const reveal = input.type === "password";
+                input.type = reveal ? "text" : "password";
+                button.setAttribute("aria-label", reveal ? "Hide password" : "Show password");
+                button.querySelector("i").className = reveal ? "fa-regular fa-eye-slash" : "fa-regular fa-eye";
+            });
+        })();
+    </script>
+</body>
+</html>

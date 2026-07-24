@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Account settings · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header">
+    <div><h1>Account</h1><p class="muted mt-2 mb-0">Manage your profile, storage overview, appearance, and password.</p></div>
+</section>
+
+<div class="settings-layout">
+    <nav class="glass-card settings-nav" aria-label="Settings sections">
+        <a class="active" href="#profile"><i class="fa-regular fa-user"></i> Account</a>
+        <a href="#storage"><i class="fa-solid fa-hard-drive"></i> Storage</a>
+        <a href="#appearance"><i class="fa-regular fa-moon"></i> Appearance</a>
+        <a href="#security"><i class="fa-solid fa-shield-halved"></i> Security</a>
+    </nav>
+
+    <div class="settings-content">
+        <section id="profile" class="glass-card settings-card">
+            <div class="profile-summary">
+                <span class="avatar">{{ shell_initials }}</span>
+                <div><h2>{{ shell_username }}</h2><p>Personal Tamestorage account</p></div>
+            </div>
+        </section>
+
+        <section id="storage" class="glass-card settings-card">
+            <div class="section-heading compact-heading"><div><p class="eyebrow">Storage</p><h2>Usage overview</h2></div><strong>{{ storage_percent }}%</strong></div>
+            <div class="storage-track"><span style="width: {{ storage_percent }}%"></span></div>
+            <p class="muted mt-2 mb-0">{{ used_label }} of {{ quota_label }}</p>
+            <div class="storage-summary-grid">
+                <div class="storage-summary-item"><strong>{{ used_label }}</strong><span>Space used</span></div>
+                <div class="storage-summary-item"><strong>{{ file_count }}</strong><span>Files</span></div>
+                <div class="storage-summary-item"><strong>{{ folder_count }}</strong><span>Folders</span></div>
+            </div>
+        </section>
+
+        <section id="appearance" class="glass-card settings-card">
+            <p class="eyebrow">Appearance</p><h2>Theme</h2><p class="muted">Choose how Tamestorage looks on this device.</p>
+            <div class="theme-options">
+                <button class="theme-option" type="button" data-set-theme="light"><i class="fa-regular fa-sun"></i><span>Light</span></button>
+                <button class="theme-option" type="button" data-set-theme="dark"><i class="fa-regular fa-moon"></i><span>Dark</span></button>
+                <button class="theme-option" type="button" data-set-theme="system"><i class="fa-solid fa-display"></i><span>System</span></button>
+            </div>
+        </section>
+
+        <section id="security" class="glass-card settings-card">
+            <p class="eyebrow">Security</p><h2>Change password</h2><p class="muted">Use at least eight characters and avoid reusing a password from another service.</p>
+            <form method="POST" class="row g-3 mt-1">
+                <input type="hidden" name="action" value="change_password">
+                <div class="col-12"><label class="form-label" for="currentPassword">Current password</label><input class="form-control" id="currentPassword" name="current_password" type="password" autocomplete="current-password" required></div>
+                <div class="col-md-6"><label class="form-label" for="newPassword">New password</label><input class="form-control" id="newPassword" name="new_password" type="password" minlength="8" autocomplete="new-password" required></div>
+                <div class="col-md-6"><label class="form-label" for="confirmPassword">Confirm new password</label><input class="form-control" id="confirmPassword" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required></div>
+                <div class="col-12"><button class="btn btn-primary" type="submit">Update password</button></div>
+            </form>
+        </section>
+    </div>
+</div>
+{% endblock %}

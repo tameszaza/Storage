@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Recent · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header">
+    <div>
+        <h1>Recent</h1>
+        <p class="muted mt-2 mb-0">Files and folders ordered by their latest modification time.</p>
+    </div>
+</section>
+
+<section class="glass-card recent-groups">
+    {% if results %}
+    <div class="table-responsive">
+        <table class="recent-table">
+            <thead><tr><th>Name</th><th>Location</th><th>Modified</th><th>Size</th></tr></thead>
+            <tbody>
+            {% for item in results %}
+                <tr>
+                    <td>
+                        <a class="recent-file-link" href="{% if item.is_dir %}{{ url_for('index', path=item.path) }}{% else %}{{ url_for('preview_file', target=item.path) }}{% endif %}">
+                            <span class="file-icon {{ item.kind }}"><i class="fa-solid fa-{% if item.kind == 'folder' %}folder{% elif item.kind == 'image' %}image{% elif item.kind == 'video' %}film{% elif item.kind == 'pdf' %}file-pdf{% else %}file{% endif %}"></i></span>
+                            <span><strong>{{ item.name }}</strong></span>
+                        </a>
+                    </td>
+                    <td class="muted">{{ '/'.join(item.path.split('/')[:-1]) or 'Root' }}</td>
+                    <td class="muted">{{ item.modified }}</td>
+                    <td class="muted">{{ item.size_label }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="empty-state"><i class="fa-regular fa-clock"></i><h2>No recent files</h2><p class="muted">Upload or edit something and it will appear here.</p></div>
+    {% endif %}
+</section>
+{% endblock %}

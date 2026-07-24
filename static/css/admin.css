@@ -1,0 +1,12 @@
+.admin-grid > * {
+    min-width: 0;
+}
+
+.admin-card.admin-full-span {
+    grid-column: 1 / -1;
+    grid-row: auto;
+}
+
+.server-control-copy {
+    margin: -2px 0 14px;
+}

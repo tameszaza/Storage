@@ -1,14 +1,25 @@
 import io
+import os
 from collections import deque
+from pathlib import Path
 from typing import Any
 
 from flask import current_app
 from PIL import Image
 
-from lib.storage import get_user_file_structure
+from lib.storage import (
+    TEXT_PREVIEW_EXTENSIONS,
+    get_user_file_structure,
+    is_allowed_for_user,
+    normalize_relative_path,
+    safe_upload_path,
+)
 
 _client = None
 _client_error = None
+
+MAX_CONTEXT_CHARS = 12000
+SAFE_TEXT_EXTENSIONS = set(TEXT_PREVIEW_EXTENSIONS) | {".csv", ".tsv", ".tex", ".rst", ".ini", ".toml"}
 
 
 def read_api_key() -> str | None:
@@ -22,11 +33,6 @@ def read_api_key() -> str | None:
 
 
 def get_client():
-    """Create one Google GenAI SDK client lazily.
-
-    The previous implementation used google.generativeai, which is now the
-    legacy Gemini SDK. This uses the newer google-genai package instead.
-    """
     global _client, _client_error
 
     if _client is not None:
@@ -53,11 +59,6 @@ def get_client():
 
 
 def get_model():
-    """Backward-compatible helper for older route code.
-
-    The new SDK does not create a GenerativeModel object. It exposes model calls
-    from the client, so this function returns the client.
-    """
     return get_client()
 
 
@@ -91,12 +92,6 @@ def _message_text(message: dict) -> str:
 
 
 def _api_history(history: list[dict]) -> list[dict]:
-    """Convert saved Flask-session history into google-genai content dicts.
-
-    Consecutive messages from the same role are merged because Gemini expects a
-    cleaner alternating conversation shape. This also keeps the session history
-    readable while making API calls more stable.
-    """
     contents: list[dict] = []
 
     for item in history:
@@ -122,10 +117,70 @@ def _response_text(response: Any) -> str:
     return "I received a response, but it did not contain text."
 
 
-def ask_text(history: list[dict], message: str) -> tuple[str, list[dict]]:
+def _read_text_file_for_ai(username: str | None, file_path: str) -> str:
+    normalized = normalize_relative_path(file_path)
+    if not normalized:
+        return ""
+    if not is_allowed_for_user(normalized, username):
+        return "Selected file context was ignored because this user cannot access that path."
+
+    absolute = safe_upload_path(normalized)
+    if not os.path.exists(absolute) or not os.path.isfile(absolute):
+        return f"Selected file context was requested, but the file was not found: {normalized}"
+
+    suffix = Path(absolute).suffix.lower()
+    if suffix not in SAFE_TEXT_EXTENSIONS:
+        return f"Selected file context was requested, but this file type is not safe for text reading: {suffix or 'no extension'}"
+
+    try:
+        with open(absolute, "r", encoding="utf-8", errors="replace") as file:
+            content = file.read(MAX_CONTEXT_CHARS + 1)
+    except OSError:
+        return "Selected file context was requested, but the file could not be read."
+
+    truncated = len(content) > MAX_CONTEXT_CHARS
+    content = content[:MAX_CONTEXT_CHARS]
+    suffix_note = "\n[Content truncated for safety.]" if truncated else ""
+    return f"Selected file path: {normalized}\nSelected file preview:\n```\n{content}\n```{suffix_note}"
+
+
+def build_ai_context(
+    username: str | None,
+    include_tree: bool = True,
+    file_path: str = "",
+    detail_level: str = "balanced",
+    response_style: str = "practical",
+) -> str:
+    parts = [
+        "Assistant behavior preferences:",
+        f"- Detail level: {detail_level}",
+        f"- Response style: {response_style}",
+        "- Be practical and directly useful for a private file storage app.",
+        "- When suggesting file actions, explain the safest option first.",
+        "- The app supports safe slash commands in chat: /open path, /move source -> folder, /copy source -> folder, and /rename source -> new-name.",
+        "- If the user wants you to perform a file action, suggest the exact slash command when you are not already executing one.",
+    ]
+
+    if include_tree:
+        parts.append("\nCurrent file tree:\n" + get_user_file_structure(username))
+
+    file_context = _read_text_file_for_ai(username, file_path)
+    if file_context:
+        parts.append("\n" + file_context)
+
+    return "\n".join(parts)
+
+
+def _with_context(message: str, extra_context: str = "") -> str:
+    if not extra_context:
+        return message
+    return f"{extra_context}\n\nUser request:\n{message}"
+
+
+def ask_text(history: list[dict], message: str, extra_context: str = "") -> tuple[str, list[dict]]:
     client = get_client()
     updated_history = deque(history, maxlen=1000)
-    updated_history.append({"role": "user", "parts": message})
+    updated_history.append({"role": "user", "parts": _with_context(message, extra_context)})
 
     response = client.models.generate_content(
         model=current_app.config["GEMINI_MODEL"],
@@ -137,15 +192,22 @@ def ask_text(history: list[dict], message: str) -> tuple[str, list[dict]]:
     return text, list(updated_history)
 
 
-def ask_image(history: list[dict], image_bytes: bytes, prompt: str, label: str = "") -> tuple[str, list[dict]]:
+def ask_image(history: list[dict], image_bytes: bytes, prompt: str, label: str = "", extra_context: str = "") -> tuple[str, list[dict]]:
     client = get_client()
     image = Image.open(io.BytesIO(image_bytes))
     image.load()
 
     recent_context = "\n\n".join(_message_text(item) for item in history[-8:] if _message_text(item).strip())
     prompt_text = prompt or "Describe this image."
+    context_parts = []
+    if extra_context:
+        context_parts.append(extra_context)
     if recent_context:
-        prompt_text = f"Context from this file manager session:\n{recent_context}\n\nUser image prompt:\n{prompt_text}"
+        context_parts.append("Recent chat context:\n" + recent_context)
+    context_parts.append("User image prompt:\n" + prompt_text)
+    if label:
+        context_parts.append("User text sent with image:\n" + label)
+    prompt_text = "\n\n".join(context_parts)
 
     response = client.models.generate_content(
         model=current_app.config["GEMINI_MODEL"],

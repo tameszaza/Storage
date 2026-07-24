@@ -1,7 +1,12 @@
 (function () {
+    "use strict";
+
     function fetchSystemUsage() {
-        fetch("/system_usage")
-            .then((response) => response.json())
+        fetch("/system_usage", { headers: { Accept: "application/json" }, cache: "no-store" })
+            .then((response) => {
+                if (!response.ok) throw new Error("Could not load system usage.");
+                return response.json();
+            })
             .then((data) => {
                 const cpu = document.getElementById("cpuUsage");
                 const memory = document.getElementById("memoryUsage");
@@ -14,8 +19,9 @@
             })
             .catch(() => {});
     }
+
     document.addEventListener("DOMContentLoaded", () => {
         fetchSystemUsage();
-        setInterval(fetchSystemUsage, 5000);
+        window.setInterval(fetchSystemUsage, 5000);
     });
 })();

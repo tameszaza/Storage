@@ -1,5 +1,8 @@
+import hashlib
+import mimetypes
 import os
 import shutil
+import stat
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable
@@ -8,6 +11,7 @@ from flask import current_app
 TEXT_PREVIEW_EXTENSIONS = {".txt", ".py", ".log", ".html", ".css", ".js", ".md", ".json", ".yml", ".yaml"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}
 VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".mkv"}
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".opus"}
 DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
 
 
@@ -151,6 +155,8 @@ def file_kind(name: str, is_dir: bool) -> str:
         return "image"
     if ext in VIDEO_EXTENSIONS:
         return "video"
+    if ext in AUDIO_EXTENSIONS:
+        return "audio"
     if ext in TEXT_PREVIEW_EXTENSIONS:
         return "text"
     if ext == ".pdf":
@@ -166,15 +172,20 @@ def build_file_item(base_path: str, name: str, relative_root: str = "") -> dict:
     file_path = os.path.join(base_path, name)
     is_dir = os.path.isdir(file_path)
     size = get_folder_size(file_path) if is_dir else os.path.getsize(file_path)
+    relative_path = normalize_relative_path(os.path.join(relative_root, name))
+    extension = "" if is_dir else Path(name).suffix.lower()
     return {
         "name": name,
         "is_dir": is_dir,
         "size": size,
         "size_label": format_bytes(size),
         "mod_time": format_modification_time(os.path.getmtime(file_path)),
+        "modified_timestamp": os.path.getmtime(file_path),
         "content": None if is_dir else preview_text(file_path),
         "kind": file_kind(name, is_dir),
-        "relative_path": normalize_relative_path(os.path.join(relative_root, name)),
+        "extension": extension,
+        "relative_path": relative_path,
+        "parent_path": normalize_relative_path(os.path.dirname(relative_path)),
     }
 
 
@@ -186,22 +197,101 @@ def list_directory(relative_path: str, search_query: str | None = None) -> list[
         return files
 
     if search_query:
-        query = search_query.lower()
+        query = search_query.casefold()
         for root, dirs, filenames in os.walk(current_path):
+            dirs[:] = [directory for directory in dirs if directory != ".tamestorage_system"]
             rel_root = normalize_relative_path(os.path.relpath(root, current_path))
             rel_root = "" if rel_root == "." else rel_root
+            full_relative_root = normalize_relative_path(os.path.join(relative_path, rel_root))
             for dirname in dirs:
-                if query in dirname.lower():
-                    files.append(build_file_item(root, dirname, rel_root))
+                if query in dirname.casefold():
+                    files.append(build_file_item(root, dirname, full_relative_root))
             for filename in filenames:
-                if query in filename.lower():
-                    files.append(build_file_item(root, filename, rel_root))
+                if query in filename.casefold():
+                    files.append(build_file_item(root, filename, full_relative_root))
     else:
         for name in os.listdir(current_path):
-            files.append(build_file_item(current_path, name))
+            if name == ".tamestorage_system":
+                continue
+            files.append(build_file_item(current_path, name, relative_path))
 
-    files.sort(key=lambda item: (not item["is_dir"], item["name"].lower()))
+    files.sort(key=lambda item: (not item["is_dir"], item["name"].casefold()))
     return files
+
+
+def _sha256(path: str, max_size: int = 128 * 1024 * 1024) -> str | None:
+    try:
+        if os.path.getsize(path) > max_size:
+            return None
+        digest = hashlib.sha256()
+        with open(path, "rb") as file:
+            for block in iter(lambda: file.read(1024 * 1024), b""):
+                digest.update(block)
+        return digest.hexdigest()
+    except OSError:
+        return None
+
+
+def get_path_details(relative_path: str) -> dict:
+    """Return useful filesystem metadata for a file or folder preview."""
+    relative_path = normalize_relative_path(relative_path)
+    absolute = safe_upload_path(relative_path)
+    if not os.path.exists(absolute):
+        raise FileNotFoundError(absolute)
+
+    stat_result = os.stat(absolute)
+    is_dir = os.path.isdir(absolute)
+    name = os.path.basename(relative_path) or os.path.basename(absolute)
+    extension = "" if is_dir else Path(name).suffix.lower()
+    mime_type = "inode/directory" if is_dir else (mimetypes.guess_type(name)[0] or "application/octet-stream")
+    size = get_folder_size(absolute) if is_dir else stat_result.st_size
+    parts = path_segments(relative_path)
+    details = {
+        "name": name,
+        "path": relative_path,
+        "parent_path": normalize_relative_path(os.path.dirname(relative_path)),
+        "owner": parts[0] if parts else "Root",
+        "is_dir": is_dir,
+        "kind": file_kind(name, is_dir),
+        "extension": extension or "Folder",
+        "mime_type": mime_type,
+        "size": size,
+        "size_label": format_bytes(size),
+        "modified": datetime.fromtimestamp(stat_result.st_mtime).strftime("%d %B %Y, %H:%M:%S"),
+        "modified_iso": datetime.fromtimestamp(stat_result.st_mtime).isoformat(timespec="seconds"),
+        "created": datetime.fromtimestamp(stat_result.st_ctime).strftime("%d %B %Y, %H:%M:%S"),
+        "created_iso": datetime.fromtimestamp(stat_result.st_ctime).isoformat(timespec="seconds"),
+        "permissions": stat.filemode(stat_result.st_mode),
+        "checksum": None if is_dir else _sha256(absolute),
+        "checksum_skipped": (not is_dir and size > 128 * 1024 * 1024),
+    }
+
+    if is_dir:
+        try:
+            children = [entry for entry in os.scandir(absolute) if entry.name != ".tamestorage_system"]
+        except OSError:
+            children = []
+        details["item_count"] = len(children)
+        details["folder_count"] = sum(1 for entry in children if entry.is_dir(follow_symlinks=False))
+        details["file_count"] = sum(1 for entry in children if entry.is_file(follow_symlinks=False))
+    elif extension in IMAGE_EXTENSIONS:
+        try:
+            from PIL import Image
+            with Image.open(absolute) as image:
+                details["dimensions"] = f"{image.width} × {image.height} px"
+                details["image_mode"] = image.mode
+        except Exception:
+            pass
+    elif extension in TEXT_PREVIEW_EXTENSIONS and size <= 10 * 1024 * 1024:
+        try:
+            text = Path(absolute).read_text(encoding="utf-8", errors="replace")
+            details["line_count"] = text.count("\n") + (1 if text else 0)
+            details["word_count"] = len(text.split())
+            details["character_count"] = len(text)
+        except OSError:
+            pass
+
+    return details
 
 
 def valid_folder_name(folder_name: str) -> bool:

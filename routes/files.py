@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import tempfile
+from pathlib import Path
 from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 from lib.charts import analyze_directory_space, generate_pie_chart
 from lib.activity import log_activity
@@ -20,6 +21,7 @@ from lib.storage import (
     normalize_relative_path,
     rename_path,
     safe_filename,
+    safe_path_part,
     safe_relative_upload_name,
     safe_upload_path,
     upload_root,
@@ -40,6 +42,18 @@ def _require_path_access(path: str) -> str:
     if not is_allowed_for_user(normalized, username):
         abort(403)
     return normalized
+
+
+def _wants_json_response() -> bool:
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.best == "application/json"
+
+
+def _upload_result(success: bool, message: str, path: str, status: int = 200, count: int = 0):
+    if _wants_json_response():
+        return jsonify(success=success, message=message, uploaded=count, redirect_url=url_for("index", path=path)), status
+    if message:
+        flash(message, "success" if success else "warning")
+    return redirect(url_for("index", path=path))
 
 
 @login_required
@@ -76,7 +90,7 @@ def upload_file(path=""):
     path = visible_path_for_user(path, session.get("username"))
     files = request.files.getlist("file")
     if not files or not any(file.filename for file in files):
-        return redirect(url_for("index", path=path))
+        return _upload_result(False, "Choose at least one file to upload.", path, 400)
 
     current_path = safe_upload_path(path)
     os.makedirs(current_path, exist_ok=True)
@@ -97,9 +111,9 @@ def upload_file(path=""):
                     pass
             used = get_folder_size(safe_upload_path(username))
             if used + incoming > quota:
-                flash("Upload blocked because it would exceed your storage quota.", "warning")
-                return redirect(url_for("index", path=path))
+                return _upload_result(False, "Upload blocked because it would exceed your storage quota.", path, 413)
 
+    uploaded_count = 0
     for uploaded in files:
         if not uploaded or not uploaded.filename:
             continue
@@ -110,9 +124,12 @@ def upload_file(path=""):
             create_version(relative_target, "before upload replace")
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         uploaded.save(filepath)
+        uploaded_count += 1
         logging.info("File uploaded: %s", filepath)
         log_activity("file.upload", relative_target)
-    return redirect(url_for("index", path=path))
+
+    label = "file" if uploaded_count == 1 else "files"
+    return _upload_result(True, f"Uploaded {uploaded_count} {label} successfully.", path, 201, uploaded_count)
 
 
 @login_required
@@ -249,11 +266,21 @@ def save_file(path, filename):
     path = _require_path_access(path)
     filename = safe_filename(filename)
     file_path = safe_upload_path(path, filename)
-    create_version(os.path.join(path, filename), "before browser edit")
-    with open(file_path, "w", encoding="utf-8") as file:
-        file.write(request.form.get("file_content", ""))
-    log_activity("file.edit", os.path.join(path, filename))
-    flash("File saved successfully.", "success")
+    new_content = request.form.get("file_content", "")
+    try:
+        old_content = Path(file_path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        old_content = None
+    if old_content != new_content:
+        create_version(os.path.join(path, filename), "before browser edit")
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(new_content)
+        log_activity("file.edit", os.path.join(path, filename))
+        flash("File saved successfully.", "success")
+    else:
+        flash("No changes to save.", "info")
+    if request.form.get("save_action") == "continue":
+        return redirect(url_for("edit_file", path=path, filename=filename))
     return redirect(url_for("index", path=path))
 
 
@@ -309,6 +336,47 @@ def create_folder(path=""):
     logging.info("Folder created: %s", os.path.join(path, folder_name))
     log_activity("folder.create", os.path.join(path, folder_name))
     return redirect(url_for("index", path=path))
+
+
+
+
+@login_required
+def create_text_file(path=""):
+    path = visible_path_for_user(path, session.get("username"))
+    raw_name = request.form.get("file_name", "").strip()
+    requested_extension = request.form.get("extension", ".txt").strip().lower()
+    allowed_extensions = sorted(TEXT_PREVIEW_EXTENSIONS)
+    if not raw_name:
+        flash("Enter a name for the new text file.", "warning")
+        return redirect(url_for("index", path=path, new="text"))
+
+    if not requested_extension.startswith("."):
+        requested_extension = "." + requested_extension
+    if requested_extension not in TEXT_PREVIEW_EXTENSIONS:
+        requested_extension = ".txt"
+
+    cleaned_name = safe_path_part(raw_name, "untitled")
+    existing_extension = os.path.splitext(cleaned_name)[1].lower()
+    if existing_extension:
+        if existing_extension not in TEXT_PREVIEW_EXTENSIONS:
+            flash("Choose a supported text-file extension.", "warning")
+            return redirect(url_for("index", path=path, new="text"))
+        filename = cleaned_name
+    else:
+        filename = cleaned_name + requested_extension
+
+    target = normalize_relative_path(os.path.join(path, filename))
+    absolute = safe_upload_path(target)
+    if os.path.exists(absolute):
+        flash("A file with that name already exists.", "warning")
+        return redirect(url_for("index", path=path, new="text"))
+
+    os.makedirs(os.path.dirname(absolute), exist_ok=True)
+    Path(absolute).write_text(request.form.get("initial_content", ""), encoding="utf-8")
+    logging.info("Text file created: %s", target)
+    log_activity("file.create_text", target)
+    flash(f"Created {filename}.", "success")
+    return redirect(url_for("edit_file", path=path, filename=filename))
 
 
 @login_required
@@ -373,5 +441,7 @@ def register_routes(app):
     app.add_url_rule("/rename_folder/<path:path>/<foldername>", "rename_folder", rename_folder, methods=["POST"])
     app.add_url_rule("/create_folder", "create_folder", create_folder, methods=["POST"], defaults={"path": ""})
     app.add_url_rule("/create_folder/<path:path>", "create_folder", create_folder, methods=["POST"])
+    app.add_url_rule("/create_text_file", "create_text_file", create_text_file, methods=["POST"], defaults={"path": ""})
+    app.add_url_rule("/create_text_file/<path:path>", "create_text_file", create_text_file, methods=["POST"])
     app.add_url_rule("/detail/<path:directory>", "detail", detail)
     app.add_url_rule("/charts/<filename>", "serve_chart", serve_chart)

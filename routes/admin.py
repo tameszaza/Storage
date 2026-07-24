@@ -2,7 +2,14 @@ import logging
 import os
 import shutil
 import subprocess
-from flask import current_app, flash, jsonify, redirect, render_template, request, session, url_for
+import sys
+import threading
+import time
+from pathlib import Path
+
+from flask import current_app, flash, jsonify, redirect, render_template, request, url_for
+
+from lib.ac_control import AcControlError, get_ac_controller
 from lib.charts import clear_charts
 from lib.feedback_store import delete_feedback as delete_feedback_item, load_feedback, mark_all_as_read
 from lib.security import admin_required
@@ -10,18 +17,19 @@ from lib.storage import format_bytes, safe_upload_path, user_storage_usage
 from lib.system_info import system_usage as collect_system_usage
 from lib.users import load_users, save_users
 
-
-def read_text_file(path: str, missing_message: str) -> str:
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as file:
-            return file.read()
-    except FileNotFoundError:
-        return missing_message
+def _admin_asset_version() -> int:
+    static_root = Path(current_app.static_folder or "static")
+    paths = (static_root / "css" / "admin.css", static_root / "js" / "admin.js")
+    timestamps = [int(path.stat().st_mtime) for path in paths if path.is_file()]
+    return max(timestamps, default=int(time.time()))
 
 
-def write_empty_file(path: str) -> None:
-    with open(path, "w", encoding="utf-8") as file:
-        file.write("")
+def _restart_process_after_response(delay_seconds: float = 1.25) -> None:
+    time.sleep(delay_seconds)
+    if os.environ.get("WERKZEUG_RUN_MAIN", "").lower() == "true":
+        # Werkzeug's development reloader restarts when the child exits with code 3.
+        os._exit(3)
+    os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 @admin_required
@@ -38,6 +46,7 @@ def admin():
         unread_count=unread_count,
         uptime=usage["uptime"],
         format_bytes=format_bytes,
+        admin_asset_version=_admin_asset_version(),
     )
 
 
@@ -174,10 +183,34 @@ def shutdown_server():
 
 @admin_required
 def shutdown():
-    logging.warning("Shutdown initiated by admin")
+    logging.warning("Shutdown initiated by Admin.")
     shutdown_server()
     return "Server shutting down..."
 
+
+@admin_required
+def restart_server():
+    controller = get_ac_controller(current_app)
+    try:
+        if controller.get_status()["active"]:
+            controller.stop_cycle()
+    except AcControlError as error:
+        logging.warning("Could not stop AC cycle before restart: %s", error)
+        flash(f"Restart cancelled because the AC cycle could not be stopped: {error}", "danger")
+        return redirect(url_for("admin") + "#server-control")
+
+    logging.warning("Server restart initiated by Admin.")
+    threading.Thread(
+        target=_restart_process_after_response,
+        name="tamestorage-server-restart",
+        daemon=True,
+    ).start()
+    return render_template("server_restarting.html"), 202
+
+
+@admin_required
+def restart_status():
+    return jsonify({"ready": True})
 
 
 @admin_required
@@ -196,6 +229,7 @@ def set_user_quota(username):
     flash(f"Quota updated for {username}.", "success")
     return redirect(url_for("admin"))
 
+
 def register_routes(app):
     app.add_url_rule("/admin", "admin", admin)
     app.add_url_rule("/system_usage", "system_usage", system_usage)
@@ -212,4 +246,6 @@ def register_routes(app):
     app.add_url_rule("/admin/quota/<username>", "set_user_quota", set_user_quota, methods=["POST"])
     app.add_url_rule("/admin/git_pull", "git_pull", git_pull, methods=["POST"])
     app.add_url_rule("/admin/clear_charts", "clear_charts", clear_all_charts, methods=["POST"])
+    app.add_url_rule("/admin/restart", "restart_server", restart_server, methods=["POST"])
+    app.add_url_rule("/admin/restart/status", "restart_status", restart_status)
     app.add_url_rule("/admin/shutdown", "shutdown", shutdown, methods=["POST"])

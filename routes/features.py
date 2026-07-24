@@ -13,16 +13,20 @@ from flask import abort, after_this_request, current_app, flash, jsonify, redire
 from lib.activity import list_activity, log_activity
 from lib.backup import create_backup_zip
 from lib.file_requests import create_request, get_request, is_expired, list_requests, update_request
+from lib.extensions import bcrypt
 from lib.metadata import all_metadata, get_metadata, move_metadata, set_metadata
 from lib.notifications import list_notifications, mark_read, notify, unread_count
 from lib.search_index import duplicate_groups, search_files
 from lib.security import admin_required, login_required
 from lib.storage import (
+    AUDIO_EXTENSIONS,
     IMAGE_EXTENSIONS,
     TEXT_PREVIEW_EXTENSIONS,
     VIDEO_EXTENSIONS,
     file_kind,
     format_bytes,
+    get_folder_size,
+    get_path_details,
     is_allowed_for_user,
     normalize_relative_path,
     safe_relative_upload_name,
@@ -32,8 +36,8 @@ from lib.storage import (
 )
 from lib.trash import delete_forever, empty_trash, list_trash, restore
 from lib.versions import get_version, list_versions, move_versions, restore_version, version_file_path
+from lib.users import load_users, save_users
 
-AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".flac"}
 
 
 def _require_access(target: str) -> str:
@@ -70,7 +74,21 @@ def preview_file():
             json_text = text
         else:
             content = text
-    return render_template("preview.html", target=target, name=name, ext=ext, kind=kind, content=content, rows=rows, json_text=json_text, audio=ext in AUDIO_EXTENSIONS, image=ext in IMAGE_EXTENSIONS, video=ext in VIDEO_EXTENSIONS)
+    return render_template(
+        "preview.html",
+        target=target,
+        name=name,
+        ext=ext,
+        kind=kind,
+        content=content,
+        rows=rows,
+        json_text=json_text,
+        audio=ext in AUDIO_EXTENSIONS,
+        image=ext in IMAGE_EXTENSIONS,
+        video=ext in VIDEO_EXTENSIONS,
+        file_info=get_path_details(target),
+        metadata=get_metadata(target),
+    )
 
 
 @login_required
@@ -151,7 +169,7 @@ def metadata_page():
         flash("Metadata saved.", "success")
         log_activity("metadata.update", target)
         return redirect(url_for("metadata_page", target=target))
-    return render_template("metadata.html", target=target, metadata=get_metadata(target))
+    return render_template("metadata.html", target=target, metadata=get_metadata(target), file_info=get_path_details(target))
 
 
 @login_required
@@ -180,6 +198,16 @@ def advanced_search():
     results = []
     if request.args:
         results = search_files(base, query=query, kind=kind, tag=tag, content=content, starred=starred, min_size=to_int(min_size), max_size=to_int(max_size), modified_days=to_int(modified_days))
+        normalized_query = query.casefold().strip()
+        if normalized_query:
+            results.sort(key=lambda item: (
+                item["name"].casefold() != normalized_query,
+                not item["name"].casefold().startswith(normalized_query),
+                not item["is_dir"],
+                item["name"].casefold(),
+            ))
+        else:
+            results.sort(key=lambda item: (-item.get("mtime", 0), item["name"].casefold()))
     tags = sorted({tag for meta in all_metadata().values() for tag in meta.get("tags", [])})
     return render_template("advanced_search.html", results=results, tags=tags)
 
@@ -384,7 +412,60 @@ def integrity_page():
     return render_template("integrity.html", total=len(results), total_size=format_bytes(total_size), missing=missing)
 
 
+
+@login_required
+def recent_page():
+    username = session.get("username")
+    base = "" if username == "Admin" else username
+    results = sorted(search_files(base), key=lambda item: item.get("mtime", 0), reverse=True)[:100]
+    return render_template("recent.html", results=results)
+
+
+@login_required
+def settings_page():
+    username = session.get("username")
+    users = load_users()
+    user = users.get(username, {})
+
+    if request.method == "POST":
+        action = request.form.get("action", "")
+        if action == "change_password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+            if not bcrypt.check_password_hash(user.get("password", ""), current_password):
+                flash("Current password is incorrect.", "danger")
+            elif len(new_password) < 8:
+                flash("New password must be at least 8 characters.", "warning")
+            elif new_password != confirm_password:
+                flash("New password confirmation does not match.", "warning")
+            else:
+                user["password"] = bcrypt.generate_password_hash(new_password).decode("utf-8")
+                users[username] = user
+                save_users(users)
+                flash("Password updated successfully.", "success")
+                log_activity("account.password_change", username)
+            return redirect(url_for("settings_page"))
+
+    base = "" if username == "Admin" else username
+    absolute = safe_upload_path(base)
+    used_bytes = get_folder_size(absolute) if os.path.isdir(absolute) else 0
+    quota_bytes = int(user.get("quota_bytes") or current_app.config.get("DEFAULT_USER_QUOTA_BYTES", 0) or 0) if username != "Admin" else 0
+    results = search_files(base)
+    file_count = sum(1 for item in results if not item.get("is_dir"))
+    folder_count = sum(1 for item in results if item.get("is_dir"))
+    return render_template(
+        "settings.html",
+        used_label=format_bytes(used_bytes),
+        quota_label=format_bytes(quota_bytes) if quota_bytes else "Unlimited",
+        storage_percent=min(100, round((used_bytes / quota_bytes) * 100, 1)) if quota_bytes else 0,
+        file_count=file_count,
+        folder_count=folder_count,
+    )
+
 def register_routes(app):
+    app.add_url_rule("/recent", "recent_page", recent_page)
+    app.add_url_rule("/settings", "settings_page", settings_page, methods=["GET", "POST"])
     app.add_url_rule("/preview", "preview_file", preview_file)
     app.add_url_rule("/raw", "raw_file", raw_file)
     app.add_url_rule("/trash", "trash_page", trash_page)

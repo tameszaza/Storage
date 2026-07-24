@@ -1,45 +1,99 @@
 {% extends "base.html" %}
 {% block title %}AI Assistant · Tamestorage{% endblock %}
 {% block content %}
-<section class="chat-layout chat-page glass-card">
-    <div class="chat-header refined-header">
-        <div class="header-copy">
+<section class="ai-workspace glass-card">
+    <div class="ai-hero compact-ai-hero">
+        <div>
             <p class="eyebrow">AI assistant</p>
             <h1>Ask about your files</h1>
-            <p class="muted">Send a message, attach an image, or ask about the structure of your storage workspace.</p>
+            <p class="muted">Use the assistant to understand, summarize, organize, and inspect your storage workspace.</p>
         </div>
-        <a class="btn btn-soft back-button" href="{{ url_for('index') }}">
-            <i class="fa-solid fa-arrow-left"></i>
-            Back to files
-        </a>
+        <div class="ai-hero-actions">
+            <button id="exportChatBtn" class="btn btn-soft" type="button"><i class="fa-solid fa-file-export"></i> Export</button>
+            <button id="clearChatBtn" class="btn btn-outline-danger" type="button"><i class="fa-solid fa-trash-can"></i> Clear</button>
+            <a class="btn btn-soft back-button" href="{{ url_for('index') }}"><i class="fa-solid fa-arrow-left"></i> Back to files</a>
+        </div>
     </div>
 
-    <div class="chat-panel">
-        <div id="chatMessages" class="chat-messages">
-            <div class="message assistant">
-                <span class="message-avatar"><i class="fa-solid fa-robot"></i></span>
-                <div class="message-bubble">
-                    <div class="message-body">Hi. Ask me anything about your storage workspace.</div>
+    <div class="ai-grid integrated-ai-grid">
+        <aside class="ai-side-panel compact-side-panel">
+            <div class="ai-side-card">
+                <h2><i class="fa-solid fa-bolt"></i> Quick prompts</h2>
+                <div class="quick-prompt-grid compact-prompt-grid">
+                    <button class="quick-prompt" type="button" data-prompt="Summarize my current storage structure and point out the most important folders.">Storage summary</button>
+                    <button class="quick-prompt" type="button" data-prompt="Find cleanup opportunities in my storage. Mention duplicates, old files, and large files if you can infer them.">Cleanup ideas</button>
+                    <button class="quick-prompt" type="button" data-prompt="Suggest a better folder organization plan for my current files.">Organize folders</button>
+                    <button class="quick-prompt" type="button" data-prompt="/help">Command help</button>
+                </div>
+                <div class="command-chip-row" aria-label="AI file commands">
+                    <button class="command-chip" type="button" data-template="/open "><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
+                    <button class="command-chip" type="button" data-template="/move source/path -> destination/folder"><i class="fa-solid fa-arrows-up-down-left-right"></i> Move</button>
+                    <button class="command-chip" type="button" data-template="/copy source/path -> destination/folder"><i class="fa-solid fa-copy"></i> Copy</button>
+                    <button class="command-chip" type="button" data-template="/rename source/path -> new-name.ext"><i class="fa-solid fa-pen"></i> Rename</button>
                 </div>
             </div>
+
+            <div class="ai-side-card">
+                <h2><i class="fa-solid fa-folder-tree"></i> Context</h2>
+                <label class="context-check">
+                    <input id="includeTreeContext" type="checkbox" checked>
+                    <span>Include file tree context</span>
+                </label>
+                <label class="form-label mt-3" for="fileContextPath">Optional file path</label>
+                <input id="fileContextPath" class="form-control" placeholder="Example: Admin/notes.md" autocomplete="off">
+                <small class="muted d-block mt-2">For text, code, CSV, JSON, Markdown, and LaTeX-style files, the assistant can read a safe preview of the content.</small>
+            </div>
+
+            <div class="ai-side-card">
+                <h2><i class="fa-solid fa-sliders"></i> Reply preferences</h2>
+                <div class="ai-preference-grid">
+                    <label>
+                        <span>Detail</span>
+                        <select id="detailLevel" class="form-select">
+                            <option value="brief">Brief</option>
+                            <option value="balanced" selected>Balanced</option>
+                            <option value="deep">Deep</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Style</span>
+                        <select id="responseStyle" class="form-select">
+                            <option value="practical" selected>Practical</option>
+                            <option value="step-by-step">Step by step</option>
+                            <option value="checklist">Checklist</option>
+                            <option value="table">Table</option>
+                        </select>
+                    </label>
+                </div>
+                <p class="muted tiny-hint mt-3 mb-0">Copy, reuse, regenerate, and action buttons appear directly under each message.</p>
+            </div>
+        </aside>
+
+        <div class="ai-chat-panel clean-chat-panel">
+            <div class="chat-utility-row">
+                <div class="chat-search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input id="chatSearchInput" class="form-control" type="search" placeholder="Search messages in this chat">
+                </div>
+                <button id="scrollBottomBtn" class="btn btn-soft" type="button"><i class="fa-solid fa-arrow-down"></i> Bottom</button>
+            </div>
+
+            <div id="chatDropZone" class="chat-drop-zone">
+                <div id="chatMessages" class="chat-messages improved-chat" aria-live="polite"></div>
+            </div>
+
+            <form id="chatForm" class="chat-form chat-composer improved-composer" action="{{ url_for('chat') }}" method="POST" enctype="multipart/form-data">
+                <textarea id="chatInput" class="form-control composer-input" name="msg" rows="1" placeholder="Ask about your files. Shift + Enter for a new line." autocomplete="off"></textarea>
+
+                <input id="imageInput" class="visually-hidden" type="file" name="image" accept="image/*">
+                <label class="btn btn-soft attach-button" for="imageInput"><i class="fa-solid fa-paperclip"></i> <span id="imageLabel">Attach image</span></label>
+                <button id="removeImageBtn" class="btn btn-outline-danger remove-image-button" type="button" hidden><i class="fa-solid fa-xmark"></i></button>
+
+                <input id="imagePromptInput" class="form-control prompt-input" name="prompt" placeholder="Image prompt, optional" autocomplete="off">
+
+                <button id="sendButton" class="btn btn-primary send-button" type="submit"><i class="fa-solid fa-paper-plane"></i> Send</button>
+            </form>
         </div>
-
-        <form id="chatForm" class="chat-form chat-composer" action="{{ url_for('chat') }}" method="POST" enctype="multipart/form-data">
-            <input id="chatInput" class="form-control composer-input" name="msg" placeholder="Ask about your files..." autocomplete="off">
-
-            <input id="imageInput" class="visually-hidden" type="file" name="image" accept="image/*">
-            <label class="btn btn-soft attach-button" for="imageInput">
-                <i class="fa-solid fa-paperclip"></i>
-                <span id="imageLabel">Attach image</span>
-            </label>
-
-            <input class="form-control prompt-input" name="prompt" placeholder="Image prompt, optional" autocomplete="off">
-
-            <button id="sendButton" class="btn btn-primary send-button" type="submit">
-                <i class="fa-solid fa-paper-plane"></i>
-                Send
-            </button>
-        </form>
     </div>
 </section>
 {% endblock %}

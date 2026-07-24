@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Login · Tamestorage{% endblock %}
+{% block title %}Log in · Tamestorage{% endblock %}
 {% block content %}
 <section class="auth-layout">
-    <div class="auth-hero glass-card">
+    <form method="POST" class="auth-card">
         <p class="eyebrow">Welcome back</p>
-        <h1>Access your files from a cleaner, faster storage dashboard.</h1>
-        <p class="muted">Upload, preview, rename, analyze storage usage, and chat with the AI assistant from one private workspace.</p>
-        <a href="{{ url_for('introduction') }}" class="soft-link">Learn what Tamestorage can do</a>
-    </div>
-
-    <form method="POST" class="auth-card glass-card">
-        <h2>Sign in</h2>
+        <h2>Log in to your account</h2>
+        <p class="auth-intro">Access your files, shares, recent activity, and private tools.</p>
         {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
         <label class="form-label" for="username">Username</label>
-        <input class="form-control form-control-lg" id="username" type="text" name="username" autocomplete="username" required>
-        <label class="form-label mt-3" for="password">Password</label>
-        <input class="form-control form-control-lg" id="password" type="password" name="password" autocomplete="current-password" required>
-        <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Login</button>
-        <p class="auth-alt">No account yet? <a href="{{ url_for('register') }}">Create one</a></p>
+        <input class="form-control" id="username" type="text" name="username" autocomplete="username" placeholder="Your username" required autofocus>
+        <div class="password-row mt-3"><label class="form-label mb-0" for="password">Password</label></div>
+        <input class="form-control mt-2" id="password" type="password" name="password" autocomplete="current-password" placeholder="Your password" required>
+        <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Log in</button>
+        <div class="auth-divider">or</div>
+        <a class="btn btn-outline-secondary w-100" href="{{ url_for('introduction') }}"><i class="fa-solid fa-circle-info me-2"></i>Explore Tamestorage</a>
+        <p class="auth-alt">Do not have an account? <a href="{{ url_for('register') }}">Sign up</a></p>
     </form>
+    <div class="auth-visual">
+        <div class="auth-visual-content"><i class="fa-solid fa-cloud-arrow-up"></i><h2>Your files in safe hands.</h2><p>Stay focused on what matters while Tamestorage keeps your personal workspace organized and available.</p></div>
+    </div>
 </section>
 {% endblock %}

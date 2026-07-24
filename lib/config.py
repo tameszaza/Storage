@@ -1,4 +1,37 @@
 import os
+from pathlib import Path
+
+
+def _load_local_env(path: str = ".env") -> None:
+    """Load simple KEY=VALUE entries without requiring python-dotenv."""
+    env_path = Path(path)
+    if not env_path.is_file():
+        return
+
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key or not key.replace("_", "").isalnum():
+            continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+_load_local_env()
 
 
 class Config:
@@ -20,3 +53,6 @@ class Config:
     NOTIFICATIONS_FILE = os.environ.get("NOTIFICATIONS_FILE", "notifications.json")
     FILE_REQUESTS_FILE = os.environ.get("FILE_REQUESTS_FILE", "file_requests.json")
     DEFAULT_USER_QUOTA_BYTES = int(os.environ.get("DEFAULT_USER_QUOTA_BYTES", 5 * 1024 * 1024 * 1024))
+    AC_CONTROL_FILE = os.environ.get("AC_CONTROL_FILE", "ac_control.json")
+    AIRCON_PORTAL_PASSWORD = os.environ.get("AIRCON_PORTAL_PASSWORD", "")
+    AIRCON_SESSION_HOURS = int(os.environ.get("AIRCON_SESSION_HOURS", 24))

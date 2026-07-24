@@ -1,6 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Metadata · Tamestorage{% endblock %}
+{% block title %}Details for {{ file_info.name }} · Tamestorage{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Tags and notes</p><h1>{{ target }}</h1><p class="muted">Use tags, notes, and stars to organize without moving files.</p></div></section>
-<section class="glass-card form-card"><form method="POST"><div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="starred" name="starred" {% if metadata.starred %}checked{% endif %}><label class="form-check-label" for="starred">Star this item</label></div><label class="form-label">Tags</label><input class="form-control" name="tags" value="{{ (metadata.tags or [])|join(', ') }}" placeholder="physics, posn, important"><label class="form-label mt-3">Note</label><textarea class="form-control" name="note" rows="6" placeholder="Write a useful note about this file or folder">{{ metadata.note or '' }}</textarea><button class="btn btn-primary mt-4">Save metadata</button></form></section>
+<section class="workspace-header glass-card compact-header clean-hero">
+    <div>
+        <p class="eyebrow">Item information</p>
+        <h1>{{ file_info.name }}</h1>
+        <div class="breadcrumb-line"><span>{{ file_info.parent_path or 'Root' }}</span><span>/</span><strong>{{ file_info.name }}</strong></div>
+    </div>
+    <div class="header-actions compact-actions">
+        {% if file_info.is_dir %}<a class="btn btn-outline-primary" href="{{ url_for('index', path=target) }}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Open folder</a>{% else %}<a class="btn btn-outline-primary" href="{{ url_for('preview_file', target=target) }}"><i class="fa-regular fa-eye" aria-hidden="true"></i> Preview</a>{% endif %}
+        <a class="btn btn-outline-secondary" href="{{ url_for('index', path=file_info.parent_path) }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</a>
+    </div>
+</section>
+
+<div class="metadata-layout">
+    <section class="glass-card metadata-facts-card" aria-labelledby="technicalDetailsHeading">
+        <div class="section-heading"><div><p class="eyebrow">Filesystem</p><h2 id="technicalDetailsHeading">Technical details</h2></div><span class="file-icon {{ file_info.kind }} metadata-file-icon" aria-hidden="true"><i class="fa-solid fa-{% if file_info.kind == 'folder' %}folder{% elif file_info.kind == 'image' %}image{% elif file_info.kind == 'video' %}film{% elif file_info.kind == 'audio' %}music{% elif file_info.kind == 'pdf' %}file-pdf{% elif file_info.kind == 'text' %}file-lines{% else %}file{% endif %}"></i></span></div>
+        <dl class="metadata-facts-grid">
+            <div><dt>Name</dt><dd>{{ file_info.name }}</dd></div>
+            <div><dt>Kind</dt><dd>{{ file_info.kind|title }}</dd></div>
+            <div><dt>Extension</dt><dd>{{ file_info.extension }}</dd></div>
+            <div><dt>MIME type</dt><dd>{{ file_info.mime_type }}</dd></div>
+            <div><dt>Size</dt><dd>{{ file_info.size_label }} <small>({{ '{:,}'.format(file_info.size) }} bytes)</small></dd></div>
+            <div><dt>Owner</dt><dd>{{ file_info.owner }}</dd></div>
+            <div class="metadata-wide"><dt>Location</dt><dd class="break-anywhere">{{ file_info.path }}</dd></div>
+            <div><dt>Modified</dt><dd><time datetime="{{ file_info.modified_iso }}">{{ file_info.modified }}</time></dd></div>
+            <div><dt>Created / changed</dt><dd><time datetime="{{ file_info.created_iso }}">{{ file_info.created }}</time></dd></div>
+            <div><dt>Permissions</dt><dd><code>{{ file_info.permissions }}</code></dd></div>
+            {% if file_info.dimensions %}<div><dt>Dimensions</dt><dd>{{ file_info.dimensions }}</dd></div>{% endif %}
+            {% if file_info.image_mode %}<div><dt>Image mode</dt><dd>{{ file_info.image_mode }}</dd></div>{% endif %}
+            {% if file_info.item_count is defined %}<div><dt>Contents</dt><dd>{{ file_info.file_count }} files · {{ file_info.folder_count }} folders</dd></div>{% endif %}
+            {% if file_info.line_count is defined %}<div><dt>Lines</dt><dd>{{ file_info.line_count }}</dd></div><div><dt>Words</dt><dd>{{ file_info.word_count }}</dd></div><div><dt>Characters</dt><dd>{{ file_info.character_count }}</dd></div>{% endif %}
+        </dl>
+        <div class="checksum-block metadata-checksum"><div><strong>SHA-256 checksum</strong><small>Compare this value to verify the file has not changed.</small></div>{% if file_info.checksum %}<code>{{ file_info.checksum }}</code><button class="btn btn-sm btn-outline-primary js-copy" type="button" data-copy="{{ file_info.checksum }}" title="Copy checksum"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy</button>{% elif file_info.checksum_skipped %}<p class="muted mb-0">Skipped because the file is larger than 128 MB.</p>{% else %}<p class="muted mb-0">Not available for this item.</p>{% endif %}</div>
+    </section>
+
+    <section class="glass-card metadata-edit-card" aria-labelledby="organizationHeading">
+        <div class="section-heading"><div><p class="eyebrow">Personal organization</p><h2 id="organizationHeading">Tags and notes</h2><p class="muted">These details help search and organize the item without changing its location.</p></div></div>
+        <form method="POST">
+            <div class="form-check form-switch mb-3"><input class="form-check-input" type="checkbox" id="starred" name="starred" {% if metadata.starred %}checked{% endif %}><label class="form-check-label" for="starred">Add to Starred</label></div>
+            <label class="form-label" for="metadataTags">Tags</label>
+            <input id="metadataTags" class="form-control" name="tags" value="{{ (metadata.tags or [])|join(', ') }}" placeholder="physics, posn, important" aria-describedby="tagsHint">
+            <p id="tagsHint" class="form-hint">Separate tags with commas. Tags are normalized to lowercase.</p>
+            <label class="form-label mt-3" for="metadataNote">Note</label>
+            <textarea id="metadataNote" class="form-control" name="note" rows="8" placeholder="Write a useful note about this file or folder">{{ metadata.note or '' }}</textarea>
+            {% if metadata.updated_at %}<p class="form-hint">Last updated {{ metadata.updated_at }} by {{ metadata.updated_by or 'unknown' }}.</p>{% endif %}
+            <button class="btn btn-primary mt-4" type="submit"><i class="fa-regular fa-floppy-disk" aria-hidden="true"></i> Save tags and notes</button>
+        </form>
+    </section>
+</div>
 {% endblock %}

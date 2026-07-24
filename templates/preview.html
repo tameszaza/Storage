@@ -1,58 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Preview · Tamestorage{% endblock %}
+{% block title %}{{ name }} · Tamestorage{% endblock %}
 {% block content %}
+{% set parent_path = '/'.join(target.split('/')[:-1]) %}
 <div class="preview-page page-wide">
     <section class="workspace-header glass-card compact-header clean-hero preview-hero">
-        <div>
-            <p class="eyebrow">Preview</p>
+        <div class="preview-title-block">
+            <p class="eyebrow">File preview</p>
             <h1>{{ name }}</h1>
-            <div class="breadcrumb-line"><span>{{ target }}</span></div>
+            <div class="breadcrumb-line"><a href="{{ url_for('index', path=parent_path) }}">{{ parent_path or 'Root' }}</a><span>/</span><strong>{{ name }}</strong></div>
         </div>
         <div class="header-actions compact-actions">
-            <a class="btn btn-outline-primary" href="{{ url_for('index', path='/'.join(target.split('/')[:-1])) if '/' in target else url_for('index') }}"><i class="fa-solid fa-arrow-left"></i> Back to folder</a>
-            <a class="btn btn-outline-primary" href="{{ url_for('raw_file', target=target) }}"><i class="fa-solid fa-up-right-from-square"></i> Open raw</a>
-            {% if '/' in target %}<a class="btn btn-primary" href="{{ url_for('download_file', path='/'.join(target.split('/')[:-1]), filename=name) }}"><i class="fa-solid fa-download"></i> Download</a>{% else %}<a class="btn btn-primary" href="{{ url_for('download_file', filename=name) }}"><i class="fa-solid fa-download"></i> Download</a>{% endif %}
+            <a class="btn btn-outline-primary" href="{{ url_for('index', path=parent_path) }}" title="Return to the containing folder"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</a>
+            {% if kind == 'text' %}<a class="btn btn-outline-primary" href="{{ url_for('edit_file', path=parent_path, filename=name) }}" title="Edit this file in the browser"><i class="fa-solid fa-code" aria-hidden="true"></i> Edit</a>{% endif %}
+            <a class="btn btn-outline-primary" href="{{ url_for('raw_file', target=target) }}" target="_blank" rel="noopener" title="Open the raw file in a new tab"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open raw</a>
+            <a class="btn btn-primary" href="{{ url_for('download_file', path=parent_path, filename=name) }}" title="Download {{ name }}"><i class="fa-solid fa-download" aria-hidden="true"></i> Download</a>
         </div>
     </section>
 
-    <section class="glass-card preview-shell clean-preview-shell">
-        {% if image %}
-            <div class="preview-stage image-stage"><img class="full-preview-image" src="{{ url_for('raw_file', target=target) }}" alt="{{ name }}"></div>
-        {% elif video %}
-            <div class="preview-stage media-stage"><video class="full-preview-video" src="{{ url_for('raw_file', target=target) }}" controls></video></div>
-        {% elif audio %}
-            <div class="preview-stage audio-stage"><audio class="full-preview-audio" src="{{ url_for('raw_file', target=target) }}" controls></audio></div>
-        {% elif ext == '.pdf' %}
-            <div class="pdf-viewer" data-pdf-viewer data-pdf-url="{{ url_for('raw_file', target=target) }}">
-                <div class="pdf-toolbar">
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-prev><i class="fa-solid fa-chevron-left"></i> Prev</button>
-                    <span class="pdf-page-indicator"><span data-pdf-page>1</span> / <span data-pdf-pages>?</span></span>
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-next>Next <i class="fa-solid fa-chevron-right"></i></button>
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-out><i class="fa-solid fa-minus"></i></button>
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-in><i class="fa-solid fa-plus"></i></button>
-                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('raw_file', target=target) }}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> Browser viewer</a>
-                </div>
-                <div class="pdf-canvas-stage">
-                    <canvas class="pdf-canvas" data-pdf-canvas></canvas>
-                    <div class="pdf-fallback" data-pdf-fallback hidden>
-                        <i class="fa-solid fa-file-pdf"></i>
-                        <h2>PDF preview could not load</h2>
-                        <p class="muted">Open the browser viewer or download the file.</p>
+    <div class="preview-content-grid">
+        <section class="glass-card preview-shell clean-preview-shell" aria-label="Preview of {{ name }}">
+            {% if image %}
+                <div class="preview-stage image-stage"><img class="full-preview-image" src="{{ url_for('raw_file', target=target) }}" alt="Preview of {{ name }}"></div>
+            {% elif video %}
+                <div class="preview-stage media-stage"><video class="full-preview-video" src="{{ url_for('raw_file', target=target) }}" controls preload="metadata" aria-label="Video player for {{ name }}"></video></div>
+            {% elif audio %}
+                <div class="audio-player-card" data-audio-player>
+                    <audio data-audio-element src="{{ url_for('raw_file', target=target) }}" preload="metadata"></audio>
+                    <div class="audio-artwork" aria-hidden="true">
+                        <div class="audio-disc"><i class="fa-solid fa-music"></i></div>
+                        <div class="audio-equalizer"><span></span><span></span><span></span><span></span></div>
                     </div>
+                    <div class="audio-player-copy">
+                        <p class="eyebrow">Now playing</p>
+                        <h2>{{ name }}</h2>
+                        <p class="muted">{{ file_info.mime_type }} · {{ file_info.size_label }}</p>
+                    </div>
+                    <div class="audio-seek-row">
+                        <span data-audio-current>0:00</span>
+                        <input data-audio-seek class="audio-range" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek through audio">
+                        <span data-audio-duration>0:00</span>
+                    </div>
+                    <div class="audio-controls" role="group" aria-label="Audio controls">
+                        <button data-audio-rewind class="audio-control-button secondary" type="button" aria-label="Rewind 10 seconds" title="Rewind 10 seconds" data-tooltip="true"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i><small>10</small></button>
+                        <button data-audio-play class="audio-control-button primary" type="button" aria-label="Play audio" title="Play or pause" data-tooltip="true"><i class="fa-solid fa-play" aria-hidden="true"></i></button>
+                        <button data-audio-forward class="audio-control-button secondary" type="button" aria-label="Skip forward 10 seconds" title="Skip forward 10 seconds" data-tooltip="true"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i><small>10</small></button>
+                    </div>
+                    <div class="audio-options">
+                        <button data-audio-mute class="audio-option-button" type="button" aria-label="Mute audio" title="Mute or unmute" data-tooltip="true"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></button>
+                        <input data-audio-volume class="audio-range volume-range" type="range" min="0" max="1" value="1" step="0.05" aria-label="Volume">
+                        <label for="audioPlaybackRate">Speed</label>
+                        <select id="audioPlaybackRate" data-audio-rate class="form-select form-select-sm" aria-label="Playback speed"><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>
+                    </div>
+                    <p data-audio-status class="visually-hidden" role="status" aria-live="polite">Audio ready</p>
                 </div>
+            {% elif ext == '.pdf' %}
+                <div class="pdf-viewer" data-pdf-viewer data-pdf-url="{{ url_for('raw_file', target=target) }}">
+                    <div class="pdf-toolbar" role="toolbar" aria-label="PDF controls">
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-prev title="Previous page"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Prev</button>
+                        <span class="pdf-page-indicator" aria-live="polite"><span data-pdf-page>1</span> / <span data-pdf-pages>?</span></span>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-next title="Next page">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-out aria-label="Zoom out" title="Zoom out" data-tooltip="true"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-in aria-label="Zoom in" title="Zoom in" data-tooltip="true"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+                        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('raw_file', target=target) }}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Browser viewer</a>
+                    </div>
+                    <div class="pdf-canvas-stage"><canvas class="pdf-canvas" data-pdf-canvas aria-label="PDF page"></canvas><div class="pdf-fallback" data-pdf-fallback hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><h2>PDF preview could not load</h2><p class="muted">Open the browser viewer or download the file.</p></div></div>
+                </div>
+            {% elif rows %}
+                <div class="table-responsive preview-table-wrap"><table class="table data-table"><caption class="visually-hidden">Preview of {{ name }}</caption><tbody>{% for row in rows %}<tr>{% for col in row %}<td>{{ col }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+            {% elif json_text %}
+                <pre class="code-preview" tabindex="0" aria-label="JSON contents of {{ name }}">{{ json_text }}</pre>
+            {% elif content is not none %}
+                <pre class="code-preview" tabindex="0" aria-label="Text contents of {{ name }}">{{ content }}</pre>
+            {% else %}
+                <div class="empty-state"><i class="fa-solid fa-file" aria-hidden="true"></i><h2>No browser preview for this file type</h2><p class="muted">You can still download the file or open its raw representation.</p></div>
+            {% endif %}
+        </section>
+
+        <aside class="glass-card file-details-panel" aria-labelledby="fileDetailsHeading">
+            <div class="file-details-heading"><div><p class="eyebrow">Information</p><h2 id="fileDetailsHeading">File details</h2></div><a class="icon-button" href="{{ url_for('metadata_page', target=target) }}" aria-label="Edit tags and notes" title="Edit tags and notes" data-tooltip="true"><i class="fa-solid fa-pen" aria-hidden="true"></i></a></div>
+            <dl class="file-details-list">
+                <div><dt>Name</dt><dd>{{ file_info.name }}</dd></div>
+                <div><dt>Type</dt><dd>{{ file_info.kind|title }} · {{ file_info.extension }}</dd></div>
+                <div><dt>MIME type</dt><dd>{{ file_info.mime_type }}</dd></div>
+                <div><dt>Size</dt><dd>{{ file_info.size_label }} <small>({{ '{:,}'.format(file_info.size) }} bytes)</small></dd></div>
+                {% if file_info.dimensions %}<div><dt>Dimensions</dt><dd>{{ file_info.dimensions }}{% if file_info.image_mode %} · {{ file_info.image_mode }}{% endif %}</dd></div>{% endif %}
+                {% if file_info.line_count is defined %}<div><dt>Text statistics</dt><dd>{{ file_info.line_count }} lines · {{ file_info.word_count }} words</dd></div>{% endif %}
+                <div><dt>Modified</dt><dd><time datetime="{{ file_info.modified_iso }}">{{ file_info.modified }}</time></dd></div>
+                <div><dt>Created / changed</dt><dd><time datetime="{{ file_info.created_iso }}">{{ file_info.created }}</time></dd></div>
+                <div><dt>Owner</dt><dd>{{ file_info.owner }}</dd></div>
+                <div><dt>Location</dt><dd class="break-anywhere">{{ file_info.parent_path or 'Root' }}</dd></div>
+                <div><dt>Permissions</dt><dd><code>{{ file_info.permissions }}</code></dd></div>
+            </dl>
+            {% if metadata.tags or metadata.note or metadata.starred %}
+            <div class="details-metadata-block">
+                <div class="details-tags">{% if metadata.starred %}<span class="mini-badge"><i class="fa-solid fa-star" aria-hidden="true"></i> Starred</span>{% endif %}{% for tag in metadata.tags or [] %}<span class="mini-badge">#{{ tag }}</span>{% endfor %}</div>
+                {% if metadata.note %}<p>{{ metadata.note }}</p>{% endif %}
             </div>
-        {% elif rows %}
-            <div class="table-responsive preview-table-wrap"><table class="table data-table"><tbody>{% for row in rows %}<tr>{% for col in row %}<td>{{ col }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-        {% elif json_text %}
-            <pre class="code-preview">{{ json_text }}</pre>
-        {% elif content is not none %}
-            <pre class="code-preview">{{ content }}</pre>
-        {% else %}
-            <div class="empty-state"><i class="fa-solid fa-file"></i><h2>No browser preview for this file type</h2><p class="muted">Download the file or open it raw.</p></div>
-        {% endif %}
-    </section>
+            {% endif %}
+            <div class="checksum-block"><div><strong>SHA-256 checksum</strong><small>Useful for verifying file integrity.</small></div>{% if file_info.checksum %}<code>{{ file_info.checksum }}</code><button class="btn btn-sm btn-outline-primary js-copy" type="button" data-copy="{{ file_info.checksum }}" title="Copy checksum"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy</button>{% elif file_info.checksum_skipped %}<p class="muted mb-0">Not calculated for files larger than 128 MB to keep previews fast.</p>{% else %}<p class="muted mb-0">Unavailable</p>{% endif %}</div>
+        </aside>
+    </div>
 </div>
 {% endblock %}
 {% block scripts %}
 {% if ext == '.pdf' %}<script type="module" src="{{ url_for('static', filename='js/pdf_preview.js') }}"></script>{% endif %}
+{% if audio %}<script src="{{ url_for('static', filename='js/media_player.js') }}"></script>{% endif %}
 {% endblock %}

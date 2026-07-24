@@ -1,0 +1,1024 @@
+:root {
+    color-scheme: light;
+    --ac-bg: #f4f7fb;
+    --ac-surface: #ffffff;
+    --ac-surface-soft: #f8fafc;
+    --ac-border: #dbe3ee;
+    --ac-border-strong: #c8d3e2;
+    --ac-text: #172033;
+    --ac-muted: #667085;
+    --ac-primary: #1769e0;
+    --ac-primary-soft: #eaf2ff;
+    --ac-success: #138a54;
+    --ac-success-soft: #eaf8f0;
+    --ac-danger: #cf3347;
+    --ac-danger-soft: #fff0f2;
+    --ac-warning: #9a6700;
+    --ac-shadow: 0 12px 34px rgba(32, 54, 86, 0.08);
+    --ac-radius-lg: 24px;
+    --ac-radius-md: 16px;
+    --ac-radius-sm: 12px;
+    --ac-focus: 0 0 0 3px rgba(23, 105, 224, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+        --ac-bg: #0f1520;
+        --ac-surface: #171f2c;
+        --ac-surface-soft: #1c2635;
+        --ac-border: #2c394b;
+        --ac-border-strong: #3a4a60;
+        --ac-text: #f4f7fb;
+        --ac-muted: #a6b1c2;
+        --ac-primary: #6da6ff;
+        --ac-primary-soft: #1d3151;
+        --ac-success: #54cf8f;
+        --ac-success-soft: #17382a;
+        --ac-danger: #ff7d8e;
+        --ac-danger-soft: #44232b;
+        --ac-warning: #ffca65;
+        --ac-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+        --ac-focus: 0 0 0 3px rgba(109, 166, 255, 0.22);
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+html {
+    min-width: 320px;
+    background: var(--ac-bg);
+}
+
+body {
+    margin: 0;
+    color: var(--ac-text);
+    background: var(--ac-bg);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.45;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button,
+a {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: none;
+    box-shadow: var(--ac-focus);
+}
+
+code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+}
+
+.aircon-muted {
+    color: var(--ac-muted);
+}
+
+.aircon-eyebrow {
+    margin: 0 0 5px;
+    color: var(--ac-primary);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.aircon-topbar {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 72px;
+    padding: 12px max(20px, calc((100vw - 1180px) / 2));
+    border-bottom: 1px solid color-mix(in srgb, var(--ac-border), transparent 20%);
+    background: color-mix(in srgb, var(--ac-bg), transparent 8%);
+    backdrop-filter: blur(18px);
+}
+
+.aircon-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+    color: var(--ac-text);
+    text-decoration: none;
+}
+
+.aircon-brand-mark,
+.aircon-login-mark {
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    background: var(--ac-primary);
+}
+
+.aircon-brand-mark {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 13px;
+}
+
+.aircon-brand > span:last-child {
+    display: grid;
+    min-width: 0;
+}
+
+.aircon-brand strong {
+    font-size: 1rem;
+}
+
+.aircon-brand small {
+    color: var(--ac-muted);
+    font-size: 0.78rem;
+}
+
+.aircon-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.aircon-topbar-actions form {
+    margin: 0;
+}
+
+.aircon-connection {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ac-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.aircon-connection > span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ac-warning);
+}
+
+.aircon-connection.is-online > span {
+    background: var(--ac-success);
+}
+
+.aircon-connection.is-offline > span {
+    background: var(--ac-danger);
+}
+
+.aircon-icon-button {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--ac-border);
+    border-radius: 13px;
+    color: var(--ac-text);
+    background: var(--ac-surface);
+    cursor: pointer;
+}
+
+.aircon-page-shell {
+    width: min(1180px, calc(100% - 32px));
+    margin: 28px auto 56px;
+}
+
+.aircon-status-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    padding: 26px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-lg);
+    background: var(--ac-surface);
+    box-shadow: var(--ac-shadow);
+}
+
+.aircon-state-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.aircon-state-icon {
+    width: 66px;
+    height: 66px;
+    flex: 0 0 66px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--ac-border);
+    border-radius: 21px;
+    color: var(--ac-muted);
+    background: var(--ac-surface-soft);
+    font-size: 1.35rem;
+}
+
+.aircon-state-icon.is-on {
+    color: var(--ac-primary);
+    border-color: color-mix(in srgb, var(--ac-primary), transparent 52%);
+    background: var(--ac-primary-soft);
+}
+
+.aircon-state-icon.is-off {
+    color: var(--ac-muted);
+}
+
+.aircon-state-block h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 4vw, 2.7rem);
+    line-height: 1.05;
+}
+
+.aircon-state-block p:last-child {
+    margin: 7px 0 0;
+}
+
+.aircon-primary-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.aircon-button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    color: var(--ac-text);
+    background: var(--ac-surface-soft);
+    cursor: pointer;
+    font-weight: 750;
+    text-decoration: none;
+    transition: transform 140ms ease, opacity 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.aircon-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.aircon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.aircon-button.is-primary {
+    color: #ffffff;
+    background: var(--ac-primary);
+}
+
+.aircon-button.is-secondary {
+    border-color: var(--ac-border);
+    background: var(--ac-surface);
+}
+
+.aircon-button.is-success {
+    color: #ffffff;
+    background: var(--ac-success);
+}
+
+.aircon-button.is-danger-soft {
+    color: var(--ac-danger);
+    border-color: color-mix(in srgb, var(--ac-danger), transparent 55%);
+    background: var(--ac-danger-soft);
+}
+
+.aircon-button.is-large {
+    width: 100%;
+    min-height: 50px;
+}
+
+.aircon-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.aircon-metric {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding: 16px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-md);
+    background: var(--ac-surface);
+}
+
+.aircon-metric small,
+.aircon-cost-strip small,
+.aircon-duty-cycle small {
+    color: var(--ac-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.aircon-metric strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 1.08rem;
+}
+
+.aircon-metric > span {
+    color: var(--ac-muted);
+    font-size: 0.78rem;
+}
+
+.aircon-card {
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-lg);
+    background: var(--ac-surface);
+    box-shadow: var(--ac-shadow);
+}
+
+.aircon-schedule-card {
+    display: grid;
+    gap: 20px;
+}
+
+.aircon-section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.aircon-section-heading h2 {
+    margin: 0 0 5px;
+    font-size: 1.25rem;
+}
+
+.aircon-section-heading p:last-child {
+    margin: 0;
+}
+
+.aircon-section-heading.is-compact {
+    margin-bottom: 16px;
+}
+
+.aircon-save-area {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.aircon-save-state {
+    color: var(--ac-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.aircon-save-state.is-dirty {
+    color: var(--ac-warning);
+}
+
+.aircon-save-state.is-saving {
+    color: var(--ac-primary);
+}
+
+.aircon-timeline {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 104px;
+    overflow: hidden;
+    border: 1px solid var(--ac-border-strong);
+    border-radius: 18px;
+    background: var(--ac-surface-soft);
+}
+
+.aircon-timeline-segment {
+    position: relative;
+    isolation: isolate;
+    min-width: 0;
+    flex: var(--weight) 1 0;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    color: var(--ac-muted);
+    background: var(--ac-surface-soft);
+    cursor: pointer;
+    transition: flex-grow 180ms ease, box-shadow 180ms ease;
+}
+
+.aircon-timeline-segment + .aircon-timeline-segment {
+    border-left: 1px solid var(--ac-border-strong);
+}
+
+.aircon-timeline-segment.is-on {
+    color: var(--ac-primary);
+    background: var(--ac-primary-soft);
+}
+
+.aircon-timeline-segment.is-active {
+    box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.aircon-timeline-fill {
+    position: absolute;
+    z-index: -1;
+    inset: 0 auto 0 0;
+    width: 0;
+    opacity: 0.18;
+    background: currentColor;
+    transition: width 250ms linear;
+}
+
+.aircon-timeline-copy {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 10px 14px;
+}
+
+.aircon-timeline-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.aircon-timeline-playhead {
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    color: var(--ac-text);
+    background: currentColor;
+    pointer-events: none;
+    transform: translateX(-1px);
+    transition: left 250ms linear;
+}
+
+.aircon-timeline-playhead span {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--ac-surface);
+    border-radius: 50%;
+    background: currentColor;
+    transform: translateX(-50%);
+}
+
+.aircon-phase-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.aircon-phase-card {
+    min-width: 0;
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-md);
+    background: var(--ac-surface-soft);
+}
+
+.aircon-phase-card.is-on {
+    border-color: color-mix(in srgb, var(--ac-primary), transparent 68%);
+}
+
+.aircon-phase-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.aircon-phase-label {
+    min-width: 48px;
+    display: inline-flex;
+    justify-content: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 850;
+    letter-spacing: 0.05em;
+}
+
+.aircon-phase-label.is-on {
+    color: var(--ac-primary);
+    background: var(--ac-primary-soft);
+}
+
+.aircon-phase-label.is-off {
+    color: var(--ac-muted);
+    background: color-mix(in srgb, var(--ac-muted), transparent 88%);
+}
+
+.aircon-stepper {
+    display: inline-flex;
+    gap: 5px;
+    padding: 4px;
+    border: 1px solid var(--ac-border);
+    border-radius: 11px;
+    background: var(--ac-surface);
+}
+
+.aircon-stepper button {
+    min-width: 38px;
+    height: 32px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: 8px;
+    color: var(--ac-text);
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 750;
+}
+
+.aircon-stepper button:hover {
+    background: var(--ac-surface-soft);
+}
+
+.aircon-field {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+}
+
+.aircon-field > span {
+    font-size: 0.84rem;
+    font-weight: 750;
+}
+
+.aircon-field > small {
+    color: var(--ac-muted);
+    font-size: 0.77rem;
+    overflow-wrap: anywhere;
+}
+
+.aircon-field input,
+.aircon-field select {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--ac-border-strong);
+    border-radius: 11px;
+    color: var(--ac-text);
+    background: var(--ac-surface);
+}
+
+.aircon-duration-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 118px;
+}
+
+.aircon-duration-input input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.aircon-duration-input select {
+    border-left: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.aircon-repeat-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(130px, 0.55fr) minmax(150px, 0.55fr);
+    gap: 14px;
+    align-items: end;
+}
+
+.aircon-duty-cycle {
+    min-height: 72px;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-sm);
+    background: var(--ac-surface-soft);
+}
+
+.aircon-duty-cycle strong {
+    font-size: 1.08rem;
+}
+
+.aircon-cost-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.aircon-cost-strip > div {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding: 13px 14px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-sm);
+    background: var(--ac-surface-soft);
+}
+
+.aircon-cost-strip strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.aircon-lower-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.7fr) minmax(0, 1.3fr);
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.aircon-direct-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.aircon-helper {
+    margin: 12px 0 0;
+    color: var(--ac-muted);
+    font-size: 0.78rem;
+}
+
+.aircon-advanced-grid {
+    display: grid;
+    grid-template-columns: minmax(140px, 0.55fr) minmax(0, 1.45fr);
+    gap: 14px;
+    align-items: end;
+    margin-top: 14px;
+}
+
+.aircon-suffix-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.aircon-suffix-input input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.aircon-suffix-input span {
+    display: grid;
+    place-items: center;
+    min-width: 50px;
+    border: 1px solid var(--ac-border-strong);
+    border-left: 0;
+    border-radius: 0 11px 11px 0;
+    color: var(--ac-muted);
+    background: var(--ac-surface-soft);
+    font-size: 0.8rem;
+}
+
+.aircon-switch-row {
+    min-height: 72px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-sm);
+    background: var(--ac-surface-soft);
+}
+
+.aircon-switch-row input {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0;
+    accent-color: var(--ac-primary);
+}
+
+.aircon-switch-row strong,
+.aircon-switch-row small {
+    display: block;
+}
+
+.aircon-switch-row small {
+    margin-top: 2px;
+    color: var(--ac-muted);
+    font-size: 0.76rem;
+}
+
+.aircon-result {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin-top: 16px;
+    padding: 13px 15px;
+    border: 1px solid color-mix(in srgb, var(--ac-primary), transparent 68%);
+    border-radius: var(--ac-radius-sm);
+    color: var(--ac-text);
+    background: var(--ac-primary-soft);
+}
+
+.aircon-result i {
+    margin-top: 3px;
+    color: var(--ac-primary);
+}
+
+.aircon-result.is-error {
+    border-color: color-mix(in srgb, var(--ac-danger), transparent 55%);
+    background: var(--ac-danger-soft);
+}
+
+.aircon-result.is-error i {
+    color: var(--ac-danger);
+}
+
+.aircon-toast {
+    position: fixed;
+    z-index: 50;
+    right: 22px;
+    bottom: 22px;
+    max-width: min(380px, calc(100vw - 32px));
+    padding: 12px 15px;
+    border: 1px solid var(--ac-border-strong);
+    border-radius: 13px;
+    color: var(--ac-text);
+    background: var(--ac-surface);
+    box-shadow: var(--ac-shadow);
+    font-weight: 700;
+}
+
+.aircon-toast.is-error {
+    color: var(--ac-danger);
+    border-color: color-mix(in srgb, var(--ac-danger), transparent 50%);
+}
+
+.aircon-auth-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.aircon-login-shell {
+    width: min(430px, 100%);
+}
+
+.aircon-login-card {
+    padding: 30px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-lg);
+    background: var(--ac-surface);
+    box-shadow: var(--ac-shadow);
+}
+
+.aircon-login-mark {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 22px;
+    border-radius: 18px;
+    font-size: 1.2rem;
+}
+
+.aircon-login-card h1 {
+    margin: 0;
+    font-size: 2rem;
+}
+
+.aircon-login-card > .aircon-muted {
+    margin: 8px 0 22px;
+}
+
+.aircon-login-form {
+    display: grid;
+    gap: 15px;
+}
+
+.aircon-password-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 46px;
+}
+
+.aircon-password-field input {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.aircon-password-field button {
+    border: 1px solid var(--ac-border-strong);
+    border-left: 0;
+    border-radius: 0 11px 11px 0;
+    color: var(--ac-muted);
+    background: var(--ac-surface-soft);
+    cursor: pointer;
+}
+
+.aircon-flash-stack {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.aircon-flash,
+.aircon-setup-warning {
+    padding: 12px 13px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-sm);
+    background: var(--ac-surface-soft);
+    font-size: 0.86rem;
+}
+
+.aircon-flash.is-danger,
+.aircon-setup-warning {
+    color: var(--ac-danger);
+    border-color: color-mix(in srgb, var(--ac-danger), transparent 55%);
+    background: var(--ac-danger-soft);
+}
+
+.aircon-setup-warning {
+    display: grid;
+    gap: 4px;
+    margin-top: 16px;
+}
+
+.aircon-setup-warning span {
+    color: var(--ac-muted);
+}
+
+.aircon-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 20px;
+    color: var(--ac-muted);
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+@media (max-width: 1000px) {
+    .aircon-metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aircon-lower-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .aircon-topbar {
+        padding-inline: 16px;
+    }
+
+    .aircon-page-shell {
+        width: min(100% - 24px, 1180px);
+        margin-top: 16px;
+    }
+
+    .aircon-status-hero,
+    .aircon-section-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .aircon-primary-actions,
+    .aircon-save-area {
+        justify-content: flex-start;
+    }
+
+    .aircon-primary-actions .aircon-button {
+        flex: 1 1 145px;
+    }
+
+    .aircon-save-area .aircon-button {
+        width: 100%;
+    }
+
+    .aircon-phase-grid,
+    .aircon-repeat-row,
+    .aircon-cost-strip,
+    .aircon-advanced-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .aircon-timeline {
+        height: 92px;
+    }
+
+    .aircon-timeline-copy {
+        flex-direction: column;
+        gap: 3px;
+        padding: 8px;
+    }
+
+    .aircon-timeline-copy strong {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 520px) {
+    .aircon-brand small,
+    .aircon-connection {
+        display: none;
+    }
+
+    .aircon-page-shell {
+        width: min(100% - 16px, 1180px);
+        margin-bottom: 32px;
+    }
+
+    .aircon-status-hero,
+    .aircon-card {
+        padding: 17px;
+        border-radius: 18px;
+    }
+
+    .aircon-state-icon {
+        width: 54px;
+        height: 54px;
+        flex-basis: 54px;
+        border-radius: 17px;
+    }
+
+    .aircon-state-block h1 {
+        font-size: 1.8rem;
+    }
+
+    .aircon-metric-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .aircon-metric {
+        padding: 13px;
+        border-radius: 13px;
+    }
+
+    .aircon-metric strong {
+        font-size: 0.94rem;
+    }
+
+    .aircon-phase-card {
+        padding: 13px;
+    }
+
+    .aircon-duration-input {
+        grid-template-columns: minmax(0, 1fr) 105px;
+    }
+
+    .aircon-stepper {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .aircon-stepper button {
+        min-width: 0;
+    }
+
+    .aircon-direct-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .aircon-login-card {
+        padding: 22px;
+    }
+}

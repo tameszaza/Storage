@@ -1,5 +1,8 @@
-Upload progress
-Newsimple file
+Upload progress bar
+create new text file
 inweb text editor
 mp3 player
-
+when search also show file information atleast show their name
+add accessibility and hint on most of the button especially uncleared one
+in the file list view also show their name
+add detail to view file meta

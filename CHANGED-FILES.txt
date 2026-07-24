@@ -1,0 +1,24 @@
+AC timeline UI, local MacroDroid root URL, server restart, and speedometer cleanup
+
+Added:
+- lib/ac_control.py
+- static/css/admin.css
+- templates/server_restarting.html
+
+Updated:
+- lib/config.py
+- routes/__init__.py
+- routes/admin.py
+- templates/admin_panel.html
+- static/js/admin.js
+- .env.example
+- .gitignore
+- README.md
+- package.json
+- APPLY-INSTRUCTIONS.txt
+
+Removed:
+- routes/speed.py
+- templates/speed.html
+- static/js/speed.js
+- static/css/speed.css

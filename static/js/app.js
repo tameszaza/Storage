@@ -1,13 +1,50 @@
 (function () {
-    const applyTheme = (theme) => {
-        document.body.setAttribute("data-theme", theme);
-        localStorage.setItem("theme", theme);
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function resolveTheme(preference) {
+        if (preference === "system") return mediaQuery.matches ? "dark" : "light";
+        return preference === "dark" ? "dark" : "light";
+    }
+
+    function applyTheme(preference, persist = true) {
+        const normalized = ["light", "dark", "system"].includes(preference) ? preference : "light";
+        const resolved = resolveTheme(normalized);
+        document.body.setAttribute("data-theme", resolved);
+        document.body.setAttribute("data-theme-preference", normalized);
+        if (persist) localStorage.setItem("theme", normalized);
+
         const icon = document.getElementById("themeIcon");
-        if (icon) icon.className = theme === "dark" ? "fa-solid fa-sun" : "fa-solid fa-moon";
-    };
+        if (icon) icon.className = resolved === "dark" ? "fa-regular fa-sun" : "fa-regular fa-moon";
+
+        document.querySelectorAll("[data-set-theme]").forEach((button) => {
+            const active = button.dataset.setTheme === normalized;
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", String(active));
+        });
+    }
+
+    function closeSidebar() {
+        document.body.classList.remove("sidebar-open");
+        const toggle = document.getElementById("mobileNavToggle");
+        if (toggle) toggle.setAttribute("aria-expanded", "false");
+    }
+
+    function closeUploadDialog() {
+        if (window.location.hash !== "#dropArea") return;
+        window.location.hash = "";
+        window.setTimeout(() => {
+            history.replaceState(null, "", window.location.pathname + window.location.search);
+        }, 0);
+    }
 
     document.addEventListener("DOMContentLoaded", () => {
-        applyTheme(localStorage.getItem("theme") || "light");
+        const storedTheme = localStorage.getItem("theme") || "light";
+        applyTheme(storedTheme, false);
+
+        mediaQuery.addEventListener?.("change", () => {
+            if ((localStorage.getItem("theme") || "light") === "system") applyTheme("system", false);
+        });
+
         const themeToggle = document.getElementById("themeToggle");
         if (themeToggle) {
             themeToggle.addEventListener("click", () => {
@@ -16,35 +53,53 @@
             });
         }
 
-        const topbar = document.querySelector(".topbar");
+        document.querySelectorAll("[data-set-theme]").forEach((button) => {
+            button.addEventListener("click", () => applyTheme(button.dataset.setTheme || "light"));
+        });
+
         const mobileNavToggle = document.getElementById("mobileNavToggle");
-        const topbarActions = document.getElementById("topbarActions");
-
-        const setMobileMenu = (isOpen) => {
-            if (!topbar || !mobileNavToggle) return;
-            topbar.classList.toggle("menu-open", isOpen);
-            mobileNavToggle.setAttribute("aria-expanded", String(isOpen));
-            const icon = mobileNavToggle.querySelector("i");
-            if (icon) icon.className = isOpen ? "fa-solid fa-xmark" : "fa-solid fa-bars";
-        };
-
-        if (mobileNavToggle && topbar) {
+        const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+        if (mobileNavToggle) {
             mobileNavToggle.addEventListener("click", () => {
-                setMobileMenu(!topbar.classList.contains("menu-open"));
+                const open = !document.body.classList.contains("sidebar-open");
+                document.body.classList.toggle("sidebar-open", open);
+                mobileNavToggle.setAttribute("aria-expanded", String(open));
             });
+        }
+        if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebar);
+        document.querySelectorAll(".app-sidebar a").forEach((link) => link.addEventListener("click", closeSidebar));
+        window.addEventListener("resize", () => { if (window.innerWidth > 860) closeSidebar(); });
 
-            if (topbarActions) {
-                topbarActions.querySelectorAll("a").forEach((link) => {
-                    link.addEventListener("click", () => setMobileMenu(false));
-                });
+        const globalSearch = document.querySelector(".global-search input");
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                closeSidebar();
+                closeUploadDialog();
             }
+            if (event.key === "/" && globalSearch && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
+                event.preventDefault();
+                globalSearch.focus();
+            }
+        });
 
-            window.addEventListener("resize", () => {
-                if (window.innerWidth > 860) setMobileMenu(false);
+        const uploadPanel = document.getElementById("dropArea");
+        if (uploadPanel) {
+            uploadPanel.addEventListener("click", (event) => {
+                if (event.target === uploadPanel) closeUploadDialog();
             });
+        }
 
-            document.addEventListener("keydown", (event) => {
-                if (event.key === "Escape") setMobileMenu(false);
+        document.querySelectorAll("button, a, [role='button']").forEach((element) => {
+            const ariaLabel = element.getAttribute("aria-label");
+            const title = element.getAttribute("title");
+            const visibleText = (element.textContent || "").trim();
+            if (ariaLabel && !title) element.setAttribute("title", ariaLabel);
+            if (title && !ariaLabel && !visibleText) element.setAttribute("aria-label", title);
+        });
+
+        if (window.bootstrap?.Tooltip) {
+            document.querySelectorAll("[data-tooltip='true']").forEach((element) => {
+                bootstrap.Tooltip.getOrCreateInstance(element, { container: "body", trigger: "hover focus", delay: { show: 350, hide: 80 } });
             });
         }
 

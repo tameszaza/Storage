@@ -7,7 +7,7 @@
 <section class="workspace-header glass-card">
     <div>
         <p class="eyebrow">File manager</p>
-        <h1>Your storage workspace</h1>
+        <h1>My Files</h1>
         <div class="breadcrumb-line">
             <a href="{{ url_for('index') }}">Root</a>
             {% if path %}<span>/ {{ path }}</span>{% endif %}
@@ -20,33 +20,40 @@
     </div>
 </section>
 
-<section id="dropArea" class="upload-panel glass-card">
+<section id="dropArea" class="upload-panel glass-card" aria-labelledby="uploadHeading" aria-describedby="uploadHelp">
     <form id="uploadForm" action="{% if path %}{{ url_for('upload_file', path=path) }}{% else %}{{ url_for('upload_file') }}{% endif %}" method="POST" enctype="multipart/form-data">
+        <a class="upload-modal-close" href="{{ url_for('index', path=path) }}" aria-label="Close upload panel" title="Close upload panel" data-tooltip="true"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>
         <div class="drop-content">
-            <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+            <div class="drop-icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></div>
             <div>
-                <h2>Drop files or folders here</h2>
-                <p class="muted">Choose normal files, a whole folder, or drag them into this panel.</p>
+                <p class="eyebrow mb-1">Upload</p><h2 id="uploadHeading">Add files or folders</h2>
+                <p id="uploadHelp" class="muted">Drag items here, or choose files from your device. Nested folder paths are preserved.</p>
             </div>
         </div>
         <div class="upload-actions">
-            <label class="btn btn-outline-primary file-picker" for="fileInput"><i class="fa-solid fa-file-arrow-up"></i> Choose files</label>
-            <input type="file" id="fileInput" name="file" multiple hidden>
-            <label class="btn btn-outline-primary file-picker" for="folderInput"><i class="fa-solid fa-folder-plus"></i> Choose folder</label>
-            <input type="file" id="folderInput" name="file" multiple webkitdirectory directory hidden>
-            <span id="fileLabel" class="muted upload-label">No file selected</span>
-            <button type="submit" class="btn btn-primary" id="uploadButton" disabled>Upload</button>
+            <label class="btn btn-outline-primary file-picker" for="fileInput" title="Select one or more files"><i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i> Choose files</label>
+            <input type="file" id="fileInput" name="file" multiple hidden aria-describedby="fileLabel">
+            <label class="btn btn-outline-primary file-picker" for="folderInput" title="Select an entire folder"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i> Choose folder</label>
+            <input type="file" id="folderInput" name="file" multiple webkitdirectory directory hidden aria-describedby="fileLabel">
+            <span id="fileLabel" class="muted upload-label" aria-live="polite">No file selected</span>
+            <button type="submit" class="btn btn-primary" id="uploadButton" disabled title="Upload selected items"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i> Upload</button>
+        </div>
+        <div id="uploadQueue" class="upload-queue" hidden aria-live="polite">
+            <div class="upload-queue-head"><strong>Ready to upload</strong><button id="clearUploadSelection" class="text-button" type="button" title="Remove all selected files">Clear selection</button></div>
+            <div id="uploadQueueItems" class="upload-queue-items"></div>
         </div>
     </form>
 </section>
 
-<section class="toolbar glass-card">
-    <form action="{% if path %}{{ url_for('create_folder', path=path) }}{% else %}{{ url_for('create_folder') }}{% endif %}" method="POST" class="toolbar-form">
-        <input id="folderNameInput" class="form-control" type="text" name="folder_name" placeholder="New folder name" required>
-        <button id="createFolderButton" class="btn btn-primary" type="submit">Create folder</button>
-    </form>
-    <div class="view-controls">
-        <button id="viewToggleBtn" class="icon-button" type="button" title="Toggle view"><i id="viewToggleIcon" class="fa-solid fa-table-cells-large"></i></button>
+<div class="content-section-heading"><div><h2>Folders and files</h2><p>Organize, preview, edit, and share everything in this location.</p></div></div>
+<section class="toolbar glass-card" aria-label="File manager tools">
+    <div class="toolbar-primary-actions">
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newFolderModal" title="Create a folder in this location"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i> New folder</button>
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTextModal" title="Create a text or code file and open the web editor"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> New text file</button>
+        <a class="btn btn-outline-primary" href="#dropArea" title="Open the upload panel"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i> Upload</a>
+    </div>
+    <div class="view-controls" role="group" aria-label="Choose file view">
+        <button id="viewToggleBtn" class="icon-button" type="button" aria-label="Switch between grid and list view" title="Switch between grid and list view" data-tooltip="true"><i id="viewToggleIcon" class="fa-solid fa-list" aria-hidden="true"></i></button>
     </div>
 </section>
 
@@ -83,7 +90,9 @@
          data-move-url="{{ url_for('move_copy_item') }}"
          data-download-selected-url="{{ url_for('download_selected') }}"
          data-delete-selected-url="{{ url_for('delete_selected') }}"
-         data-toggle-star-url="{{ url_for('toggle_star_route') }}">
+         data-toggle-star-url="{{ url_for('toggle_star_route') }}"
+         data-open-new="{{ request.args.get('new', '') }}">
+    <div class="file-list-header" aria-hidden="true"><span></span><span>Name</span><span>Size</span><span>Modified</span><span>Actions</span></div>
     {% if path and (session['username'] == 'Admin' or path != session['username']) %}
         {% set parent_path = '/'.join(path.split('/')[:-1]) %}
         <article class="file-card back-card drop-target" data-drop-path="{{ parent_path }}" data-drop-name="Parent folder">
@@ -95,7 +104,7 @@
     {% endif %}
 
     {% for file in files %}
-        {% set item_path = path + '/' + file.name if path else file.name %}
+        {% set item_path = file.relative_path %}
         {% set preview_url = url_for('preview_file', target=item_path) %}
         {% set raw_url = url_for('raw_file', target=item_path) %}
         <article class="file-card{% if file.is_dir %} drop-target{% endif %}"
@@ -115,15 +124,15 @@
                 </button>
                 <div class="dropdown-menu dropdown-menu-end file-menu-panel">
                     {% if file.is_dir %}
-                        <a class="dropdown-item" href="{{ url_for('index', path=item_path) }}"><i class="fa-solid fa-folder-open"></i><span>Open folder</span></a>
+                        <a class="dropdown-item" data-menu-action="open" href="{{ url_for('index', path=item_path) }}"><i class="fa-solid fa-folder-open"></i><span>Open folder</span></a>
                         <form action="{{ url_for('download_folder', path=item_path) }}" method="POST" data-confirm="Download this folder as a zip file?">
-                            <button class="dropdown-item" type="submit"><i class="fa-solid fa-download"></i><span>Download as zip</span></button>
+                            <button class="dropdown-item" data-menu-action="download" type="submit"><i class="fa-solid fa-download"></i><span>Download as zip</span></button>
                         </form>
-                        <button class="dropdown-item js-share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="folder"><i class="fa-solid fa-share-nodes"></i><span>Share folder</span></button>
+                        <button class="dropdown-item js-share" data-menu-action="share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="folder"><i class="fa-solid fa-share-nodes"></i><span>Share folder</span></button>
                         <button class="dropdown-item js-copy-path" type="button" data-copy="{{ item_path }}"><i class="fa-solid fa-link"></i><span>Copy path</span></button>
-                        <button class="dropdown-item js-toggle-star" type="button" data-path="{{ item_path }}"><i class="fa-{% if file.metadata and file.metadata.starred %}solid{% else %}regular{% endif %} fa-star"></i><span>{% if file.metadata and file.metadata.starred %}Unstar{% else %}Star{% endif %}</span></button>
+                        <button class="dropdown-item js-toggle-star" data-menu-action="star" type="button" data-path="{{ item_path }}"><i class="fa-{% if file.metadata and file.metadata.starred %}solid{% else %}regular{% endif %} fa-star"></i><span>{% if file.metadata and file.metadata.starred %}Unstar{% else %}Star{% endif %}</span></button>
                         <button class="dropdown-item js-rename" type="button" data-action="{% if path %}{{ url_for('rename_folder', path=path, foldername=file.name) }}{% else %}{{ url_for('rename_folder', foldername=file.name) }}{% endif %}" data-name="{{ file.name }}" data-type="folder"><i class="fa-solid fa-pen"></i><span>Rename</span></button>
-                        <button class="dropdown-item js-move-copy" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}"><i class="fa-solid fa-arrows-up-down-left-right"></i><span>Move or copy</span></button>
+                        <button class="dropdown-item js-move-copy" data-menu-action="move" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}"><i class="fa-solid fa-arrows-up-down-left-right"></i><span>Move or copy</span></button>
                         <a class="dropdown-item" href="{{ url_for('metadata_page', target=item_path) }}"><i class="fa-solid fa-tags"></i><span>Tags and notes</span></a>
                         <a class="dropdown-item" href="{{ url_for('gallery_page', path=item_path) }}"><i class="fa-solid fa-images"></i><span>Open gallery</span></a>
                         <div class="dropdown-divider"></div>
@@ -131,14 +140,14 @@
                             <button class="dropdown-item danger-text" type="submit"><i class="fa-solid fa-trash"></i><span>Move to trash</span></button>
                         </form>
                     {% else %}
-                        <a class="dropdown-item" href="{{ preview_url }}"><i class="fa-solid fa-eye"></i><span>Preview</span></a>
-                        <a class="dropdown-item" href="{% if path %}{{ url_for('download_file', path=path, filename=file.name) }}{% else %}{{ url_for('download_file', filename=file.name) }}{% endif %}"><i class="fa-solid fa-download"></i><span>Download</span></a>
+                        <a class="dropdown-item" data-menu-action="preview" href="{{ preview_url }}"><i class="fa-solid fa-eye"></i><span>Preview</span></a>
+                        <a class="dropdown-item" data-menu-action="download" href="{% if path %}{{ url_for('download_file', path=path, filename=file.name) }}{% else %}{{ url_for('download_file', filename=file.name) }}{% endif %}"><i class="fa-solid fa-download"></i><span>Download</span></a>
                         {% if file.kind == 'text' %}<a class="dropdown-item" href="{% if path %}{{ url_for('edit_file', path=path, filename=file.name) }}{% else %}{{ url_for('edit_file', filename=file.name) }}{% endif %}"><i class="fa-solid fa-code"></i><span>Edit text</span></a>{% endif %}
-                        <button class="dropdown-item js-share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="file"><i class="fa-solid fa-share-nodes"></i><span>Share file</span></button>
+                        <button class="dropdown-item js-share" data-menu-action="share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="file"><i class="fa-solid fa-share-nodes"></i><span>Share file</span></button>
                         <button class="dropdown-item js-copy-path" type="button" data-copy="{{ item_path }}"><i class="fa-solid fa-link"></i><span>Copy path</span></button>
-                        <button class="dropdown-item js-toggle-star" type="button" data-path="{{ item_path }}"><i class="fa-{% if file.metadata and file.metadata.starred %}solid{% else %}regular{% endif %} fa-star"></i><span>{% if file.metadata and file.metadata.starred %}Unstar{% else %}Star{% endif %}</span></button>
+                        <button class="dropdown-item js-toggle-star" data-menu-action="star" type="button" data-path="{{ item_path }}"><i class="fa-{% if file.metadata and file.metadata.starred %}solid{% else %}regular{% endif %} fa-star"></i><span>{% if file.metadata and file.metadata.starred %}Unstar{% else %}Star{% endif %}</span></button>
                         <button class="dropdown-item js-rename" type="button" data-action="{% if path %}{{ url_for('rename_file', path=path, filename=file.name) }}{% else %}{{ url_for('rename_file', filename=file.name) }}{% endif %}" data-name="{{ file.name }}" data-type="file"><i class="fa-solid fa-pen"></i><span>Rename</span></button>
-                        <button class="dropdown-item js-move-copy" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}"><i class="fa-solid fa-arrows-up-down-left-right"></i><span>Move or copy</span></button>
+                        <button class="dropdown-item js-move-copy" data-menu-action="move" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}"><i class="fa-solid fa-arrows-up-down-left-right"></i><span>Move or copy</span></button>
                         <a class="dropdown-item" href="{{ url_for('metadata_page', target=item_path) }}"><i class="fa-solid fa-tags"></i><span>Tags and notes</span></a>
                         <a class="dropdown-item" href="{{ url_for('versions_page', target=item_path) }}"><i class="fa-solid fa-clock-rotate-left"></i><span>Versions</span></a>
                         <div class="dropdown-divider"></div>
@@ -152,26 +161,49 @@
             {% if file.is_dir %}
                 <a class="file-main" href="{{ url_for('index', path=item_path) }}">
                     <span class="file-icon folder"><i class="fa-solid fa-folder"></i></span>
-                    <span class="file-title"><strong>{{ file.name }}/</strong><small>{{ file.size_label }} · {{ file.mod_time }}</small></span>
+                    <span class="file-title"><strong title="{{ file.name }}">{{ file.name }}</strong><small>Folder{% if search_query and file.parent_path %} · {{ file.parent_path }}{% endif %}</small></span>
                 </a>
+                <span class="file-list-size">{{ file.size_label }}</span>
+                <span class="file-list-modified">{{ file.mod_time }}</span>
+                <div class="file-inline-actions" aria-label="Quick actions for {{ file.name }}">
+                    <a class="quick-file-action" data-quick-action="open" href="{{ url_for('index', path=item_path) }}" title="Open folder"><i class="fa-solid fa-folder-open"></i><span>Open</span></a>
+                    <form action="{{ url_for('download_folder', path=item_path) }}" method="POST" data-confirm="Download this folder as a zip file?">
+                        <button class="quick-file-action" data-quick-action="download" type="submit" title="Download folder"><i class="fa-solid fa-download"></i><span>Download</span></button>
+                    </form>
+                    <button class="quick-file-action js-share" data-quick-action="share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="folder" title="Share folder"><i class="fa-solid fa-share-nodes"></i><span>Share</span></button>
+                    <button class="quick-file-action js-move-copy" data-quick-action="move" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" title="Move or copy"><i class="fa-solid fa-arrows-up-down-left-right" aria-hidden="true"></i><span>Move</span></button>
+                    <a class="quick-file-action" href="{{ url_for('metadata_page', target=item_path) }}" title="View file details, tags, and notes"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Details</span></a>
+                </div>
                 <div class="folder-drop-hint"><i class="fa-solid fa-arrow-down"></i> Drop files here to move them into this folder</div>
             {% else %}
                 <a class="file-main" href="{{ preview_url }}">
                     <span class="file-icon {{ file.kind }}">
                         {% if file.kind == 'image' %}<i class="fa-solid fa-image"></i>
                         {% elif file.kind == 'video' %}<i class="fa-solid fa-film"></i>
+                        {% elif file.kind == 'audio' %}<i class="fa-solid fa-music"></i>
                         {% elif file.kind == 'pdf' %}<i class="fa-solid fa-file-pdf"></i>
                         {% elif file.kind == 'text' %}<i class="fa-solid fa-file-lines"></i>
                         {% elif file.kind == 'archive' %}<i class="fa-solid fa-file-zipper"></i>
                         {% else %}<i class="fa-solid fa-file"></i>{% endif %}
                     </span>
-                    <span class="file-title"><strong>{{ file.name }}</strong><small>{{ file.size_label }} · {{ file.mod_time }}</small></span>
+                    <span class="file-title"><strong title="{{ file.name }}">{{ file.name }}</strong><small>{{ file.kind|title }}{% if search_query and file.parent_path %} · {{ file.parent_path }}{% endif %}</small></span>
                 </a>
+                <span class="file-list-size">{{ file.size_label }}</span>
+                <span class="file-list-modified">{{ file.mod_time }}</span>
+                <div class="file-inline-actions" aria-label="Quick actions for {{ file.name }}">
+                    <a class="quick-file-action" data-quick-action="preview" href="{{ preview_url }}" title="Preview"><i class="fa-solid fa-eye"></i><span>Preview</span></a>
+                    <a class="quick-file-action" data-quick-action="download" href="{% if path %}{{ url_for('download_file', path=path, filename=file.name) }}{% else %}{{ url_for('download_file', filename=file.name) }}{% endif %}" title="Download"><i class="fa-solid fa-download"></i><span>Download</span></a>
+                    <button class="quick-file-action js-share" data-quick-action="share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="file" title="Share"><i class="fa-solid fa-share-nodes"></i><span>Share</span></button>
+                    <button class="quick-file-action js-toggle-star" data-quick-action="star" type="button" data-path="{{ item_path }}" title="Star"><i class="fa-{% if file.metadata and file.metadata.starred %}solid{% else %}regular{% endif %} fa-star"></i><span>Star</span></button>
+                    <button class="quick-file-action js-move-copy" data-quick-action="move" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" title="Move or copy"><i class="fa-solid fa-arrows-up-down-left-right" aria-hidden="true"></i><span>Move</span></button>
+                    <a class="quick-file-action" href="{{ url_for('metadata_page', target=item_path) }}" title="View file details, tags, and notes"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Details</span></a>
+                </div>
                 {% if file.kind == 'image' %}
                     <a href="{{ preview_url }}" class="preview-box"><img src="{{ raw_url }}" alt="{{ file.name }}" loading="lazy"></a>
                 {% elif file.kind == 'pdf' %}
-                    <a href="{{ preview_url }}" class="preview-box pdf-thumb-link" aria-label="Preview {{ file.name }}">
-                        <iframe class="pdf-thumb-frame" src="{{ raw_url }}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH" loading="lazy" title="{{ file.name }} first page preview"></iframe>
+                    <a href="{{ preview_url }}" class="preview-box pdf-thumb-link" aria-label="Preview {{ file.name }}" data-pdf-url="{{ raw_url }}">
+                        <canvas class="pdf-thumb-canvas" aria-hidden="true"></canvas>
+                        <span class="pdf-thumb-fallback"><i class="fa-solid fa-file-pdf"></i></span>
                         <span class="pdf-thumb-badge"><i class="fa-solid fa-file-pdf"></i> PDF</span>
                     </a>
                 {% elif file.kind == 'video' %}
@@ -193,7 +225,8 @@
         <div class="empty-state glass-card">
             <i class="fa-regular fa-folder-open"></i>
             <h2>This folder is empty</h2>
-            <p class="muted">Upload files or create a new folder to start organizing.</p>
+            <p class="muted">Upload something, create a folder, or start a new text file in the web editor.</p>
+            <div class="empty-state-actions"><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTextModal"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> New text file</button><a class="btn btn-outline-primary" href="#dropArea">Upload files</a></div>
         </div>
     {% endfor %}
 </section>
@@ -226,6 +259,35 @@
     </div>
     <a href="{{ url_for('chat_page') }}" class="btn btn-primary"><i class="fa-solid fa-robot"></i> Chat with AI</a>
 </section>
+
+<div class="modal fade" id="newFolderModal" tabindex="-1" aria-labelledby="newFolderTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><div><p class="eyebrow mb-1">Create</p><h2 class="modal-title fs-5" id="newFolderTitle">New folder</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <form action="{% if path %}{{ url_for('create_folder', path=path) }}{% else %}{{ url_for('create_folder') }}{% endif %}" method="POST">
+                <div class="modal-body"><label class="form-label" for="folderNameInput">Folder name</label><input id="folderNameInput" class="form-control" type="text" name="folder_name" placeholder="Example: Project photos" maxlength="120" autocomplete="off" required><p class="form-hint">The folder will be created in <strong>{{ path or 'Root' }}</strong>.</p></div>
+                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button id="createFolderButton" class="btn btn-primary" type="submit"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i> Create folder</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="newTextModal" tabindex="-1" aria-labelledby="newTextTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><div><p class="eyebrow mb-1">Create and edit</p><h2 class="modal-title fs-5" id="newTextTitle">New text file</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <form action="{% if path %}{{ url_for('create_text_file', path=path) }}{% else %}{{ url_for('create_text_file') }}{% endif %}" method="POST">
+                <div class="modal-body">
+                    <label class="form-label" for="newTextName">File name</label>
+                    <div class="new-file-name-row"><input id="newTextName" class="form-control" type="text" name="file_name" placeholder="untitled" maxlength="160" autocomplete="off" required><select class="form-select" name="extension" aria-label="File extension"><option value=".txt">.txt</option><option value=".md">.md</option><option value=".py">.py</option><option value=".js">.js</option><option value=".html">.html</option><option value=".css">.css</option><option value=".json">.json</option><option value=".yaml">.yaml</option><option value=".log">.log</option></select></div>
+                    <p class="form-hint">You can include a supported extension in the name. The file opens immediately in the browser editor.</p>
+                    <label class="form-label mt-3" for="initialContent">Optional starting content</label><textarea id="initialContent" class="form-control" name="initial_content" rows="4" placeholder="Start writing now, or leave this empty"></textarea>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit"><i class="fa-solid fa-code" aria-hidden="true"></i> Create and edit</button></div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="renameModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -384,19 +446,23 @@
     </div>
 </div>
 
-<div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade" id="progressModal" tabindex="-1" aria-labelledby="progressTitle" aria-describedby="progressStatus" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header"><h5 class="modal-title">Uploading files</h5></div>
+        <div class="modal-content upload-progress-dialog">
+            <div class="modal-header"><div><p class="eyebrow mb-1">Transfer</p><h2 class="modal-title fs-5" id="progressTitle">Uploading files</h2></div></div>
             <div class="modal-body">
-                <div class="progress"><div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div></div>
-                <p id="progressPercentage" class="text-center mt-3 mb-0">0%</p>
+                <div class="upload-progress-summary"><span class="upload-progress-icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong id="progressFileCount">Preparing upload</strong><small id="progressCurrentFile">Please keep this tab open.</small></div><strong id="progressPercentage">0%</strong></div>
+                <div class="progress upload-progress-track" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressBar" class="progress-bar" style="width: 0%"></div></div>
+                <div class="upload-progress-meta"><span id="progressBytes">0 B of 0 B</span><span id="progressSpeed">Calculating speed…</span><span id="progressEta">Estimating time…</span></div>
+                <p id="progressStatus" class="upload-progress-status" role="status" aria-live="polite">Preparing your files…</p>
             </div>
+            <div id="progressModalFooter" class="modal-footer"><button id="cancelUploadButton" type="button" class="btn btn-outline-danger"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Cancel upload</button></div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/pdf_preview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/storage.js') }}"></script>
 {% endblock %}

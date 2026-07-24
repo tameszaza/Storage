@@ -278,31 +278,6 @@ Admins can open **Admin center → Network test** to measure the current browser
 
 This is an application-level browser-to-server test. Request loss is not raw ICMP packet loss, and latency includes HTTP and browser processing overhead.
 
-## Server voice bridge
-
-Admins can open **Admin center → Server voice** for a duplex browser/server audio session:
-
-- Browser microphone to the Android server speaker
-- Android server microphone to the browser speaker
-- Independent direction switches, microphone mute, speaker mute, volume, device selection, call timer, and live level meters
-- One active call at a time, protected by the existing Admin session
-
-Install the Python dependency and audio tools:
-
-```text
-pip install -r requirements.txt
-pkg install ffmpeg pulseaudio
-```
-
-The defaults expect `ffplay` for playback and an FFmpeg PulseAudio input named `default` for capture. Override either command in `.env` when the Android/Termux audio device uses a different source or sink:
-
-```text
-VOICE_PLAYBACK_COMMAND=ffplay -nodisp -autoexit -loglevel error -i pipe:0
-VOICE_CAPTURE_COMMAND=ffmpeg -hide_banner -loglevel error -f pulse -i default -ac 1 -ar 48000 -c:a libopus -b:a 48k -f webm pipe:1
-```
-
-Browser microphone permission requires HTTPS when Tamestorage is opened through a LAN hostname or IP. Configure `TLS_CERT_FILE` and `TLS_KEY_FILE`, then restart the server. Audio availability still depends on the S21 FE Android/Termux audio backend and its microphone permissions.
-
 ## Reference-inspired responsive interface
 
 The current interface was rebuilt around a consistent personal-cloud design system:

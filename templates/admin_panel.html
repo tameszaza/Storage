@@ -58,7 +58,6 @@
             <a href="{{ url_for('activity_page') }}" class="btn btn-outline-primary w-100">Activity audit</a>
             <a href="{{ url_for('integrity_page') }}" class="btn btn-outline-primary w-100">Integrity scan</a>
             <a href="{{ url_for('network_test_page') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Network test</a>
-            <a href="{{ url_for('voice_page') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-headset" aria-hidden="true"></i> Server voice</a>
             <a href="{{ url_for('view_feedback') }}" class="btn btn-outline-primary w-100">Read feedback {% if unread_count > 0 %}<span class="badge text-bg-danger ms-2">{{ unread_count }}</span>{% endif %}</a>
             <form action="{{ url_for('clear_charts') }}" method="POST" data-confirm="Clear all generated chart images?"><button class="btn btn-outline-danger w-100" type="submit">Clear charts</button></form>
         </div>

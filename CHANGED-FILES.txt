@@ -9,9 +9,7 @@ Core and configuration:
 New modules:
 - lib/ac_usage.py
 - lib/editor_service.py
-- lib/voice_bridge.py
 - routes/network_test.py
-- routes/voice.py
 
 Updated backend modules:
 - lib/ac_control.py
@@ -31,7 +29,6 @@ Updated templates:
 - templates/editfile.html
 - templates/index.html
 - templates/network_test.html
-- templates/voice.html
 
 Page styles:
 - static/css/admin.css
@@ -41,7 +38,6 @@ Page styles:
 - static/css/files-page.css
 - static/css/network-test.css
 - static/css/search-page.css
-- static/css/voice.css
 
 Page scripts:
 - static/js/aircon.js
@@ -51,4 +47,3 @@ Page scripts:
 - static/js/network-test.js
 - static/js/search.js
 - static/js/storage.js
-- static/js/voice.js

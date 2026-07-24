@@ -57,13 +57,5 @@ class Config:
     AC_STATISTICS_FILE = os.environ.get("AC_STATISTICS_FILE", "ac_statistics.json")
     AIRCON_PORTAL_PASSWORD = os.environ.get("AIRCON_PORTAL_PASSWORD", "")
     AIRCON_SESSION_HOURS = int(os.environ.get("AIRCON_SESSION_HOURS", 24))
-    VOICE_PLAYBACK_COMMAND = os.environ.get(
-        "VOICE_PLAYBACK_COMMAND",
-        "ffplay -nodisp -autoexit -loglevel error -i pipe:0",
-    )
-    VOICE_CAPTURE_COMMAND = os.environ.get(
-        "VOICE_CAPTURE_COMMAND",
-        "ffmpeg -hide_banner -loglevel error -f pulse -i default -ac 1 -ar 48000 -c:a libopus -b:a 48k -f webm pipe:1",
-    )
     TLS_CERT_FILE = os.environ.get("TLS_CERT_FILE", "")
     TLS_KEY_FILE = os.environ.get("TLS_KEY_FILE", "")

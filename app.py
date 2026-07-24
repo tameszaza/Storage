@@ -3,7 +3,7 @@ import os
 from flask import Flask, session
 
 from lib.config import Config
-from lib.extensions import bcrypt, sock
+from lib.extensions import bcrypt
 from lib.request_logging import register_request_logging, setup_logging
 from lib.storage import format_bytes, get_folder_size, get_total_storage_bytes, safe_upload_path
 from lib.users import load_users
@@ -16,10 +16,8 @@ def create_app(config_class=Config):
 
     setup_logging(app)
     bcrypt.init_app(app)
-    if sock is not None:
-        sock.init_app(app)
     register_request_logging(app)
-    register_all_routes(app, sock=sock)
+    register_all_routes(app)
 
     @app.context_processor
     def inject_storage_shell_context():

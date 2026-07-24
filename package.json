@@ -5,7 +5,7 @@
   "scripts": {
     "build:css": "tailwindcss -i ./src/tailwind.css -o ./static/css/tailwind.css --minify",
     "watch:css": "tailwindcss -i ./src/tailwind.css -o ./static/css/tailwind.css --watch",
-    "check:js": "node --check static/js/app.js && node --check static/js/storage.js && node --check static/js/editor.js && node --check static/js/media_player.js && node --check static/js/admin.js && node --check static/js/chat.js && node --check static/js/pdf_preview.js && node --check static/js/search.js && node --check static/js/network-test.js && node --check static/js/voice.js && node --check static/js/aircon.js",
+    "check:js": "node --check static/js/app.js && node --check static/js/storage.js && node --check static/js/editor.js && node --check static/js/media_player.js && node --check static/js/admin.js && node --check static/js/chat.js && node --check static/js/pdf_preview.js && node --check static/js/search.js && node --check static/js/network-test.js && node --check static/js/aircon.js",
     "verify": "npm run build:css && npm run check:js"
   },
   "keywords": [],

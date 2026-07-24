@@ -1,10 +1,14 @@
 uploads
+.env
 server.log
 users.json
 data_transfer.log
 feedback.json
 shares.json
 share_audit.json
+file_metadata.json
+trash_index.json
+versions.json
 __pycache__/
 *.pyc
 file_requests.json

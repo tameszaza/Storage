@@ -1,4 +1,20 @@
 (function () {
+    function readLocalPreference(key, fallback) {
+        try {
+            return localStorage.getItem(key) || fallback;
+        } catch (_error) {
+            return fallback;
+        }
+    }
+
+    function writeLocalPreference(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (_error) {
+            // View changes still apply for the current page.
+        }
+    }
+
     const state = {
         progressModal: null,
         renameModal: null,
@@ -59,7 +75,7 @@
             button.title = nextLabel;
             button.setAttribute("aria-pressed", String(view === "list"));
         }
-        localStorage.setItem("storageView", view);
+        writeLocalPreference("storageView", view);
         requestAnimationFrame(refreshDuplicateMenuActions);
     }
 
@@ -713,7 +729,7 @@
             }
         }
 
-        setView(localStorage.getItem("storageView") || "grid");
+        setView(readLocalPreference("storageView", "grid"));
         const viewToggle = document.getElementById("viewToggleBtn");
         if (viewToggle) {
             viewToggle.addEventListener("click", () => {

@@ -1,24 +1,54 @@
-AC timeline UI, local MacroDroid root URL, server restart, and speedometer cleanup
-
-Added:
-- lib/ac_control.py
-- static/css/admin.css
-- templates/server_restarting.html
-
-Updated:
-- lib/config.py
-- routes/__init__.py
-- routes/admin.py
-- templates/admin_panel.html
-- static/js/admin.js
+Core and configuration:
+- app.py
+- requirements.txt
+- package.json
 - .env.example
 - .gitignore
 - README.md
-- package.json
-- APPLY-INSTRUCTIONS.txt
 
-Removed:
-- routes/speed.py
-- templates/speed.html
-- static/js/speed.js
-- static/css/speed.css
+New modules:
+- lib/ac_usage.py
+- lib/editor_service.py
+- lib/voice_bridge.py
+- routes/network_test.py
+- routes/voice.py
+
+Updated backend modules:
+- lib/ac_control.py
+- lib/config.py
+- lib/extensions.py
+- lib/search_index.py
+- routes/__init__.py
+- routes/aircon.py
+- routes/features.py
+- routes/files.py
+
+Updated templates:
+- templates/admin_panel.html
+- templates/advanced_search.html
+- templates/aircon_portal.html
+- templates/chat.html
+- templates/editfile.html
+- templates/index.html
+- templates/network_test.html
+- templates/voice.html
+
+Page styles:
+- static/css/admin.css
+- static/css/aircon.css
+- static/css/chat-page.css
+- static/css/editor-page.css
+- static/css/files-page.css
+- static/css/network-test.css
+- static/css/search-page.css
+- static/css/voice.css
+
+Page scripts:
+- static/js/aircon.js
+- static/js/app.js
+- static/js/chat.js
+- static/js/editor.js
+- static/js/network-test.js
+- static/js/search.js
+- static/js/storage.js
+- static/js/voice.js

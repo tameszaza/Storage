@@ -1,0 +1,230 @@
+.editor-page-shell {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.editor-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.editor-page-header h1 {
+    margin: 2px 0 5px;
+    font-size: clamp(1.8rem, 3.5vw, 3rem);
+    line-height: 1;
+    letter-spacing: -0.045em;
+    overflow-wrap: anywhere;
+}
+
+.editor-header-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.editor-surface {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--ts-border);
+    border-radius: 18px;
+    background: var(--ts-surface);
+}
+
+.editor-surface form {
+    margin: 0;
+}
+
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--ts-border);
+    background: var(--ts-surface-soft);
+}
+
+.editor-toolbar-left,
+.editor-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.editor-language,
+.editor-save-state,
+.editor-tool-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 9px;
+    border: 1px solid var(--ts-border);
+    border-radius: 9px;
+    color: var(--ts-muted);
+    background: var(--ts-surface);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.editor-save-state.unsaved {
+    color: #b45309;
+    background: color-mix(in srgb, #f59e0b, transparent 90%);
+}
+
+.editor-save-state.saving,
+.editor-save-state.local-draft {
+    color: var(--ts-primary);
+    background: var(--ts-primary-soft);
+}
+
+.editor-save-state.draft-error {
+    color: var(--ts-danger);
+    background: color-mix(in srgb, var(--ts-danger), transparent 90%);
+}
+
+.editor-tool-button {
+    cursor: pointer;
+}
+
+.editor-tool-button.active,
+.editor-tool-button:hover {
+    color: var(--ts-primary);
+    border-color: color-mix(in srgb, var(--ts-primary), transparent 50%);
+}
+
+.editor-conflict-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 12px;
+    border-bottom: 1px solid color-mix(in srgb, #f59e0b, transparent 45%);
+    color: var(--ts-text);
+    background: color-mix(in srgb, #f59e0b, transparent 90%);
+}
+
+.editor-conflict-banner[hidden] {
+    display: none;
+}
+
+.editor-conflict-banner > div {
+    display: grid;
+    gap: 2px;
+}
+
+.editor-conflict-banner span {
+    color: var(--ts-muted);
+    font-size: 0.78rem;
+}
+
+.editor-workspace {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-width: 0;
+    height: min(68vh, 760px);
+    min-height: 440px;
+    background: #0f172a;
+}
+
+.editor-line-numbers {
+    min-width: 54px;
+    overflow: hidden;
+    padding: 16px 11px;
+    color: #64748b;
+    background: #111827;
+    border-right: 1px solid #263244;
+    font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    text-align: right;
+    white-space: pre;
+    user-select: none;
+}
+
+.code-editor.modern-code-editor {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    border: 0;
+    border-radius: 0;
+    outline: 0;
+    color: #e5e7eb;
+    background: #0f172a;
+    font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    resize: none;
+    tab-size: 4;
+    white-space: pre;
+}
+
+.code-editor.modern-code-editor.wrap-lines {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.editor-statusbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    border-top: 1px solid var(--ts-border);
+    color: var(--ts-muted);
+    background: var(--ts-surface-soft);
+    font-size: 0.72rem;
+}
+
+.editor-shortcut-hint {
+    margin-left: auto;
+}
+
+.editor-statusbar kbd {
+    padding: 2px 5px;
+    border: 1px solid var(--ts-border);
+    border-radius: 5px;
+    color: var(--ts-text);
+    background: var(--ts-surface);
+    font: inherit;
+}
+
+@media (max-width: 720px) {
+    .editor-page-header,
+    .editor-toolbar,
+    .editor-conflict-banner {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .editor-header-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .editor-header-actions .btn:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .editor-toolbar-right .editor-tool-button {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .editor-workspace {
+        min-height: 380px;
+        height: 62vh;
+    }
+
+    .editor-line-numbers {
+        min-width: 44px;
+        padding-inline: 8px;
+    }
+
+    .editor-shortcut-hint {
+        display: none;
+    }
+}

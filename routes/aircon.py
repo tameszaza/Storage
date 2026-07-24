@@ -107,6 +107,7 @@ def aircon_portal():
         initial_data={
             "settings": controller.get_settings(),
             "status": controller.get_status(),
+            "statistics": controller.get_statistics(),
             "rate_per_hour": 0.39,
         },
         asset_version=_asset_version(),
@@ -121,6 +122,7 @@ def aircon_status_api():
             "ok": True,
             "settings": controller.get_settings(),
             "status": controller.get_status(),
+            "statistics": controller.get_statistics(),
             "rate_per_hour": 0.39,
         }
     )
@@ -137,6 +139,7 @@ def aircon_settings_api():
                 "message": "Changes applied.",
                 "settings": settings,
                 "status": controller.get_status(),
+                "statistics": controller.get_statistics(),
             }
         )
     except (AcControlError, OSError) as error:
@@ -153,6 +156,7 @@ def aircon_action_api(action: str):
                 "ok": True,
                 "message": f"AC {action.upper()} sent.",
                 "status": controller.get_status(),
+                "statistics": controller.get_statistics(),
             }
         )
     except AcControlError as error:
@@ -169,6 +173,7 @@ def aircon_start_api():
                 "ok": True,
                 "message": "Schedule started.",
                 "status": controller.get_status(),
+                "statistics": controller.get_statistics(),
             }
         )
     except AcControlError as error:
@@ -185,6 +190,7 @@ def aircon_stop_api():
                 "ok": True,
                 "message": "Schedule stopped.",
                 "status": controller.get_status(),
+                "statistics": controller.get_statistics(),
             }
         )
     except AcControlError as error:
@@ -201,11 +207,29 @@ def aircon_skip_api():
                 "ok": True,
                 "message": "Moving to the next phase.",
                 "status": controller.get_status(),
+                "statistics": controller.get_statistics(),
             }
         )
     except AcControlError as error:
         return _json_error(error)
 
+
+
+@aircon_required
+def aircon_reset_statistics_api():
+    controller = get_ac_controller(current_app)
+    try:
+        statistics = controller.reset_statistics()
+        return jsonify(
+            {
+                "ok": True,
+                "message": "Usage totals reset.",
+                "statistics": statistics,
+                "status": controller.get_status(),
+            }
+        )
+    except OSError as error:
+        return _json_error(error, 500)
 
 def register_routes(app):
     app.add_url_rule("/aircon/login", "aircon_login", aircon_login, methods=["GET", "POST"])
@@ -217,3 +241,4 @@ def register_routes(app):
     app.add_url_rule("/aircon/api/start", "aircon_start_api", aircon_start_api, methods=["POST"])
     app.add_url_rule("/aircon/api/stop", "aircon_stop_api", aircon_stop_api, methods=["POST"])
     app.add_url_rule("/aircon/api/skip", "aircon_skip_api", aircon_skip_api, methods=["POST"])
+    app.add_url_rule("/aircon/api/statistics/reset", "aircon_reset_statistics_api", aircon_reset_statistics_api, methods=["POST"])

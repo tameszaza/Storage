@@ -43,7 +43,11 @@
             actionLabel: message.actionLabel || "",
             createdAt: message.createdAt || Date.now(),
         }));
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+        } catch (_error) {
+            // Chat remains available when browser history storage is restricted.
+        }
     }
 
     function loadHistory() {
@@ -340,6 +344,10 @@
         const input = $("chatInput");
         const imageInput = $("imageInput");
         const dropZone = $("chatDropZone");
+        const optionsDisclosure = $("chatOptionsDisclosure");
+        if (optionsDisclosure && window.matchMedia("(max-width: 720px)").matches) {
+            optionsDisclosure.removeAttribute("open");
+        }
 
         loadHistory();
         renderMessages();
@@ -351,7 +359,11 @@
         $("exportChatBtn")?.addEventListener("click", exportChat);
         $("clearChatBtn")?.addEventListener("click", () => {
             if (!confirm("Clear this chat history in this browser?")) return;
-            localStorage.removeItem(STORAGE_KEY);
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (_error) {
+                // Continue by clearing only the in-memory conversation.
+            }
             state.messages = [];
             loadHistory();
             renderMessages();

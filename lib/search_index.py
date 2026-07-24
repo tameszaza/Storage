@@ -33,12 +33,13 @@ def search_files(base_path: str, query: str = "", kind: str = "", tag: str = "",
     for item in iter_files(base_path) or []:
         meta = get_metadata(item["path"])
         tags = meta.get("tags", [])
+        normalized_tags = [str(value).casefold() for value in tags]
         note = meta.get("note", "")
         if query and query not in item["name"].lower() and query not in item["path"].lower() and query not in note.lower():
             continue
         if kind and kind != "all" and item["kind"] != kind:
             continue
-        if tag and tag not in tags:
+        if tag and tag.casefold() not in normalized_tags:
             continue
         if starred and not meta.get("starred"):
             continue

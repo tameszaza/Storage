@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Network test · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/network-test.css') }}?v={{ asset_version }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<section class="network-test-page"
+         data-ping-url="{{ url_for('network_test_ping') }}"
+         data-download-url="{{ url_for('network_test_download') }}"
+         data-upload-url="{{ url_for('network_test_upload') }}">
+    <header class="network-test-header">
+        <div>
+            <p class="eyebrow">Admin diagnostics</p>
+            <h1>Browser ↔ server test</h1>
+            <p class="muted">Latency, jitter, request loss, download, and upload on this connection.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Admin</a>
+    </header>
+
+    <section class="network-test-controls">
+        <label><span>Ping samples</span><select id="pingCount"><option value="10">10</option><option value="20" selected>20</option><option value="30">30</option></select></label>
+        <label><span>Packet payload</span><select id="packetSize"><option value="64">64 B</option><option value="256" selected>256 B</option><option value="1024">1 KB</option><option value="8192">8 KB</option><option value="32768">32 KB</option></select></label>
+        <label><span>Transfer payload</span><select id="transferSize"><option value="2097152">2 MB</option><option value="5242880" selected>5 MB</option><option value="10485760">10 MB</option><option value="20971520">20 MB</option></select></label>
+        <button id="startNetworkTest" class="btn btn-primary" type="button"><i class="fa-solid fa-play" aria-hidden="true"></i> Run full test</button>
+        <button id="cancelNetworkTest" class="btn btn-outline-danger" type="button" disabled>Cancel</button>
+    </section>
+
+    <section class="network-test-status" aria-live="polite">
+        <div class="network-progress-track"><span id="networkProgress"></span></div>
+        <div><strong id="networkStage">Ready</strong><span id="networkDetail">No test running</span></div>
+    </section>
+
+    <section class="network-metric-grid" aria-label="Network test results">
+        <article class="network-metric"><small>Latency</small><strong id="latencyResult">—</strong><span id="latencyDetail">Median RTT</span></article>
+        <article class="network-metric"><small>Jitter</small><strong id="jitterResult">—</strong><span>RTT variation</span></article>
+        <article class="network-metric"><small>Request loss</small><strong id="lossResult">—</strong><span id="lossDetail">HTTP samples</span></article>
+        <article class="network-metric"><small>Download</small><strong id="downloadResult">—</strong><span>Browser receive rate</span></article>
+        <article class="network-metric"><small>Upload</small><strong id="uploadResult">—</strong><span>Browser send rate</span></article>
+    </section>
+
+    <section class="network-detail-grid">
+        <article class="network-panel">
+            <div class="network-panel-head"><div><p class="eyebrow">Round trips</p><h2>Latency samples</h2></div><span id="latencyRange">—</span></div>
+            <svg id="latencyChart" class="latency-chart" viewBox="0 0 720 220" role="img" aria-label="Latency sample chart">
+                <line x1="34" y1="20" x2="34" y2="190"></line>
+                <line x1="34" y1="190" x2="700" y2="190"></line>
+                <polyline id="latencyLine" points=""></polyline>
+                <g id="latencyDots"></g>
+            </svg>
+        </article>
+
+        <article class="network-panel">
+            <div class="network-panel-head"><div><p class="eyebrow">Last run</p><h2>Test details</h2></div><button id="clearNetworkHistory" class="network-text-button" type="button">Clear history</button></div>
+            <dl class="network-detail-list">
+                <div><dt>Packet payload</dt><dd id="detailPacketSize">—</dd></div>
+                <div><dt>Successful samples</dt><dd id="detailSamples">—</dd></div>
+                <div><dt>95th percentile</dt><dd id="detailP95">—</dd></div>
+                <div><dt>Transfer payload</dt><dd id="detailTransferSize">—</dd></div>
+                <div><dt>Completed</dt><dd id="detailCompleted">—</dd></div>
+            </dl>
+            <div id="networkHistory" class="network-history"></div>
+        </article>
+    </section>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/network-test.js') }}?v={{ asset_version }}"></script>{% endblock %}

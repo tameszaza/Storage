@@ -1022,3 +1022,65 @@ code {
         padding: 22px;
     }
 }
+
+.aircon-usage-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px;
+    border: 1px solid var(--ac-border);
+    border-radius: var(--ac-radius-md);
+    background: var(--ac-surface);
+}
+
+.aircon-usage-bar > div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+    padding: 4px 8px;
+}
+
+.aircon-usage-bar small {
+    color: var(--ac-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.aircon-usage-bar strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+}
+
+.aircon-button.is-compact {
+    min-height: 38px;
+    padding: 8px 12px;
+    white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+    .aircon-usage-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .aircon-usage-bar .aircon-button {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    .aircon-usage-bar {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 9px;
+    }
+
+    .aircon-usage-bar > div {
+        padding: 5px 6px;
+    }
+}

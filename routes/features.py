@@ -186,30 +186,84 @@ def toggle_star_route():
 def advanced_search():
     username = session.get("username")
     base = "" if username == "Admin" else username
-    query = request.args.get("q", "")
-    kind = request.args.get("kind", "")
-    tag = request.args.get("tag", "")
-    content = request.args.get("content", "")
+
+    query = request.args.get("q", "").strip()
+    kind = request.args.get("kind", "").strip()
+    tag = request.args.get("tag", "").strip()
+    content = request.args.get("content", "").strip()
     starred = request.args.get("starred") == "1"
-    min_size = request.args.get("min_size", "")
-    max_size = request.args.get("max_size", "")
-    modified_days = request.args.get("modified_days", "")
-    to_int = lambda v: int(v) if str(v).isdigit() else None
-    results = []
-    if request.args:
-        results = search_files(base, query=query, kind=kind, tag=tag, content=content, starred=starred, min_size=to_int(min_size), max_size=to_int(max_size), modified_days=to_int(modified_days))
-        normalized_query = query.casefold().strip()
-        if normalized_query:
-            results.sort(key=lambda item: (
+    modified_days_raw = request.args.get("modified_days", "").strip()
+    size_preset = request.args.get("size", "").strip()
+    sort_mode = request.args.get("sort", "relevance").strip()
+
+    def positive_int(value):
+        try:
+            parsed = int(str(value).strip())
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed >= 0 else None
+
+    modified_days = positive_int(modified_days_raw)
+    size_ranges = {
+        "small": (None, 1024 * 1024),
+        "medium": (1024 * 1024, 10 * 1024 * 1024),
+        "large": (10 * 1024 * 1024, 100 * 1024 * 1024),
+        "huge": (100 * 1024 * 1024, None),
+    }
+    min_size, max_size = size_ranges.get(size_preset, (None, None))
+
+    has_search = any(
+        [query, kind, tag, content, starred, modified_days is not None, size_preset]
+    )
+    results = search_files(
+        base,
+        query=query,
+        kind=kind,
+        tag=tag,
+        content=content,
+        starred=starred,
+        min_size=min_size,
+        max_size=max_size,
+        modified_days=modified_days,
+    )
+
+    normalized_query = query.casefold()
+    if sort_mode == "newest" or not has_search:
+        results.sort(key=lambda item: (-item.get("mtime", 0), item["name"].casefold()))
+    elif sort_mode == "oldest":
+        results.sort(key=lambda item: (item.get("mtime", 0), item["name"].casefold()))
+    elif sort_mode == "name":
+        results.sort(key=lambda item: (not item["is_dir"], item["name"].casefold()))
+    elif sort_mode == "largest":
+        results.sort(key=lambda item: (-item.get("size", 0), item["name"].casefold()))
+    elif sort_mode == "smallest":
+        results.sort(key=lambda item: (item.get("size", 0), item["name"].casefold()))
+    elif normalized_query:
+        results.sort(
+            key=lambda item: (
                 item["name"].casefold() != normalized_query,
                 not item["name"].casefold().startswith(normalized_query),
                 not item["is_dir"],
                 item["name"].casefold(),
-            ))
-        else:
-            results.sort(key=lambda item: (-item.get("mtime", 0), item["name"].casefold()))
-    tags = sorted({tag for meta in all_metadata().values() for tag in meta.get("tags", [])})
-    return render_template("advanced_search.html", results=results, tags=tags)
+            )
+        )
+    else:
+        results.sort(key=lambda item: (-item.get("mtime", 0), item["name"].casefold()))
+
+    show_recent = not has_search
+    if show_recent:
+        results = results[:12]
+
+    tags = sorted({value for meta in all_metadata().values() for value in meta.get("tags", [])})
+    return render_template(
+        "advanced_search.html",
+        results=results,
+        tags=tags,
+        show_recent=show_recent,
+        has_search=has_search,
+        size_preset=size_preset,
+        sort_mode=sort_mode,
+    )
 
 
 @login_required

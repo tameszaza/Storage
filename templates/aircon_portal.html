@@ -17,6 +17,7 @@
       data-skip-url="{{ url_for('aircon_skip_api') }}"
       data-on-url="{{ url_for('aircon_action_api', action='on') }}"
       data-off-url="{{ url_for('aircon_action_api', action='off') }}"
+      data-reset-statistics-url="{{ url_for('aircon_reset_statistics_api') }}"
       data-login-url="{{ url_for('aircon_login') }}">
     <header class="aircon-topbar">
         <a class="aircon-brand" href="{{ url_for('aircon_portal') }}">
@@ -60,15 +61,23 @@
                 <span id="cycleDetail">Continuous</span>
             </article>
             <article class="aircon-metric">
-                <small>Session spent</small>
+                <small>Total spent</small>
                 <strong id="sessionSpent">$0.00</strong>
-                <span>At $0.39 per ON hour</span>
+                <span>Since statistics reset</span>
             </article>
             <article class="aircon-metric">
-                <small>Session saved</small>
+                <small>Total saved</small>
                 <strong id="sessionSaved">$0.00</strong>
-                <span>Compared with always ON</span>
+                <span>OFF time at the same rate</span>
             </article>
+        </section>
+
+        <section class="aircon-usage-bar" aria-label="Persistent aircon statistics">
+            <div><small>Total ON</small><strong id="totalOnTime">0 sec</strong></div>
+            <div><small>Total OFF</small><strong id="totalOffTime">0 sec</strong></div>
+            <div><small>Completed cycles</small><strong id="totalCycles">0</strong></div>
+            <div><small>Tracking since</small><strong id="statisticsResetAt">Now</strong></div>
+            <button id="resetStatistics" class="aircon-button is-secondary is-compact" type="button"><i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i> Reset totals</button>
         </section>
 
         <section class="aircon-card aircon-schedule-card" aria-labelledby="scheduleTitle">

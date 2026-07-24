@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Server voice · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/voice.css') }}?v={{ asset_version }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<section class="voice-page" data-websocket-url="{{ url_for('voice_page').replace('/admin/voice', '/admin/voice/ws') }}">
+    <header class="voice-page-header">
+        <div>
+            <p class="eyebrow">Admin audio</p>
+            <h1>Server voice</h1>
+            <p class="muted">Talk through the phone speaker and listen to its microphone.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Admin</a>
+    </header>
+
+    <section class="voice-call-card">
+        <div class="voice-call-head">
+            <div>
+                <span id="voiceStatusBadge" class="voice-status-badge is-idle"><span></span> Ready</span>
+                <strong id="voiceCallTimer">00:00</strong>
+            </div>
+            <button id="voiceEndButton" class="voice-end-button" type="button" disabled aria-label="End call"><i class="fa-solid fa-phone-slash" aria-hidden="true"></i></button>
+        </div>
+
+        <div class="voice-level-grid" aria-label="Audio levels">
+            <article class="voice-level-card">
+                <div><small>Browser microphone</small><strong id="browserMicState">Off</strong></div>
+                <div id="browserLevel" class="voice-level-bars" aria-hidden="true"></div>
+            </article>
+            <article class="voice-level-card">
+                <div><small>Server microphone</small><strong id="serverMicState">Off</strong></div>
+                <div id="serverLevel" class="voice-level-bars" aria-hidden="true"></div>
+            </article>
+        </div>
+
+        <div class="voice-direction-grid">
+            <label class="voice-direction-option">
+                <input id="sendToServer" type="checkbox" checked>
+                <span class="voice-direction-icon"><i class="fa-solid fa-microphone" aria-hidden="true"></i></span>
+                <span><strong>Browser mic → phone speaker</strong><small>Speak from this browser.</small></span>
+            </label>
+            <label class="voice-direction-option">
+                <input id="receiveFromServer" type="checkbox" checked>
+                <span class="voice-direction-icon"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></span>
+                <span><strong>Phone mic → browser speaker</strong><small>Hear the server microphone.</small></span>
+            </label>
+        </div>
+
+        <div id="voiceSecureWarning" class="voice-warning" hidden><i class="fa-solid fa-lock" aria-hidden="true"></i><span>HTTPS is required to use the browser microphone on a LAN address.</span></div>
+
+        <button id="voiceStartButton" class="voice-start-button" type="button"><i class="fa-solid fa-phone" aria-hidden="true"></i><span>Start call</span></button>
+
+        <div class="voice-in-call-controls">
+            <button id="voiceMuteMic" class="voice-control-button" type="button" disabled aria-pressed="false"><i class="fa-solid fa-microphone" aria-hidden="true"></i><span>Mute mic</span></button>
+            <button id="voiceMuteSpeaker" class="voice-control-button" type="button" disabled aria-pressed="false"><i class="fa-solid fa-volume-high" aria-hidden="true"></i><span>Mute speaker</span></button>
+            <label class="voice-volume-control"><i class="fa-solid fa-volume-low" aria-hidden="true"></i><input id="voiceVolume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Speaker volume"><i class="fa-solid fa-volume-high" aria-hidden="true"></i></label>
+        </div>
+
+        <audio id="serverAudio" autoplay playsinline></audio>
+    </section>
+
+    <section class="voice-settings-grid">
+        <article class="voice-panel">
+            <div class="voice-panel-head"><div><p class="eyebrow">Browser</p><h2>Audio device</h2></div></div>
+            <label class="form-label" for="voiceInputDevice">Microphone</label>
+            <select id="voiceInputDevice" class="form-select"><option value="">Default microphone</option></select>
+            <label id="voiceOutputDeviceRow" class="form-label mt-3" for="voiceOutputDevice" hidden>Speaker</label>
+            <select id="voiceOutputDevice" class="form-select" hidden><option value="">Default speaker</option></select>
+        </article>
+
+        <article class="voice-panel">
+            <div class="voice-panel-head"><div><p class="eyebrow">Server</p><h2>Audio bridge</h2></div></div>
+            <div class="voice-bridge-status">
+                <div class="{{ 'is-ready' if bridge_status.websocket_available else 'is-error' }}"><span></span><strong>WebSocket</strong><small>{{ 'Ready' if bridge_status.websocket_available else 'Install Flask-Sock' }}</small></div>
+                <div class="{{ 'is-ready' if bridge_status.playback.available else 'is-error' }}"><span></span><strong>Playback</strong><small>{{ bridge_status.playback.executable or bridge_status.playback.error }}</small></div>
+                <div class="{{ 'is-ready' if bridge_status.capture.available else 'is-error' }}"><span></span><strong>Microphone</strong><small>{{ bridge_status.capture.executable or bridge_status.capture.error }}</small></div>
+            </div>
+        </article>
+    </section>
+
+    <div id="voiceMessage" class="voice-message" role="status" aria-live="polite"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Ready.</span></div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/voice.js') }}?v={{ asset_version }}"></script>{% endblock %}

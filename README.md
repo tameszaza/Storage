@@ -211,7 +211,9 @@ The portal supports:
 - Immediate shortening or extension of the current phase after applying changes.
 - Start, stop, and skip-current-phase actions.
 - Direct ON and OFF commands while no automatic schedule is running.
-- Live timeline progress and session cost estimates at SGD 0.39 per ON hour.
+- Live timeline progress and cost estimates at SGD 0.39 per ON hour.
+- Persistent ON time, OFF time, completed cycles, spend, and savings totals stored in `ac_statistics.json`.
+- Totals survive normal server restarts and remain until **Reset totals** is pressed in the aircon portal.
 - Spend and savings values rounded up to the nearest SGD 0.01.
 
 Settings remain stored in `ac_control.json` with owner-only file permissions. The schedule does not automatically resume after a server restart.
@@ -249,6 +251,57 @@ AC_CONTROL_FILE=/path/to/ac_control.json
 ### Restarting from the Admin center
 
 Use **Server control → Restart server** after replacing backend or interface files. If an automatic schedule is active, Tamestorage stops it and sends the configured OFF trigger before restarting.
+
+
+## Search, file grid, assistant, and editor quality pass
+
+The primary workspace pages use separate page modules instead of one growing shared script or stylesheet:
+
+- `search-page.css` and `search.js` provide a focused search bar, useful filters, automatic sorting, and compact result rows.
+- `files-page.css` gives every grid tile the same height and a consistent preview region on desktop and mobile.
+- `chat-page.css` removes the nested-panel appearance from the AI assistant. Assistant options collapse into one disclosure on narrow screens.
+- `editor-page.css`, `editor.js`, and `editor_service.py` provide an explicit Save/Done flow, `Ctrl+S` or `Cmd+S`, local draft recovery, mobile line wrapping, atomic writes, and SHA-256 revision conflict detection.
+
+The editor never overwrites a file that changed after the page was opened. A conflict banner keeps the unsaved browser text visible and asks the user to reload the server version.
+
+## Browser-to-server network diagnostics
+
+Admins can open **Admin center → Network test** to measure the current browser connection to Tamestorage:
+
+- Median HTTP round-trip latency
+- 95th-percentile latency
+- Consecutive round-trip variation shown as jitter
+- HTTP request loss across the selected samples
+- Browser download and upload throughput
+- Selectable request payload and transfer size
+- A latency trace and recent test history stored in the browser
+
+This is an application-level browser-to-server test. Request loss is not raw ICMP packet loss, and latency includes HTTP and browser processing overhead.
+
+## Server voice bridge
+
+Admins can open **Admin center → Server voice** for a duplex browser/server audio session:
+
+- Browser microphone to the Android server speaker
+- Android server microphone to the browser speaker
+- Independent direction switches, microphone mute, speaker mute, volume, device selection, call timer, and live level meters
+- One active call at a time, protected by the existing Admin session
+
+Install the Python dependency and audio tools:
+
+```text
+pip install -r requirements.txt
+pkg install ffmpeg pulseaudio
+```
+
+The defaults expect `ffplay` for playback and an FFmpeg PulseAudio input named `default` for capture. Override either command in `.env` when the Android/Termux audio device uses a different source or sink:
+
+```text
+VOICE_PLAYBACK_COMMAND=ffplay -nodisp -autoexit -loglevel error -i pipe:0
+VOICE_CAPTURE_COMMAND=ffmpeg -hide_banner -loglevel error -f pulse -i default -ac 1 -ar 48000 -c:a libopus -b:a 48k -f webm pipe:1
+```
+
+Browser microphone permission requires HTTPS when Tamestorage is opened through a LAN hostname or IP. Configure `TLS_CERT_FILE` and `TLS_KEY_FILE`, then restart the server. Audio availability still depends on the S21 FE Android/Termux audio backend and its microphone permissions.
 
 ## Reference-inspired responsive interface
 

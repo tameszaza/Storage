@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Files · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/files-page.css') }}" rel="stylesheet">{% endblock %}
 {% block content %}
 {% set folder_count = files|selectattr('is_dir')|list|length %}
 {% set file_count = files|rejectattr('is_dir')|list|length %}
@@ -52,6 +53,11 @@
         <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTextModal" title="Create a text or code file and open the web editor"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> New text file</button>
         <a class="btn btn-outline-primary" href="#dropArea" title="Open the upload panel"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i> Upload</a>
     </div>
+    <form action="{{ url_for('index', path=path) }}" method="GET" class="file-toolbar-search" role="search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" name="search" value="{{ search_query or '' }}" placeholder="Search this folder" aria-label="Search this folder">
+        {% if search_query %}<a href="{{ url_for('index', path=path) }}" aria-label="Clear folder search"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>{% endif %}
+    </form>
     <div class="view-controls" role="group" aria-label="Choose file view">
         <button id="viewToggleBtn" class="icon-button" type="button" aria-label="Switch between grid and list view" title="Switch between grid and list view" data-tooltip="true"><i id="viewToggleIcon" class="fa-solid fa-list" aria-hidden="true"></i></button>
     </div>
@@ -100,6 +106,7 @@
                 <span class="file-icon folder"><i class="fa-solid fa-arrow-turn-up"></i></span>
                 <span class="file-title"><strong>Go back</strong><small>Parent folder</small></span>
             </a>
+            <a class="file-tile-visual is-parent" href="{{ url_for('index', path=parent_path) }}" aria-hidden="true"><i class="fa-solid fa-arrow-turn-up"></i></a>
         </article>
     {% endif %}
 
@@ -174,6 +181,7 @@
                     <button class="quick-file-action js-move-copy" data-quick-action="move" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" title="Move or copy"><i class="fa-solid fa-arrows-up-down-left-right" aria-hidden="true"></i><span>Move</span></button>
                     <a class="quick-file-action" href="{{ url_for('metadata_page', target=item_path) }}" title="View file details, tags, and notes"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Details</span></a>
                 </div>
+                <a class="file-tile-visual is-folder" href="{{ url_for('index', path=item_path) }}" aria-label="Open folder {{ file.name }}"><i class="fa-solid fa-folder"></i><span>Open folder</span></a>
                 <div class="folder-drop-hint"><i class="fa-solid fa-arrow-down"></i> Drop files here to move them into this folder</div>
             {% else %}
                 <a class="file-main" href="{{ preview_url }}">
@@ -199,17 +207,22 @@
                     <a class="quick-file-action" href="{{ url_for('metadata_page', target=item_path) }}" title="View file details, tags, and notes"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span>Details</span></a>
                 </div>
                 {% if file.kind == 'image' %}
-                    <a href="{{ preview_url }}" class="preview-box"><img src="{{ raw_url }}" alt="{{ file.name }}" loading="lazy"></a>
+                    <a href="{{ preview_url }}" class="preview-box file-tile-visual"><img src="{{ raw_url }}" alt="{{ file.name }}" loading="lazy"></a>
                 {% elif file.kind == 'pdf' %}
-                    <a href="{{ preview_url }}" class="preview-box pdf-thumb-link" aria-label="Preview {{ file.name }}" data-pdf-url="{{ raw_url }}">
+                    <a href="{{ preview_url }}" class="preview-box file-tile-visual pdf-thumb-link" aria-label="Preview {{ file.name }}" data-pdf-url="{{ raw_url }}">
                         <canvas class="pdf-thumb-canvas" aria-hidden="true"></canvas>
                         <span class="pdf-thumb-fallback"><i class="fa-solid fa-file-pdf"></i></span>
                         <span class="pdf-thumb-badge"><i class="fa-solid fa-file-pdf"></i> PDF</span>
                     </a>
                 {% elif file.kind == 'video' %}
-                    <video class="preview-box" src="{{ raw_url }}" controls preload="metadata"></video>
+                    <video class="preview-box file-tile-visual" src="{{ raw_url }}" controls preload="metadata"></video>
                 {% elif file.kind == 'text' and file.content %}
-                    <a href="{{ preview_url }}" class="preview-box text-preview"><pre>{{ file.content }}</pre></a>
+                    <a href="{{ preview_url }}" class="preview-box file-tile-visual text-preview"><pre>{{ file.content }}</pre></a>
+                {% else %}
+                    <a href="{{ preview_url }}" class="file-tile-visual is-generic {{ file.kind }}" aria-label="Preview {{ file.name }}">
+                        <i class="fa-solid fa-{% if file.kind == 'audio' %}music{% elif file.kind == 'archive' %}file-zipper{% elif file.kind == 'text' %}file-lines{% else %}file{% endif %}"></i>
+                        <span>{{ file.kind|title }}</span>
+                    </a>
                 {% endif %}
             {% endif %}
 
@@ -231,17 +244,7 @@
     {% endfor %}
 </section>
 
-<section class="bottom-search glass-card">
-    <div class="bottom-search-copy">
-        <strong><i class="fa-solid fa-magnifying-glass"></i> Search this folder</strong>
-        <small>Keep the header clean. Search stays here near your file actions.</small>
-    </div>
-    <form action="{{ url_for('index', path=path) }}" method="GET" class="bottom-search-form">
-        <input class="form-control" type="search" name="search" value="{{ search_query or '' }}" placeholder="Search files and folders in this location">
-        <button class="btn btn-outline-primary" type="submit">Search</button>
-        {% if search_query %}<a class="btn btn-outline-danger" href="{{ url_for('index', path=path) }}">Clear</a>{% endif %}
-    </form>
-</section>
+
 
 <section class="bottom-actions glass-card">
     <div class="bottom-actions-left">

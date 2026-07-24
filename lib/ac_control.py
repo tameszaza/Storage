@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
@@ -8,6 +9,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from lib.ac_usage import AcUsageStore
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -139,14 +142,18 @@ def validate_settings(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 class AcController:
-    def __init__(self, settings_path: str):
+    def __init__(self, settings_path: str, statistics_path: str):
         self._settings_path = Path(settings_path).expanduser()
+        self._usage = AcUsageStore(statistics_path)
         self._lock = threading.RLock()
         self._condition = threading.Condition(self._lock)
         self._action_lock = threading.Lock()
         self._stop_requested = False
         self._skip_requested = False
         self._worker: threading.Thread | None = None
+        self._phase_started_monotonic: float | None = None
+        self._phase_accounted_seconds = 0.0
+        self._usage_checkpoint_seconds = 15.0
         self._settings = self._load_settings()
         self._status: dict[str, Any] = {
             "active": False,
@@ -201,6 +208,37 @@ class AcController:
     def get_settings(self) -> dict[str, Any]:
         with self._lock:
             return deepcopy(self._settings)
+
+    def _active_unaccounted_seconds_locked(self) -> tuple[str | None, float]:
+        if (
+            not self._status["active"]
+            or self._phase_started_monotonic is None
+            or self._status["phase_key"] not in WAIT_PHASE_KEYS
+        ):
+            return None, 0.0
+        elapsed = max(0.0, time.monotonic() - self._phase_started_monotonic)
+        unaccounted = max(0.0, elapsed - self._phase_accounted_seconds)
+        state = "on" if self._status["phase_key"] == "on_wait" else "off"
+        return state, unaccounted
+
+    def get_statistics(self) -> dict[str, Any]:
+        with self._lock:
+            snapshot = self._usage.snapshot()
+            state, unaccounted = self._active_unaccounted_seconds_locked()
+            if state == "on":
+                snapshot["total_on_seconds"] += unaccounted
+            elif state == "off":
+                snapshot["total_off_seconds"] += unaccounted
+            snapshot["live"] = bool(state)
+            return snapshot
+
+    def reset_statistics(self) -> dict[str, Any]:
+        with self._condition:
+            if self._phase_started_monotonic is not None:
+                self._phase_accounted_seconds = max(
+                    0.0, time.monotonic() - self._phase_started_monotonic
+                )
+            return self._usage.reset()
 
     def get_status(self) -> dict[str, Any]:
         with self._lock:
@@ -289,6 +327,7 @@ class AcController:
             if self._status["active"]:
                 raise AcControlError("Stop the schedule before using direct control.")
         self._send_trigger(action, "direct control")
+        self._usage.add_manual_command(action)
         self._set_status(
             phase="Direct control",
             phase_key="manual",
@@ -322,6 +361,7 @@ class AcController:
                 on_seconds_accumulated=0.0,
                 off_seconds_accumulated=0.0,
             )
+            self._usage.add_schedule_start()
             self._worker = threading.Thread(
                 target=self._run_cycle,
                 name="tamestorage-ac-cycle",
@@ -378,6 +418,17 @@ class AcController:
             self._status["last_error"] = None
             self._condition.notify_all()
 
+    def _checkpoint_usage_locked(self, state: str, elapsed: float, *, force: bool = False) -> None:
+        delta = max(0.0, elapsed - self._phase_accounted_seconds)
+        if delta <= 0 or (not force and delta < self._usage_checkpoint_seconds):
+            return
+        try:
+            self._usage.add_time(state, delta)
+            self._phase_accounted_seconds = elapsed
+        except OSError as error:
+            logging.exception("Could not persist AC usage statistics")
+            self._status["last_error"] = f"Could not persist AC usage statistics: {error}"
+
     def _wait_dynamic(
         self,
         *,
@@ -388,8 +439,11 @@ class AcController:
     ) -> str:
         started_monotonic = time.monotonic()
         started_wall = time.time()
+        usage_state = "on" if phase_key == "on_wait" else "off"
 
         with self._condition:
+            self._phase_started_monotonic = started_monotonic
+            self._phase_accounted_seconds = 0.0
             self._status.update(
                 phase=phase,
                 phase_key=phase_key,
@@ -414,12 +468,14 @@ class AcController:
                     started_wall + configured_duration,
                     timezone.utc,
                 ).isoformat()
+                self._checkpoint_usage_locked(usage_state, elapsed)
 
                 if remaining <= 0:
                     break
                 self._condition.wait(timeout=min(remaining, 1.0))
 
             elapsed_actual = max(0.0, time.monotonic() - started_monotonic)
+            self._checkpoint_usage_locked(usage_state, elapsed_actual, force=True)
             self._status[accumulator_key] = float(
                 self._status.get(accumulator_key, 0.0)
             ) + elapsed_actual
@@ -429,6 +485,8 @@ class AcController:
                 phase_duration_seconds=0,
                 phase_key="transition" if self._status["active"] else "stopped",
             )
+            self._phase_started_monotonic = None
+            self._phase_accounted_seconds = 0.0
             return result
 
     def _run_cycle(self) -> None:
@@ -462,6 +520,7 @@ class AcController:
                     self._status["completed_cycles"] += 1
                     completed_cycles = int(self._status["completed_cycles"])
                     max_cycles = int(self._settings["max_cycles"])
+                self._usage.add_cycle()
 
                 if max_cycles and completed_cycles >= max_cycles:
                     self._set_status(last_result="The planned cycle count is complete.")
@@ -492,6 +551,8 @@ class AcController:
                     phase_started_at=None,
                     phase_duration_seconds=0,
                 )
+                self._phase_started_monotonic = None
+                self._phase_accounted_seconds = 0.0
                 self._worker = None
                 self._condition.notify_all()
 
@@ -499,6 +560,9 @@ class AcController:
 def get_ac_controller(app) -> AcController:
     controller = app.extensions.get("ac_controller")
     if controller is None:
-        controller = AcController(app.config["AC_CONTROL_FILE"])
+        controller = AcController(
+            app.config["AC_CONTROL_FILE"],
+            app.config["AC_STATISTICS_FILE"],
+        )
         app.extensions["ac_controller"] = controller
     return controller

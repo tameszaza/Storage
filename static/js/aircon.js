@@ -10,6 +10,8 @@
 
     let settings = initialData.settings || {};
     let status = initialData.status || {};
+    let statistics = initialData.statistics || {};
+    let statisticsFetchedAt = Date.now();
     let ratePerHour = Number(initialData.rate_per_hour) || 0.39;
     let dirty = false;
     let busy = false;
@@ -26,6 +28,11 @@
         cycleDetail: document.getElementById("cycleDetail"),
         sessionSpent: document.getElementById("sessionSpent"),
         sessionSaved: document.getElementById("sessionSaved"),
+        totalOnTime: document.getElementById("totalOnTime"),
+        totalOffTime: document.getElementById("totalOffTime"),
+        totalCycles: document.getElementById("totalCycles"),
+        statisticsResetAt: document.getElementById("statisticsResetAt"),
+        resetStatistics: document.getElementById("resetStatistics"),
         scheduleSummary: document.getElementById("scheduleSummary"),
         saveState: document.getElementById("saveState"),
         applyChanges: document.getElementById("applyChanges"),
@@ -202,6 +209,7 @@
         busy = nextBusy;
         renderSaveState();
         renderButtons();
+        if (elements.resetStatistics) elements.resetStatistics.disabled = busy;
     }
 
     function setProgress(element, percent) {
@@ -294,6 +302,41 @@
         elements.timelinePlayhead.style.left = `${Math.max(0, Math.min(100, overall * 100))}%`;
     }
 
+    function formatStatisticsDate(value) {
+        const date = new Date(value || "");
+        if (!Number.isFinite(date.getTime())) return "Unknown";
+        return new Intl.DateTimeFormat(undefined, {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        }).format(date);
+    }
+
+    function liveStatisticsDurations() {
+        let onSeconds = Number(statistics.total_on_seconds) || 0;
+        let offSeconds = Number(statistics.total_off_seconds) || 0;
+        if (status.active && statistics.live) {
+            const extra = Math.max(0, (Date.now() - statisticsFetchedAt) / 1000);
+            const phase = String(status.phase || "").toUpperCase();
+            if (phase === "AC ON") onSeconds += extra;
+            if (phase === "AC OFF") offSeconds += extra;
+        }
+        return { onSeconds, offSeconds };
+    }
+
+    function renderStatistics() {
+        const durations = liveStatisticsDurations();
+        elements.sessionSpent.textContent = formatMoney(costForSeconds(durations.onSeconds));
+        elements.sessionSaved.textContent = formatMoney(costForSeconds(durations.offSeconds));
+        elements.totalOnTime.textContent = formatDuration(durations.onSeconds);
+        elements.totalOffTime.textContent = formatDuration(durations.offSeconds);
+        elements.totalCycles.textContent = String(Number(statistics.total_cycles) || 0);
+        elements.statisticsResetAt.textContent = formatStatisticsDate(statistics.reset_at);
+        elements.resetStatistics.disabled = busy;
+    }
+
     function renderStatus() {
         const state = ["on", "off"].includes(status.current_state) ? status.current_state : "unknown";
         elements.currentState.textContent = state === "unknown" ? "Unknown" : state.toUpperCase();
@@ -319,9 +362,7 @@
             elements.cycleDetail.textContent = status.completed_cycles ? "Completed this session" : "Continuous";
         }
 
-        const durations = sessionDurations();
-        elements.sessionSpent.textContent = formatMoney(costForSeconds(durations.onSeconds));
-        elements.sessionSaved.textContent = formatMoney(costForSeconds(durations.offSeconds));
+        renderStatistics();
 
         const resultText = elements.lastResult.querySelector("span");
         const resultIcon = elements.lastResult.querySelector("i");
@@ -387,6 +428,10 @@
             });
             settings = result.settings;
             status = result.status;
+            if (result.statistics) {
+                statistics = result.statistics;
+                statisticsFetchedAt = Date.now();
+            }
             dirty = false;
             renderSaveState();
             renderStatus();
@@ -405,6 +450,10 @@
         try {
             const result = await requestJson(url, { method: "POST" });
             if (result.status) status = result.status;
+            if (result.statistics) {
+                statistics = result.statistics;
+                statisticsFetchedAt = Date.now();
+            }
             renderStatus();
             showToast(result.message || successFallback, false);
         } catch (error) {
@@ -429,6 +478,10 @@
             setConnection(true);
             ratePerHour = Number(result.rate_per_hour) || ratePerHour;
             status = result.status || status;
+            if (result.statistics) {
+                statistics = result.statistics;
+                statisticsFetchedAt = Date.now();
+            }
             if (!dirty && !busy && result.settings) syncControls(result.settings);
             renderStatus();
         } catch (_error) {
@@ -480,13 +533,27 @@
         elements.skipPhase.addEventListener("click", () => runCommand(body.dataset.skipUrl, "Moving to the next phase."));
         elements.turnOnNow.addEventListener("click", () => runCommand(body.dataset.onUrl, "AC ON sent."));
         elements.turnOffNow.addEventListener("click", () => runCommand(body.dataset.offUrl, "AC OFF sent."));
+        elements.resetStatistics.addEventListener("click", async () => {
+            if (!window.confirm("Reset all persistent aircon usage and cost totals?")) return;
+            setBusy(true);
+            try {
+                const result = await requestJson(body.dataset.resetStatisticsUrl, { method: "POST" });
+                statistics = result.statistics || {};
+                statisticsFetchedAt = Date.now();
+                if (result.status) status = result.status;
+                renderStatus();
+                showToast(result.message || "Usage totals reset.", false);
+            } catch (error) {
+                showToast(error.message, true);
+            } finally {
+                setBusy(false);
+            }
+        });
     }
 
     function tick() {
         elements.nextChange.textContent = formatNextChange(status.next_action_at);
-        const durations = sessionDurations();
-        elements.sessionSpent.textContent = formatMoney(costForSeconds(durations.onSeconds));
-        elements.sessionSaved.textContent = formatMoney(costForSeconds(durations.offSeconds));
+        renderStatistics();
         renderTimelineProgress();
     }
 

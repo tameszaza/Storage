@@ -10,3 +10,95 @@
 .server-control-copy {
     margin: -2px 0 14px;
 }
+
+
+@media (max-width: 640px) {
+    .admin-card .responsive-cards-table tbody td > * {
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .admin-card .responsive-cards-table tbody td[data-label="Status"] .badge {
+        width: max-content !important;
+        max-width: 100% !important;
+        justify-self: start;
+    }
+
+    .admin-card .responsive-cards-table tbody td.table-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .admin-card .responsive-cards-table tbody td.table-actions::before {
+        grid-column: 1 / -1;
+    }
+
+    .admin-card .responsive-cards-table tbody td.table-actions form,
+    .admin-card .responsive-cards-table tbody td.table-actions button {
+        grid-column: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+@media (max-width: 640px) {
+    .admin-card .modern-table-wrap,
+    .admin-card .table-responsive {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .admin-card table.responsive-cards-table,
+    .admin-card table.responsive-cards-table tbody,
+    .admin-card table.responsive-cards-table tr,
+    .admin-card table.responsive-cards-table td {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .admin-card table.responsive-cards-table {
+        table-layout: fixed !important;
+    }
+
+    .admin-card table.responsive-cards-table tbody {
+        padding: 8px !important;
+    }
+
+    .admin-card table.responsive-cards-table tbody tr {
+        overflow: hidden !important;
+    }
+
+    .admin-card table.responsive-cards-table tbody td {
+        display: grid !important;
+        grid-template-columns: minmax(82px, 0.38fr) minmax(0, 1fr) !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    .admin-card table.responsive-cards-table tbody td.table-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        align-items: stretch !important;
+    }
+
+    .admin-card table.responsive-cards-table tbody td.table-actions::before {
+        grid-column: 1 !important;
+    }
+
+    .admin-card table.responsive-cards-table tbody td.table-actions form,
+    .admin-card table.responsive-cards-table tbody td.table-actions button,
+    .admin-card table.responsive-cards-table .quota-form,
+    .admin-card table.responsive-cards-table .quota-form input,
+    .admin-card table.responsive-cards-table .quota-form button {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+}

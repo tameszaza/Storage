@@ -1,83 +1,108 @@
 {% extends "base.html" %}
-{% block title %}Search · Tamestorage{% endblock %}
+{% block title %}{% if starred_page %}Starred{% else %}Search{% endif %} · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/search-page.css') }}" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header clean-hero">
-    <div>
-        <p class="eyebrow">Search</p>
-        <h1>{% if starred_page %}Starred files{% else %}Find anything{% endif %}</h1>
-        <p class="muted">Search by name or path, then narrow results by type, content, tags, size, or modified date.</p>
-    </div>
-</section>
+<section class="search-page-shell">
+    <header class="search-page-header">
+        <div>
+            <p class="eyebrow">{% if starred_page %}Starred{% else %}Search{% endif %}</p>
+            <h1>{% if starred_page %}Starred items{% else %}Find anything{% endif %}</h1>
+            <p class="muted">{% if starred_page %}Files and folders you marked for quick access.{% else %}Search names, paths, notes, tags, and supported text files.{% endif %}</p>
+        </div>
+        {% if request.args and not starred_page %}<a class="btn btn-outline-secondary" href="{{ url_for('advanced_search') }}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Clear</a>{% endif %}
+    </header>
 
-{% if not starred_page %}
-<section class="glass-card search-card">
-    <form method="GET" class="advanced-search-grid improved-search-grid" role="search">
-        <div class="search-primary-field">
-            <label class="form-label" for="q">File or folder name</label>
-            <div class="search-input-with-icon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="q" class="form-control" name="q" value="{{ request.args.get('q','') }}" placeholder="Example: physics, main.pdf, photos" autofocus></div>
+    {% if not starred_page %}
+    <form id="searchForm" method="GET" class="search-command-card" role="search">
+        <div class="search-primary-row">
+            <div class="search-primary-input">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input id="q" name="q" value="{{ request.args.get('q','') }}" type="search" placeholder="Search files and folders" autocomplete="off" autofocus>
+            </div>
+            <button class="btn btn-primary" type="submit">Search</button>
         </div>
-        <div>
-            <label class="form-label" for="content">Text inside files</label>
-            <input id="content" class="form-control" name="content" value="{{ request.args.get('content','') }}" placeholder="Search text, markdown, or code" title="Content search checks supported text files up to 300 KB">
+
+        <div class="search-filter-row">
+            <label>
+                <span>Type</span>
+                <select name="kind" aria-label="File type">
+                    <option value="">All types</option>
+                    {% for k in ['folder','image','video','audio','text','pdf','document','archive','file'] %}<option value="{{ k }}" {% if request.args.get('kind') == k %}selected{% endif %}>{{ k|title }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Modified</span>
+                <select name="modified_days" aria-label="Modified date">
+                    <option value="">Any time</option>
+                    <option value="1" {% if request.args.get('modified_days') == '1' %}selected{% endif %}>Today</option>
+                    <option value="7" {% if request.args.get('modified_days') == '7' %}selected{% endif %}>Last 7 days</option>
+                    <option value="30" {% if request.args.get('modified_days') == '30' %}selected{% endif %}>Last 30 days</option>
+                    <option value="365" {% if request.args.get('modified_days') == '365' %}selected{% endif %}>Last year</option>
+                </select>
+            </label>
+            <label>
+                <span>Size</span>
+                <select name="size" aria-label="File size">
+                    <option value="">Any size</option>
+                    <option value="small" {% if size_preset == 'small' %}selected{% endif %}>Under 1 MB</option>
+                    <option value="medium" {% if size_preset == 'medium' %}selected{% endif %}>1–10 MB</option>
+                    <option value="large" {% if size_preset == 'large' %}selected{% endif %}>10–100 MB</option>
+                    <option value="huge" {% if size_preset == 'huge' %}selected{% endif %}>Over 100 MB</option>
+                </select>
+            </label>
+            <label>
+                <span>Sort</span>
+                <select name="sort" aria-label="Sort results">
+                    <option value="relevance" {% if sort_mode == 'relevance' %}selected{% endif %}>Best match</option>
+                    <option value="newest" {% if sort_mode == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="oldest" {% if sort_mode == 'oldest' %}selected{% endif %}>Oldest</option>
+                    <option value="name" {% if sort_mode == 'name' %}selected{% endif %}>Name</option>
+                    <option value="largest" {% if sort_mode == 'largest' %}selected{% endif %}>Largest</option>
+                    <option value="smallest" {% if sort_mode == 'smallest' %}selected{% endif %}>Smallest</option>
+                </select>
+            </label>
+            <button id="moreFiltersButton" class="search-more-button" type="button" aria-expanded="{{ 'true' if request.args.get('content') or request.args.get('tag') else 'false' }}" aria-controls="moreFilters"><i class="fa-solid fa-sliders" aria-hidden="true"></i> More filters</button>
+            <label class="search-starred-toggle"><input type="checkbox" name="starred" value="1" {% if request.args.get('starred') %}checked{% endif %}><span><i class="fa-regular fa-star" aria-hidden="true"></i> Starred</span></label>
         </div>
-        <div>
-            <label class="form-label" for="kind">Type</label>
-            <select id="kind" class="form-select" name="kind">
-                <option value="">Any type</option>
-                {% for k in ['folder','image','video','audio','text','pdf','document','archive','file'] %}<option value="{{ k }}" {% if request.args.get('kind') == k %}selected{% endif %}>{{ k|title }}</option>{% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="form-label" for="tag">Tag</label>
-            <input id="tag" class="form-control" name="tag" value="{{ request.args.get('tag','') }}" list="knownTags" placeholder="Tag name">
-            <datalist id="knownTags">{% for tag in tags %}<option value="{{ tag }}">{% endfor %}</datalist>
-        </div>
-        <div>
-            <label class="form-label" for="min_size">Minimum size in bytes</label>
-            <input id="min_size" class="form-control" type="number" min="0" name="min_size" value="{{ request.args.get('min_size','') }}" placeholder="0">
-        </div>
-        <div>
-            <label class="form-label" for="max_size">Maximum size in bytes</label>
-            <input id="max_size" class="form-control" type="number" min="0" name="max_size" value="{{ request.args.get('max_size','') }}" placeholder="10485760">
-        </div>
-        <div>
-            <label class="form-label" for="modified_days">Modified within</label>
-            <div class="input-suffix"><input id="modified_days" class="form-control" type="number" min="1" name="modified_days" value="{{ request.args.get('modified_days','') }}" placeholder="30"><span>days</span></div>
-        </div>
-        <label class="form-check search-check"><input class="form-check-input" type="checkbox" name="starred" value="1" {% if request.args.get('starred') %}checked{% endif %}> Starred only</label>
-        <div class="search-actions-row">
-            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search</button>
-            <a class="btn btn-outline-secondary" href="{{ url_for('advanced_search') }}">Reset filters</a>
+
+        <div id="moreFilters" class="search-more-panel" {% if not request.args.get('content') and not request.args.get('tag') %}hidden{% endif %}>
+            <label class="form-label" for="content"><span>Text inside files</span><input id="content" class="form-control" name="content" value="{{ request.args.get('content','') }}" placeholder="Search text, Markdown, JSON, or code"></label>
+            <label class="form-label" for="tag"><span>Tag</span><input id="tag" class="form-control" name="tag" value="{{ request.args.get('tag','') }}" list="knownTags" placeholder="Choose or type a tag"><datalist id="knownTags">{% for tag in tags %}<option value="{{ tag }}">{% endfor %}</datalist></label>
         </div>
     </form>
-</section>
-{% endif %}
+    {% endif %}
 
-{% if request.args or starred_page %}
-<section class="search-results-head" aria-live="polite">
-    <div><h2>{% if starred_page %}Starred items{% else %}Search results{% endif %}</h2><p class="muted mb-0">{{ results|length }} item{% if results|length != 1 %}s{% endif %} found</p></div>
-</section>
-
-<section class="search-result-list" aria-label="Search results">
-    <div class="search-result-header" aria-hidden="true"><span>Name</span><span>Size</span><span>Modified</span><span>Actions</span></div>
-    {% for item in results %}
-        <article class="search-result-row">
-            <a class="search-result-main" href="{% if item.is_dir %}{{ url_for('index', path=item.path) }}{% else %}{{ url_for('preview_file', target=item.path) }}{% endif %}" aria-label="{% if item.is_dir %}Open folder{% else %}Preview file{% endif %} {{ item.name }}">
-                <span class="file-icon {{ item.kind }}" aria-hidden="true"><i class="fa-solid fa-{% if item.kind == 'folder' %}folder{% elif item.kind == 'image' %}image{% elif item.kind == 'video' %}film{% elif item.kind == 'audio' %}music{% elif item.kind == 'pdf' %}file-pdf{% elif item.kind == 'text' %}file-lines{% elif item.kind == 'archive' %}file-zipper{% else %}file{% endif %}"></i></span>
-                <span class="search-result-name"><strong>{{ item.name }}</strong><small><span class="result-kind">{{ item.kind|title }}</span><span class="result-path" title="{{ item.path }}">{{ item.parent_path or 'Root' }}</span></small>{% if item.metadata.note %}<em>{{ item.metadata.note }}</em>{% endif %}<span class="result-tags">{% if item.metadata.starred %}<span class="mini-badge"><i class="fa-solid fa-star" aria-hidden="true"></i> Starred</span>{% endif %}{% for tag in item.metadata.tags or [] %}<span class="mini-badge">#{{ tag }}</span>{% endfor %}</span></span>
-            </a>
-            <span class="search-result-size" data-label="Size">{{ item.size_label }}</span>
-            <time class="search-result-modified" data-label="Modified">{{ item.modified }}</time>
-            <div class="search-result-actions">
-                {% if item.is_dir %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('index', path=item.path) }}" title="Open {{ item.name }}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Open</a>{% else %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('preview_file', target=item.path) }}" title="Preview {{ item.name }}"><i class="fa-regular fa-eye" aria-hidden="true"></i> Preview</a>{% endif %}
-                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('metadata_page', target=item.path) }}" title="View details, tags, and notes"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Details</a>
+    <section class="search-results-section" aria-live="polite">
+        <div class="search-results-heading">
+            <div>
+                <h2>{% if starred_page %}Starred items{% elif show_recent %}Recently modified{% else %}Results{% endif %}</h2>
+                <p class="muted">{{ results|length }} item{% if results|length != 1 %}s{% endif %}</p>
             </div>
-        </article>
-    {% else %}
-        <div class="empty-state glass-card"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><h2>No matching files</h2><p class="muted">Try a shorter name, remove a filter, or search a different file type.</p>{% if not starred_page %}<a class="btn btn-outline-primary" href="{{ url_for('advanced_search') }}">Clear all filters</a>{% endif %}</div>
-    {% endfor %}
+        </div>
+
+        <div class="search-result-list" aria-label="{% if starred_page %}Starred items{% else %}Search results{% endif %}">
+            {% for item in results %}
+            <article class="search-result-row">
+                <a class="search-result-main" href="{% if item.is_dir %}{{ url_for('index', path=item.path) }}{% else %}{{ url_for('preview_file', target=item.path) }}{% endif %}">
+                    <span class="file-icon {{ item.kind }}" aria-hidden="true"><i class="fa-solid fa-{% if item.kind == 'folder' %}folder{% elif item.kind == 'image' %}image{% elif item.kind == 'video' %}film{% elif item.kind == 'audio' %}music{% elif item.kind == 'pdf' %}file-pdf{% elif item.kind == 'text' %}file-lines{% elif item.kind == 'archive' %}file-zipper{% else %}file{% endif %}"></i></span>
+                    <span class="search-result-copy">
+                        <strong>{{ item.name }}</strong>
+                        <span>{{ item.parent_path or 'Root' }} · {{ item.kind|title }}</span>
+                        {% if item.metadata.note %}<small>{{ item.metadata.note }}</small>{% endif %}
+                        {% if item.metadata.starred or item.metadata.tags %}<span class="search-result-badges">{% if item.metadata.starred %}<em><i class="fa-solid fa-star" aria-hidden="true"></i> Starred</em>{% endif %}{% for tag in item.metadata.tags or [] %}<em>#{{ tag }}</em>{% endfor %}</span>{% endif %}
+                    </span>
+                </a>
+                <div class="search-result-meta"><span>{{ item.size_label }}</span><time>{{ item.modified }}</time></div>
+                <div class="search-result-actions">
+                    {% if item.is_dir %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('index', path=item.path) }}"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Open</a>{% else %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('preview_file', target=item.path) }}"><i class="fa-regular fa-eye" aria-hidden="true"></i> Preview</a>{% endif %}
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('metadata_page', target=item.path) }}"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Details</a>
+                </div>
+            </article>
+            {% else %}
+            <div class="search-empty-state"><span><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span><h2>No matches</h2><p class="muted">Try fewer words or remove a filter.</p>{% if not starred_page %}<a class="btn btn-outline-primary" href="{{ url_for('advanced_search') }}">Clear filters</a>{% endif %}</div>
+            {% endfor %}
+        </div>
+    </section>
 </section>
-{% else %}
-<section class="search-start-state glass-card"><span class="search-start-icon" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span><div><h2>Start with a name or filter</h2><p class="muted">Results always show the full file name, location, type, size, modified time, tags, and note.</p></div></section>
-{% endif %}
 {% endblock %}
+{% block scripts %}{% if not starred_page %}<script src="{{ url_for('static', filename='js/search.js') }}"></script>{% endif %}{% endblock %}

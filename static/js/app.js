@@ -1,6 +1,22 @@
 (function () {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
+    function readPreference(key, fallback) {
+        try {
+            return localStorage.getItem(key) || fallback;
+        } catch (_error) {
+            return fallback;
+        }
+    }
+
+    function writePreference(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (_error) {
+            // The interface remains usable when storage is restricted.
+        }
+    }
+
     function resolveTheme(preference) {
         if (preference === "system") return mediaQuery.matches ? "dark" : "light";
         return preference === "dark" ? "dark" : "light";
@@ -11,7 +27,7 @@
         const resolved = resolveTheme(normalized);
         document.body.setAttribute("data-theme", resolved);
         document.body.setAttribute("data-theme-preference", normalized);
-        if (persist) localStorage.setItem("theme", normalized);
+        if (persist) writePreference("theme", normalized);
 
         const icon = document.getElementById("themeIcon");
         if (icon) icon.className = resolved === "dark" ? "fa-regular fa-sun" : "fa-regular fa-moon";
@@ -38,11 +54,11 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-        const storedTheme = localStorage.getItem("theme") || "light";
+        const storedTheme = readPreference("theme", "light");
         applyTheme(storedTheme, false);
 
         mediaQuery.addEventListener?.("change", () => {
-            if ((localStorage.getItem("theme") || "light") === "system") applyTheme("system", false);
+            if (readPreference("theme", "light") === "system") applyTheme("system", false);
         });
 
         const themeToggle = document.getElementById("themeToggle");

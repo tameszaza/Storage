@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 from lib.charts import analyze_directory_space, generate_pie_chart
+from lib.editor_service import EditorConflictError, load_document, save_document
 from lib.activity import log_activity
 from lib.metadata import get_metadata, move_metadata
 from lib.trash import move_to_trash
@@ -254,11 +255,17 @@ def edit_file(path, filename):
         flash("Only text-based files can be edited safely in the browser.", "warning")
         return redirect(url_for("index", path=path))
     try:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as file:
-            content = file.read()
+        document = load_document(file_path)
     except OSError:
         abort(404)
-    return render_template("editfile.html", filename=filename, content=content, path=path)
+    return render_template(
+        "editfile.html",
+        filename=filename,
+        content=document.content,
+        path=path,
+        file_mtime_ns=document.mtime_ns,
+        file_revision=document.revision,
+    )
 
 
 @login_required
@@ -266,19 +273,75 @@ def save_file(path, filename):
     path = _require_path_access(path)
     filename = safe_filename(filename)
     file_path = safe_upload_path(path, filename)
-    new_content = request.form.get("file_content", "")
+    payload = request.get_json(silent=True) if request.is_json else None
+    payload = payload if isinstance(payload, dict) else {}
+    new_content = payload.get("file_content") if request.is_json else request.form.get("file_content", "")
+    new_content = str(new_content or "")
+    expected_raw = payload.get("expected_mtime_ns") if request.is_json else request.form.get("expected_mtime_ns")
+    expected_revision = str(
+        payload.get("expected_revision") if request.is_json else request.form.get("expected_revision") or ""
+    ).strip() or None
     try:
-        old_content = Path(file_path).read_text(encoding="utf-8", errors="replace")
+        expected_mtime_ns = int(expected_raw) if expected_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        expected_mtime_ns = None
+
+    try:
+        current_document = load_document(file_path)
     except OSError:
-        old_content = None
-    if old_content != new_content:
+        abort(404)
+
+    revision_conflict = bool(expected_revision and current_document.revision != expected_revision)
+    legacy_mtime_conflict = bool(
+        not expected_revision
+        and expected_mtime_ns is not None
+        and current_document.mtime_ns != expected_mtime_ns
+    )
+    if revision_conflict or legacy_mtime_conflict:
+        message = "This file changed on the server after you opened it."
+        if request.is_json or _wants_json_response():
+            return jsonify(success=False, conflict=True, message=message), 409
+        flash(message, "warning")
+        return redirect(url_for("edit_file", path=path, filename=filename))
+
+    changed = current_document.content != new_content
+    if changed:
         create_version(os.path.join(path, filename), "before browser edit")
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.write(new_content)
+    try:
+        saved_document = save_document(
+            file_path,
+            new_content,
+            expected_revision=expected_revision,
+            expected_mtime_ns=expected_mtime_ns,
+        )
+    except EditorConflictError as error:
+        if request.is_json or _wants_json_response():
+            return jsonify(success=False, conflict=True, message=str(error)), 409
+        flash(str(error), "warning")
+        return redirect(url_for("edit_file", path=path, filename=filename))
+    except OSError as error:
+        logging.exception("Could not save text file")
+        if request.is_json or _wants_json_response():
+            return jsonify(success=False, message=f"Could not save file: {error}"), 500
+        flash(f"Could not save file: {error}", "danger")
+        return redirect(url_for("edit_file", path=path, filename=filename))
+
+    if changed:
         log_activity("file.edit", os.path.join(path, filename))
-        flash("File saved successfully.", "success")
-    else:
-        flash("No changes to save.", "info")
+
+    if request.is_json or _wants_json_response():
+        return jsonify(
+            success=True,
+            changed=changed,
+            message="Saved" if changed else "No changes",
+            revision=saved_document.revision,
+            mtime_ns=saved_document.mtime_ns,
+            size_bytes=saved_document.size_bytes,
+            folder_url=url_for("index", path=path),
+            preview_url=url_for("preview_file", target=os.path.join(path, filename)),
+        )
+
+    flash("File saved successfully." if changed else "No changes to save.", "success" if changed else "info")
     if request.form.get("save_action") == "continue":
         return redirect(url_for("edit_file", path=path, filename=filename))
     return redirect(url_for("index", path=path))

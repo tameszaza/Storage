@@ -1,0 +1,216 @@
+.toolbar {
+    display: grid;
+    grid-template-columns: auto minmax(220px, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-toolbar-search {
+    position: relative;
+    min-width: 0;
+    max-width: 520px;
+    justify-self: end;
+    width: 100%;
+}
+
+.file-toolbar-search > i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ts-muted);
+    pointer-events: none;
+}
+
+.file-toolbar-search input {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 38px 0 36px;
+    border: 1px solid var(--ts-border);
+    border-radius: 10px;
+    color: var(--ts-text);
+    background: var(--ts-surface-soft);
+}
+
+.file-toolbar-search input:focus {
+    outline: 0;
+    border-color: var(--ts-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-primary), transparent 84%);
+}
+
+.file-toolbar-search a {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+    color: var(--ts-muted);
+    transform: translateY(-50%);
+    text-decoration: none;
+}
+
+.file-browser.browser-grid {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
+    grid-auto-rows: 260px;
+    align-items: stretch !important;
+    gap: 14px !important;
+}
+
+.file-browser.browser-grid .file-card {
+    height: 260px;
+    min-height: 260px !important;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    overflow: visible;
+}
+
+.file-browser.browser-grid .file-card.back-card,
+.file-browser.browser-grid .file-card[data-is-dir="1"] {
+    min-height: 260px !important;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.file-browser.browser-grid .file-main {
+    min-height: 44px;
+    padding-right: 64px;
+}
+
+.file-browser.browser-grid .file-title strong {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.file-tile-visual,
+.file-browser.browser-grid .preview-box {
+    width: 100%;
+    height: 132px;
+    min-height: 132px;
+    display: grid;
+    place-items: center;
+    align-self: end;
+    overflow: hidden;
+    border: 1px solid var(--ts-border);
+    border-radius: 12px;
+    color: var(--ts-primary);
+    background: var(--ts-surface-soft);
+    text-decoration: none;
+}
+
+.file-tile-visual.is-folder,
+.file-tile-visual.is-parent {
+    gap: 8px;
+    align-content: center;
+    color: #ca8a04;
+    background: color-mix(in srgb, #facc15, transparent 88%);
+}
+
+.file-tile-visual.is-parent {
+    color: var(--ts-primary);
+    background: var(--ts-primary-soft);
+}
+
+.file-tile-visual.is-generic {
+    gap: 8px;
+    align-content: center;
+}
+
+.file-tile-visual > i {
+    font-size: 2rem;
+}
+
+.file-tile-visual > span {
+    color: var(--ts-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.file-browser.browser-grid video.file-tile-visual {
+    display: block;
+    object-fit: cover;
+}
+
+.file-browser.browser-grid .file-meta-line {
+    min-height: 21px;
+    align-content: start;
+    overflow: hidden;
+}
+
+.file-browser.browser-grid .file-inline-actions,
+.file-browser.browser-grid .folder-drop-hint {
+    display: none;
+}
+
+.file-browser.browser-list .file-tile-visual {
+    display: none !important;
+}
+
+.file-browser.browser-list .file-card {
+    height: auto;
+    min-height: 62px !important;
+}
+
+@media (max-width: 1000px) {
+    .toolbar {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .toolbar-primary-actions {
+        grid-column: 1 / -1;
+    }
+
+    .file-toolbar-search {
+        justify-self: stretch;
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbar-primary-actions,
+    .view-controls,
+    .file-toolbar-search {
+        grid-column: 1;
+        width: 100%;
+    }
+
+    .view-controls {
+        justify-content: flex-end;
+    }
+
+    .file-browser.browser-grid {
+        grid-template-columns: 1fr !important;
+        grid-auto-rows: 244px;
+    }
+
+    .file-browser.browser-grid .file-card,
+    .file-browser.browser-grid .file-card.back-card,
+    .file-browser.browser-grid .file-card[data-is-dir="1"] {
+        height: 244px;
+        min-height: 244px !important;
+    }
+
+    .file-tile-visual,
+    .file-browser.browser-grid .preview-box {
+        height: 118px;
+        min-height: 118px;
+    }
+}
+
+.file-browser.browser-grid .file-card.back-card {
+    justify-content: stretch;
+}
+
+.file-browser.browser-grid .file-card.back-card .file-main {
+    padding-right: 0;
+}

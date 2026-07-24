@@ -17,3 +17,4 @@ activity_log.json
 .venv/
 node_modules/
 ac_control.json
+ac_statistics.json

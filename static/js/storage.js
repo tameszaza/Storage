@@ -21,8 +21,17 @@
         moveCopyModal: null,
         selectedItems: [],
         draggedPath: null,
+        draggedPaths: [],
+        dragPreview: null,
         uploadXhr: null,
         uploadStartedAt: 0,
+        uploadPreflightActive: false,
+        uploadConflictModal: null,
+        pendingConflictItems: [],
+        pendingConflictNames: [],
+        exportProgressModal: null,
+        exportAbortController: null,
+        exportStartedAt: 0,
     };
 
     function getBrowser() {
@@ -53,12 +62,6 @@
             toast.classList.remove("show");
             setTimeout(() => toast.remove(), 250);
         }, 2400);
-    }
-
-    function parentOf(path) {
-        const parts = String(path || "").split("/").filter(Boolean);
-        parts.pop();
-        return parts.join("/");
     }
 
     function setView(view) {
@@ -204,7 +207,278 @@
         formData.append("file", file, relativeName);
     }
 
-    function uploadFiles(items) {
+    function uploadItemName(item) {
+        const file = item.file || item;
+        return item.relativePath || file.webkitRelativePath || file.name;
+    }
+
+    async function checkUploadConflicts(form, items) {
+        const url = form?.dataset.conflictUrl;
+        if (!url) return [];
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            body: JSON.stringify({ filenames: items.map(uploadItemName) }),
+        });
+        if (!response.ok) throw new Error("Could not check duplicate filenames.");
+        const payload = await response.json();
+        return Array.isArray(payload.conflicts) ? payload.conflicts : [];
+    }
+
+    function renderUploadProgressFiles(items, conflictAction = "", conflictNames = []) {
+        const container = document.getElementById("uploadProgressFiles");
+        if (!container) return;
+        const conflicts = new Set(conflictNames);
+        const visibleItems = items.slice(0, 8);
+        container.innerHTML = "";
+        visibleItems.forEach((item) => {
+            const name = uploadItemName(item);
+            const isConflict = conflicts.has(name);
+            const row = document.createElement("div");
+            row.className = "upload-progress-file";
+
+            const icon = document.createElement("span");
+            icon.className = "upload-progress-file-icon";
+            icon.innerHTML = '<i class="fa-regular fa-file" aria-hidden="true"></i>';
+
+            const label = document.createElement("span");
+            label.className = "upload-progress-file-name";
+            label.textContent = name;
+
+            const badge = document.createElement("span");
+            badge.className = `upload-progress-file-status${isConflict ? " conflict" : ""}`;
+            if (isConflict && conflictAction === "replace") badge.textContent = "Replace";
+            else if (isConflict && conflictAction === "rename") badge.textContent = "Keep both";
+            else badge.textContent = "Upload";
+
+            row.append(icon, label, badge);
+            container.appendChild(row);
+        });
+        if (items.length > visibleItems.length) {
+            const more = document.createElement("div");
+            more.className = "upload-progress-file-more";
+            more.textContent = `+ ${items.length - visibleItems.length} more file${items.length - visibleItems.length === 1 ? "" : "s"}`;
+            container.appendChild(more);
+        }
+    }
+
+    function clearOrphanedModalState() {
+        if (document.querySelector(".modal.show")) return;
+        document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.remove());
+        document.body.classList.remove("modal-open");
+        document.body.style.removeProperty("overflow");
+        document.body.style.removeProperty("padding-right");
+    }
+
+    function afterModalCloses(element, instance, callback) {
+        let finished = false;
+        let fallbackTimer = null;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            if (fallbackTimer) window.clearTimeout(fallbackTimer);
+            element?.removeEventListener("hidden.bs.modal", finish);
+            if (element) {
+                element.classList.remove("show");
+                element.style.display = "none";
+                element.setAttribute("aria-hidden", "true");
+                element.removeAttribute("aria-modal");
+                element.removeAttribute("role");
+            }
+            clearOrphanedModalState();
+            window.requestAnimationFrame(() => window.requestAnimationFrame(callback));
+        };
+
+        if (!element || !instance || !element.classList.contains("show")) {
+            finish();
+            return;
+        }
+
+        element.addEventListener("hidden.bs.modal", finish, { once: true });
+        instance.hide();
+        fallbackTimer = window.setTimeout(finish, 500);
+    }
+
+    function showUploadConflicts(items, conflicts) {
+        state.pendingConflictItems = Array.from(items || []);
+        state.pendingConflictNames = Array.from(conflicts || []);
+        const list = document.getElementById("uploadConflictList");
+        if (list) {
+            list.innerHTML = "";
+            const visibleConflicts = Array.from(conflicts || []).slice(0, 8);
+            visibleConflicts.forEach((name) => {
+                const item = document.createElement("div");
+                item.className = "list-group-item";
+                item.textContent = name;
+                list.appendChild(item);
+            });
+            if ((conflicts || []).length > visibleConflicts.length) {
+                const more = document.createElement("div");
+                more.className = "list-group-item text-muted";
+                more.textContent = `and ${conflicts.length - visibleConflicts.length} more`;
+                list.appendChild(more);
+            }
+        }
+
+        const showConflictModal = () => state.uploadConflictModal?.show();
+        const progressElement = document.getElementById("progressModal");
+        afterModalCloses(progressElement, state.progressModal, showConflictModal);
+    }
+
+    function retryConflictingUpload(action) {
+        const items = state.pendingConflictItems.slice();
+        const conflicts = state.pendingConflictNames.slice();
+        state.pendingConflictItems = [];
+        state.pendingConflictNames = [];
+        if (items.length === 0) return;
+
+        const conflictElement = document.getElementById("uploadConflictModal");
+        const retry = () => uploadFiles(items, action, true, conflicts);
+        afterModalCloses(conflictElement, state.uploadConflictModal, retry);
+    }
+
+    function updateExportProgress(receivedBytes, totalBytes) {
+        const bar = document.getElementById("exportProgressBar");
+        const track = bar?.closest('[role="progressbar"]');
+        const percentage = document.getElementById("exportProgressPercentage");
+        const bytes = document.getElementById("exportProgressBytes");
+        const speed = document.getElementById("exportProgressSpeed");
+        const eta = document.getElementById("exportProgressEta");
+        const status = document.getElementById("exportProgressStatus");
+        const elapsedSeconds = Math.max((performance.now() - state.exportStartedAt) / 1000, 0.1);
+        const bytesPerSecond = receivedBytes / elapsedSeconds;
+
+        bar?.classList.remove("progress-bar-striped", "progress-bar-animated");
+        if (totalBytes > 0) {
+            const percent = Math.min(100, Math.round((receivedBytes / totalBytes) * 100));
+            const remainingSeconds = bytesPerSecond > 0 ? (totalBytes - receivedBytes) / bytesPerSecond : 0;
+            if (bar) bar.style.width = `${percent}%`;
+            if (track) track.setAttribute("aria-valuenow", String(percent));
+            if (percentage) percentage.textContent = `${percent}%`;
+            if (bytes) bytes.textContent = `${formatBytes(receivedBytes)} of ${formatBytes(totalBytes)}`;
+            if (eta) eta.textContent = remainingSeconds > 1 ? `About ${Math.ceil(remainingSeconds)}s left` : "Almost done";
+            if (status) status.textContent = `Downloading ZIP, ${percent}% complete`;
+        } else {
+            if (bar) bar.style.width = "100%";
+            if (track) track.removeAttribute("aria-valuenow");
+            if (percentage) percentage.textContent = "…";
+            if (bytes) bytes.textContent = formatBytes(receivedBytes);
+            if (eta) eta.textContent = "Calculating…";
+            if (status) status.textContent = "Downloading ZIP…";
+        }
+        if (speed) speed.textContent = `${formatBytes(bytesPerSecond)}/s`;
+    }
+
+    async function downloadSelectedFiles(names, url) {
+        if (!url || names.length === 0 || state.exportAbortController) return;
+
+        const bar = document.getElementById("exportProgressBar");
+        const track = bar?.closest('[role="progressbar"]');
+        const percentage = document.getElementById("exportProgressPercentage");
+        const bytes = document.getElementById("exportProgressBytes");
+        const speed = document.getElementById("exportProgressSpeed");
+        const eta = document.getElementById("exportProgressEta");
+        const status = document.getElementById("exportProgressStatus");
+        const summary = document.getElementById("exportProgressSummary");
+        const cancelButton = document.getElementById("cancelExportButton");
+        const downloadButton = document.getElementById("bulkDownloadBtn");
+        const formData = new FormData();
+        formData.append("current_path", getCurrentPath());
+        names.forEach((name) => formData.append("selected_files", name));
+
+        if (summary) summary.textContent = `${names.length} item${names.length === 1 ? "" : "s"} selected`;
+        if (percentage) percentage.textContent = "…";
+        if (bytes) bytes.textContent = "Waiting for archive";
+        if (speed) speed.textContent = "Preparing…";
+        if (eta) eta.textContent = "Please wait";
+        if (status) status.textContent = "Preparing ZIP on the server…";
+        if (bar) {
+            bar.style.width = "100%";
+            bar.classList.add("progress-bar-striped", "progress-bar-animated");
+        }
+        if (track) {
+            track.removeAttribute("aria-valuenow");
+            track.setAttribute("aria-label", "Preparing ZIP archive");
+        }
+        if (cancelButton) cancelButton.disabled = false;
+        if (downloadButton) downloadButton.disabled = true;
+
+        const controller = new AbortController();
+        state.exportAbortController = controller;
+        state.exportStartedAt = performance.now();
+        state.exportProgressModal?.show();
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                body: formData,
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                let message = "Could not prepare the ZIP download.";
+                try {
+                    const payload = await response.json();
+                    message = payload.message || message;
+                } catch (_error) {
+                    // Keep the generic error when the server did not return JSON.
+                }
+                throw new Error(message);
+            }
+
+            const totalBytes = Number(response.headers.get("Content-Length")) || 0;
+            const chunks = [];
+            let receivedBytes = 0;
+
+            if (response.body?.getReader) {
+                const reader = response.body.getReader();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                    receivedBytes += value.byteLength;
+                    updateExportProgress(receivedBytes, totalBytes);
+                }
+            } else {
+                const fallbackBlob = await response.blob();
+                chunks.push(fallbackBlob);
+                receivedBytes = fallbackBlob.size;
+                updateExportProgress(receivedBytes, totalBytes || receivedBytes);
+            }
+
+            const archive = new Blob(chunks, { type: response.headers.get("Content-Type") || "application/zip" });
+            const objectUrl = URL.createObjectURL(archive);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = "selected_files.zip";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+
+            if (bar) bar.style.width = "100%";
+            if (track) {
+                track.setAttribute("aria-valuenow", "100");
+                track.setAttribute("aria-label", "ZIP download complete");
+            }
+            if (percentage) percentage.textContent = "100%";
+            if (status) status.textContent = "ZIP download complete";
+            if (eta) eta.textContent = "Complete";
+            window.setTimeout(() => state.exportProgressModal?.hide(), 700);
+        } catch (error) {
+            state.exportProgressModal?.hide();
+            if (error.name === "AbortError") showToast("ZIP export cancelled.", "info");
+            else showToast(error.message || "Could not download selected files.", "error");
+        } finally {
+            state.exportAbortController = null;
+            if (cancelButton) cancelButton.disabled = true;
+            if (downloadButton) downloadButton.disabled = false;
+        }
+    }
+
+    async function uploadFiles(items, conflictAction = "", skipConflictCheck = false, knownConflicts = []) {
         const form = document.getElementById("uploadForm");
         const progressBar = document.getElementById("progressBar");
         const progressPercentage = document.getElementById("progressPercentage");
@@ -219,10 +493,28 @@
         const cancelButton = document.getElementById("cancelUploadButton");
         const progressFooter = document.getElementById("progressModalFooter");
         const uploadItems = Array.from(items || []).filter(Boolean);
-        if (!form || uploadItems.length === 0) return;
+        if (!form || uploadItems.length === 0 || state.uploadPreflightActive) return;
+
+        if (!conflictAction && !skipConflictCheck) {
+            state.uploadPreflightActive = true;
+            if (uploadButton) uploadButton.disabled = true;
+            try {
+                const conflicts = await checkUploadConflicts(form, uploadItems);
+                if (conflicts.length > 0) {
+                    if (uploadButton) uploadButton.disabled = false;
+                    showUploadConflicts(uploadItems, conflicts);
+                    return;
+                }
+            } catch (_error) {
+                // The upload endpoint performs the same authoritative check.
+            } finally {
+                state.uploadPreflightActive = false;
+            }
+        }
 
         const formData = new FormData();
         uploadItems.forEach((item) => appendUploadItem(formData, item));
+        if (conflictAction) formData.append("conflict_action", conflictAction);
         const totalFileBytes = uploadItems.reduce((sum, item) => sum + Number((item.file || item).size || 0), 0);
 
         if (uploadButton) uploadButton.disabled = true;
@@ -237,6 +529,7 @@
         if (progressStatus) progressStatus.textContent = "Connecting to Tamestorage…";
         if (progressFileCount) progressFileCount.textContent = `${uploadItems.length} file${uploadItems.length === 1 ? "" : "s"} selected`;
         if (progressCurrentFile) progressCurrentFile.textContent = uploadItems.length === 1 ? (uploadItems[0].relativePath || uploadItems[0].name || uploadItems[0].file?.name) : "Uploading as one secure transfer";
+        renderUploadProgressFiles(uploadItems, conflictAction, knownConflicts);
 
         // The upload chooser is displayed through the #dropArea target. Remove the
         // hash before opening Bootstrap's progress dialog so the two overlays can
@@ -283,9 +576,16 @@
                 if (progressPercentage) progressPercentage.textContent = "100%";
                 if (progressStatus) progressStatus.textContent = payload.message || "Upload complete";
                 if (progressEta) progressEta.textContent = "Complete";
+                document.querySelectorAll(".upload-progress-file-status").forEach((badge) => {
+                    badge.classList.remove("conflict");
+                    badge.textContent = "Done";
+                });
                 if (cancelButton) cancelButton.disabled = true;
                 if (progressFooter) progressFooter.hidden = true;
                 window.setTimeout(() => { window.location.href = payload.redirect_url || window.location.href; }, 1000);
+            } else if (xhr.status === 409 && payload.conflict) {
+                if (uploadButton) uploadButton.disabled = false;
+                showUploadConflicts(uploadItems, payload.conflicts || []);
             } else {
                 if (state.progressModal) state.progressModal.hide();
                 if (uploadButton) uploadButton.disabled = false;
@@ -358,7 +658,16 @@
     }
 
     function isInternalDrag(event) {
-        return Array.from(event.dataTransfer?.types || []).includes("application/x-tamestorage-path");
+        return state.draggedPaths.length > 0
+            || Boolean(state.draggedPath)
+            || Array.from(event.dataTransfer?.types || []).includes("application/x-tamestorage-path");
+    }
+
+    function hasFilePayload(event) {
+        const dataTransfer = event.dataTransfer;
+        if (!dataTransfer) return false;
+        return Array.from(dataTransfer.types || []).includes("Files")
+            || (dataTransfer.files && dataTransfer.files.length > 0);
     }
 
     function getSelectedCheckboxes() {
@@ -413,8 +722,35 @@
     }
 
     function setupBulkActions() {
+        let lastSelectionBox = null;
         document.querySelectorAll(".select-item").forEach((box) => {
+            box.addEventListener("click", (event) => {
+                if (event.shiftKey && lastSelectionBox) {
+                    const boxes = Array.from(document.querySelectorAll(".select-item"));
+                    const start = boxes.indexOf(lastSelectionBox);
+                    const end = boxes.indexOf(box);
+                    if (start >= 0 && end >= 0) {
+                        boxes.slice(Math.min(start, end), Math.max(start, end) + 1).forEach((item) => {
+                            item.checked = box.checked;
+                        });
+                    }
+                }
+                lastSelectionBox = box;
+            });
             box.addEventListener("change", updateSelectionBar);
+        });
+
+        document.querySelectorAll(".file-card[data-path]").forEach((card) => {
+            card.addEventListener("click", (event) => {
+                if (!(event.ctrlKey || event.metaKey)) return;
+                if (event.target.closest("button, input, textarea, select, .dropdown-menu")) return;
+                const box = card.querySelector(".select-item");
+                if (!box) return;
+                event.preventDefault();
+                box.checked = !box.checked;
+                lastSelectionBox = box;
+                updateSelectionBar();
+            });
         });
 
         document.getElementById("selectAllVisible")?.addEventListener("click", () => {
@@ -434,7 +770,7 @@
             const names = getSelectedNames();
             const url = getBrowser()?.dataset.downloadSelectedUrl;
             if (!url || names.length === 0) return;
-            submitDynamicForm(url, { current_path: getCurrentPath(), selected_files: names });
+            downloadSelectedFiles(names, url);
         });
 
         document.getElementById("bulkTrashBtn")?.addEventListener("click", async () => {
@@ -463,14 +799,36 @@
         updateSelectionBar();
     }
 
-    async function moveItem(sourcePath, destinationFolder) {
+    function draggedPathsFromEvent(event) {
+        if (state.draggedPaths.length > 0) return state.draggedPaths.slice();
+        const serialized = event.dataTransfer?.getData("application/x-tamestorage-paths");
+        if (serialized) {
+            try {
+                const paths = JSON.parse(serialized);
+                if (Array.isArray(paths)) return paths.filter(Boolean);
+            } catch (_error) {
+                // Fall back to the legacy single-path payload.
+            }
+        }
+        const path = event.dataTransfer?.getData("application/x-tamestorage-path");
+        return path ? [path] : [];
+    }
+
+    function canDropPathsInto(paths, destination) {
+        return paths.length > 0 && paths.every((source) => (
+            source !== destination && !destination.startsWith(source + "/")
+        ));
+    }
+
+    async function moveItems(sourcePaths, destinationFolder) {
         const url = getBrowser()?.dataset.moveUrl;
-        if (!url || !sourcePath) return;
+        const paths = Array.from(sourcePaths || []).filter(Boolean);
+        if (!url || paths.length === 0) return;
         const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                source_path: sourcePath,
+                source_paths: paths,
                 destination_folder: destinationFolder || "",
                 operation: "move",
             }),
@@ -478,11 +836,34 @@
         let payload = {};
         try { payload = await response.json(); } catch (error) { payload = {}; }
         if (response.ok && payload.success !== false) {
-            showToast(payload.message || "Moved item", "success");
-            window.location.reload();
+            clearSelection();
+            showToast(payload.message || `Moved ${paths.length} item${paths.length === 1 ? "" : "s"}`, "success");
+            window.setTimeout(() => window.location.reload(), 450);
             return;
         }
         alert(payload.message || "Move failed.");
+    }
+
+    function createDragPreview(card, paths) {
+        const preview = document.createElement("div");
+        preview.className = "multi-drag-preview";
+        const label = paths.length === 1 ? (card.dataset.name || "1 item") : `${paths.length} items`;
+        preview.innerHTML = '<i class="fa-solid fa-layer-group" aria-hidden="true"></i><strong></strong>';
+        preview.querySelector("strong").textContent = label;
+        document.body.appendChild(preview);
+        return preview;
+    }
+
+    function resetCardDragState() {
+        document.querySelectorAll(".dragging-card").forEach((card) => card.classList.remove("dragging-card"));
+        document.querySelectorAll(".drop-target-active").forEach((target) => target.classList.remove("drop-target-active"));
+        document.querySelectorAll(".folder-drop-hint[data-default-text]").forEach((hint) => {
+            hint.innerHTML = '<i class="fa-solid fa-arrow-down"></i> ' + hint.dataset.defaultText;
+        });
+        state.dragPreview?.remove();
+        state.dragPreview = null;
+        state.draggedPath = null;
+        state.draggedPaths = [];
     }
 
     function setupCardDragDrop() {
@@ -494,43 +875,63 @@
                 }
                 const path = card.dataset.path;
                 if (!path) return;
-                state.draggedPath = path;
+                const checkbox = card.querySelector(".select-item");
+                const selectedPaths = getSelectedPaths();
+                const paths = checkbox?.checked && selectedPaths.length > 0 ? selectedPaths : [path];
+                state.draggedPath = paths[0];
+                state.draggedPaths = paths;
                 event.dataTransfer.effectAllowed = "move";
                 event.dataTransfer.setData("application/x-tamestorage-path", path);
+                event.dataTransfer.setData("application/x-tamestorage-paths", JSON.stringify(paths));
                 event.dataTransfer.setData("text/plain", path);
-                requestAnimationFrame(() => card.classList.add("dragging-card"));
+                state.dragPreview = createDragPreview(card, paths);
+                event.dataTransfer.setDragImage(state.dragPreview, 20, 20);
+                requestAnimationFrame(() => {
+                    const dragged = new Set(paths);
+                    document.querySelectorAll(".file-card[data-path]").forEach((candidate) => {
+                        candidate.classList.toggle("dragging-card", dragged.has(candidate.dataset.path));
+                    });
+                });
             });
 
-            card.addEventListener("dragend", () => {
-                card.classList.remove("dragging-card");
-                state.draggedPath = null;
-                document.querySelectorAll(".drop-target-active").forEach((target) => target.classList.remove("drop-target-active"));
-            });
+            card.addEventListener("dragend", resetCardDragState);
         });
 
         document.querySelectorAll(".drop-target[data-drop-path]").forEach((target) => {
+            const hint = target.querySelector(".folder-drop-hint");
+            if (hint && !hint.dataset.defaultText) hint.dataset.defaultText = hint.textContent.trim();
+
             target.addEventListener("dragover", (event) => {
                 if (!isInternalDrag(event)) return;
-                const source = state.draggedPath || event.dataTransfer.getData("application/x-tamestorage-path");
+                const paths = draggedPathsFromEvent(event);
                 const destination = target.dataset.dropPath || "";
-                if (!source || source === destination || destination.startsWith(source + "/")) return;
+                if (!canDropPathsInto(paths, destination)) return;
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
                 target.classList.add("drop-target-active");
+                if (hint) {
+                    hint.innerHTML = `<i class="fa-solid fa-folder-arrow-down" aria-hidden="true"></i> Move ${paths.length} item${paths.length === 1 ? "" : "s"} here`;
+                }
             });
 
             target.addEventListener("dragleave", () => {
                 target.classList.remove("drop-target-active");
+                if (hint?.dataset.defaultText) {
+                    hint.innerHTML = '<i class="fa-solid fa-arrow-down"></i> ' + hint.dataset.defaultText;
+                }
             });
 
             target.addEventListener("drop", (event) => {
                 if (!isInternalDrag(event)) return;
                 event.preventDefault();
                 target.classList.remove("drop-target-active");
-                const source = state.draggedPath || event.dataTransfer.getData("application/x-tamestorage-path");
+                const paths = draggedPathsFromEvent(event);
                 const destination = target.dataset.dropPath || "";
-                if (!source || source === destination || destination.startsWith(source + "/")) return;
-                moveItem(source, destination);
+                if (!canDropPathsInto(paths, destination)) return;
+                if (hint?.dataset.defaultText) {
+                    hint.innerHTML = '<i class="fa-solid fa-arrow-down"></i> ' + hint.dataset.defaultText;
+                }
+                moveItems(paths, destination);
             });
         });
     }
@@ -559,6 +960,16 @@
         document.querySelectorAll('input[name="operation"]').forEach((radio) => {
             radio.closest(".operation-card")?.classList.toggle("active", radio.checked);
         });
+        const modal = document.getElementById("moveCopyModal");
+        const count = Number(modal?.dataset.itemCount || "1");
+        const operation = document.querySelector('input[name="operation"]:checked')?.value === "copy" ? "Copy" : "Move";
+        const submit = document.getElementById("moveCopySubmit");
+        if (submit) {
+            const icon = operation === "Copy" ? "copy" : "folder-arrow-right";
+            submit.innerHTML = `<i class="fa-solid fa-${icon}" aria-hidden="true"></i> ${operation} ${count > 1 ? `${count} items` : "item"}`;
+        }
+        const title = document.getElementById("moveCopyTitle");
+        if (title && count > 1) title.textContent = `${operation} ${count} selected items`;
     }
 
     function openMoveCopyModal(options) {
@@ -573,9 +984,11 @@
         const destination = document.getElementById("destinationFolder");
         const countLabel = document.getElementById("moveCopyCountLabel");
         const itemList = document.getElementById("moveCopyItemList");
+        const modal = document.getElementById("moveCopyModal");
 
         const isBulk = paths.length > 1 || options.bulk;
         const operationValue = options.operation || "move";
+        if (modal) modal.dataset.itemCount = String(paths.length);
         if (source) source.value = isBulk ? "" : paths[0];
         setHiddenSelectedPaths(isBulk ? paths : []);
         if (name) {
@@ -592,8 +1005,9 @@
             itemList.textContent = paths.length > 4 ? `${previewNames}, and ${paths.length - 4} more` : previewNames;
         }
         if (destination) destination.value = getCurrentPath();
+        window.TamestorageFolderPicker?.setValue(destination, getCurrentPath(), { open: true }).catch(() => null);
         if (state.moveCopyModal) state.moveCopyModal.show();
-        setTimeout(() => destination?.focus(), 150);
+        refreshOperationCards();
     }
 
     function setupMoveCopyModal() {
@@ -604,19 +1018,6 @@
             radio.addEventListener("change", refreshOperationCards);
         });
         refreshOperationCards();
-
-        document.getElementById("useCurrentFolderBtn")?.addEventListener("click", () => {
-            const destination = document.getElementById("destinationFolder");
-            if (destination) destination.value = getCurrentPath();
-        });
-        document.getElementById("useParentFolderBtn")?.addEventListener("click", () => {
-            const destination = document.getElementById("destinationFolder");
-            if (destination) destination.value = parentOf(getCurrentPath());
-        });
-        document.getElementById("useRootFolderBtn")?.addEventListener("click", () => {
-            const destination = document.getElementById("destinationFolder");
-            if (destination) destination.value = "";
-        });
 
         document.querySelectorAll(".js-move-copy").forEach((button) => {
             button.addEventListener("click", () => {
@@ -716,8 +1117,21 @@
     document.addEventListener("DOMContentLoaded", () => {
         const progressElement = document.getElementById("progressModal");
         const renameElement = document.getElementById("renameModal");
+        const uploadConflictElement = document.getElementById("uploadConflictModal");
+        const exportProgressElement = document.getElementById("exportProgressModal");
         if (progressElement && window.bootstrap) state.progressModal = new bootstrap.Modal(progressElement);
         if (renameElement && window.bootstrap) state.renameModal = new bootstrap.Modal(renameElement);
+        if (uploadConflictElement && window.bootstrap) state.uploadConflictModal = new bootstrap.Modal(uploadConflictElement);
+        if (exportProgressElement && window.bootstrap) state.exportProgressModal = new bootstrap.Modal(exportProgressElement);
+        document.getElementById("replaceUploadConflicts")?.addEventListener("click", () => retryConflictingUpload("replace"));
+        document.getElementById("renameUploadConflicts")?.addEventListener("click", () => retryConflictingUpload("rename"));
+        document.getElementById("cancelExportButton")?.addEventListener("click", () => state.exportAbortController?.abort());
+        uploadConflictElement?.addEventListener("hidden.bs.modal", () => {
+            if (!state.uploadXhr) {
+                state.pendingConflictItems = [];
+                state.pendingConflictNames = [];
+            }
+        });
 
         const openNew = getBrowser()?.dataset.openNew;
         if (openNew && window.bootstrap) {
@@ -798,6 +1212,30 @@
                 uploadFiles(items);
             });
         }
+
+        // Accept files dropped anywhere in the file manager. The upload panel
+        // remains available as a chooser, but it does not need to be open for a
+        // desktop file or folder drop to start uploading.
+        document.addEventListener("dragover", (event) => {
+            if (isInternalDrag(event) || !hasFilePayload(event)) return;
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+        });
+        document.addEventListener("drop", async (event) => {
+            if (isInternalDrag(event) || !hasFilePayload(event)) return;
+            event.preventDefault();
+
+            // The visible upload panel has its own drop handler.
+            if (event.target.closest?.("#dropArea")) return;
+
+            const items = await filesFromDataTransfer(event.dataTransfer);
+            if (items.length === 0) {
+                showToast("No files were found in that drop.", "error");
+                return;
+            }
+            setSelectedItems(items);
+            uploadFiles(items);
+        });
 
         const shareElement = document.getElementById("shareModal");
         const shareModal = shareElement && window.bootstrap ? new bootstrap.Modal(shareElement) : null;

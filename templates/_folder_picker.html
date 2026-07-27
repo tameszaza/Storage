@@ -1,0 +1,37 @@
+{% macro folder_picker(input_id, input_name, selected_path='', selected_label='Storage root', expanded=false) %}
+<div class="folder-picker"
+     data-folder-picker
+     data-folder-endpoint="{{ url_for('folder_destinations_api') }}"
+     data-folder-picker-expanded="{{ 'true' if expanded else 'false' }}">
+    <input id="{{ input_id }}" type="hidden" name="{{ input_name }}" value="{{ selected_path }}">
+
+    <button id="{{ input_id }}PickerButton" class="folder-picker-trigger" type="button" data-folder-picker-trigger aria-expanded="{{ 'true' if expanded else 'false' }}">
+        <span class="folder-picker-trigger-icon"><i class="fa-solid fa-folder" aria-hidden="true"></i></span>
+        <span class="folder-picker-trigger-copy">
+            <strong data-folder-picker-selected-label>{{ selected_label }}</strong>
+        </span>
+        <span class="folder-picker-trigger-action">{{ 'Browse folders' if expanded else 'Change' }}</span>
+        <i class="fa-solid fa-chevron-down folder-picker-chevron" aria-hidden="true"></i>
+    </button>
+
+    <div class="folder-picker-panel" data-folder-picker-panel {% if not expanded %}hidden{% endif %}>
+        <div class="folder-picker-search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" data-folder-picker-search placeholder="Search folders" aria-label="Search destination folders">
+            <button type="button" data-folder-picker-clear-search aria-label="Clear folder search" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
+
+        <nav class="folder-picker-breadcrumbs" data-folder-picker-breadcrumbs aria-label="Folder location"></nav>
+        <div class="folder-picker-list" data-folder-picker-list role="listbox" aria-label="Folders"></div>
+
+        <div class="folder-picker-footer">
+            <div class="folder-picker-current">
+                <strong data-folder-picker-current-label>{{ selected_label }}</strong>
+            </div>
+            <button class="btn btn-primary" type="button" data-folder-picker-choose>
+                Done
+            </button>
+        </div>
+    </div>
+</div>
+{% endmacro %}

@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Upload request · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/file-requests.css') }}" rel="stylesheet">{% endblock %}
 {% block content %}
 <div class="request-submit-page page-wide">
     <section class="request-submit-hero glass-card">
         <div>
             <p class="eyebrow">File request</p>
             <h1>{{ item.title }}</h1>
-            <p class="muted">Upload to <strong>{{ item.destination }}</strong>. Normal files, photos, documents, folders, and drag/drop are supported.</p>
+            <p class="muted">Choose files or a folder, then upload.</p>
         </div>
         <span class="request-submit-badge"><i class="fa-solid fa-shield-halved"></i> Secure drop-off</span>
     </section>
@@ -16,16 +17,18 @@
         {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
 
         <form id="requestUploadForm" method="POST" enctype="multipart/form-data">
+            {% if item.password %}
             <div class="request-form-row">
-                <label class="form-label" for="requestPassword">Password, if required</label>
-                <input id="requestPassword" class="form-control" name="password" type="password" placeholder="Leave blank if this request has no password">
+                <label class="form-label" for="requestPassword">Password</label>
+                <input id="requestPassword" class="form-control" name="password" type="password" required autocomplete="current-password" placeholder="Enter request password">
             </div>
+            {% endif %}
 
             <div id="requestDropZone" class="request-drop-card">
                 <div class="request-drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
                 <div class="request-drop-copy">
-                    <h2>Choose what to upload</h2>
-                    <p class="muted">Use normal files for documents/photos. Use folder upload only when you intentionally want to submit a whole folder tree.</p>
+                    <h2>Drop files here</h2>
+                    <p class="muted">Or choose files or a folder below.</p>
                 </div>
 
                 <input id="requestFileInput" name="file" type="file" multiple hidden>
@@ -39,7 +42,7 @@
             </div>
 
             <div class="request-submit-footer">
-                <div class="request-help muted"><i class="fa-solid fa-circle-info"></i> The owner controls the destination. You cannot browse their storage from this page.</div>
+                <div class="request-help muted"><i class="fa-solid fa-shield-halved"></i> Files go directly to the request owner.</div>
                 <button id="requestUploadButton" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-upload"></i> Upload selected files</button>
             </div>
         </form>

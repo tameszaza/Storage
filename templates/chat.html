@@ -5,62 +5,90 @@
 <section class="chat-page-shell">
     <header class="chat-page-header">
         <div>
-            <p class="eyebrow">AI assistant</p>
-            <h1>Ask about your files</h1>
-            <p class="muted">Search, summarize, and organize your storage workspace.</p>
+            <h1>Assistant</h1>
         </div>
         <div class="chat-header-actions">
+            <span class="assistant-status" tabindex="0" aria-label="Permission-aware" data-label="Permission-aware"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></span>
+            <span class="assistant-status" tabindex="0" aria-label="Workspace-aware" data-label="Workspace-aware"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i></span>
             <button id="exportChatBtn" class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-file-export" aria-hidden="true"></i> Export</button>
             <button id="clearChatBtn" class="btn btn-outline-danger" type="button"><i class="fa-regular fa-trash-can" aria-hidden="true"></i> Clear</button>
         </div>
     </header>
 
     <div class="chat-workspace-grid">
-        <details id="chatOptionsDisclosure" class="chat-options-disclosure" open>
-            <summary><span><i class="fa-solid fa-sliders" aria-hidden="true"></i> Assistant options</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
         <aside class="chat-controls" aria-label="Assistant controls">
             <section class="chat-control-section">
-                <h2><i class="fa-solid fa-bolt" aria-hidden="true"></i> Start quickly</h2>
-                <div class="chat-prompt-list">
-                    <button class="quick-prompt" type="button" data-prompt="Summarize my current storage structure and point out the most important folders.">Storage summary</button>
-                    <button class="quick-prompt" type="button" data-prompt="Find cleanup opportunities in my storage. Mention duplicates, old files, and large files if you can infer them.">Cleanup ideas</button>
-                    <button class="quick-prompt" type="button" data-prompt="Suggest a better folder organization plan for my current files.">Organize folders</button>
+                <div class="chat-section-heading">
+                    <h2><i class="fa-solid fa-database" aria-hidden="true"></i> Workspace</h2>
+                    <span>Live context</span>
                 </div>
-                <div class="chat-command-row" aria-label="File commands">
-                    <button class="command-chip" type="button" data-template="/open "><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open</button>
-                    <button class="command-chip" type="button" data-template="/move source/path -> destination/folder"><i class="fa-solid fa-arrows-up-down-left-right" aria-hidden="true"></i> Move</button>
-                    <button class="command-chip" type="button" data-template="/copy source/path -> destination/folder"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy</button>
-                    <button class="command-chip" type="button" data-template="/rename source/path -> new-name.ext"><i class="fa-solid fa-pen" aria-hidden="true"></i> Rename</button>
+                <div class="assistant-workspace-stats" aria-label="Workspace summary">
+                    <span><strong>{{ assistant_workspace.file_count }}</strong> Files</span>
+                    <span><strong>{{ assistant_workspace.folder_count }}</strong> Folders</span>
+                    <span><strong>{{ assistant_workspace.total_size_label }}</strong> Used</span>
                 </div>
-            </section>
-
-            <section class="chat-control-section">
-                <h2><i class="fa-solid fa-folder-tree" aria-hidden="true"></i> Context</h2>
+                <label class="form-label" for="fileContextPath">File to inspect</label>
+                <select id="fileContextPath" class="form-select">
+                    <option value="">Whole workspace · names and folders</option>
+                    {% for item in assistant_workspace.context_files %}
+                    <option value="{{ item.path }}" {% if item.path == selected_context_path %}selected{% endif %}>{{ item.path }} · {{ item.size_label }}</option>
+                    {% endfor %}
+                </select>
+                <p id="fileContextHelp" class="context-scope-note" tabindex="0">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    <span class="context-scope-note-text">Select a text, code, or data file to let the assistant read it.</span>
+                </p>
                 <label class="chat-check-row">
                     <input id="includeTreeContext" type="checkbox" checked>
-                    <span>Include file tree</span>
+                    <span>Include workspace structure</span>
                 </label>
-                <label class="form-label" for="fileContextPath">Specific file, optional</label>
-                <input id="fileContextPath" class="form-control" placeholder="Admin/notes.md" autocomplete="off">
             </section>
 
             <section class="chat-control-section">
-                <h2><i class="fa-solid fa-sliders" aria-hidden="true"></i> Response</h2>
-                <div class="chat-preference-grid">
-                    <label><span>Detail</span><select id="detailLevel" class="form-select"><option value="brief">Brief</option><option value="balanced" selected>Balanced</option><option value="deep">Deep</option></select></label>
-                    <label><span>Style</span><select id="responseStyle" class="form-select"><option value="practical" selected>Practical</option><option value="step-by-step">Step by step</option><option value="checklist">Checklist</option><option value="table">Table</option></select></label>
+                <div class="chat-section-heading">
+                    <h2><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Useful tasks</h2>
+                </div>
+                <div class="chat-prompt-list">
+                    <button class="quick-prompt" type="button" data-prompt="Give me a useful overview of this workspace. Identify the important folders, what is known from file names, and what needs a file selected before you can verify it."><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><span><strong>Workspace overview</strong><small>Files and folders</small></span></button>
+                    <button class="quick-prompt requires-file" type="button" data-prompt="Explain the selected file: {file}. Summarize its contents, describe its structure and purpose, flag anything important, and suggest useful next steps."><i class="fa-regular fa-file-lines" aria-hidden="true"></i><span><strong>Explain selected file</strong><small>Read and explain</small></span></button>
+                    <button class="quick-prompt requires-file" type="button" data-prompt="Review the selected file: {file}. Find errors, inconsistencies, risky content, or improvements. Be specific and cite the relevant content."><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span><strong>Review selected file</strong><small>Check for problems</small></span></button>
+                    <button class="quick-prompt" type="button" data-prompt="Propose a practical cleanup and organization plan using only the workspace tree you can verify. Use exact paths and separate verified facts from suggestions."><i class="fa-solid fa-broom" aria-hidden="true"></i><span><strong>Organize workspace</strong><small>Cleanup suggestions</small></span></button>
                 </div>
             </section>
+
+            <section class="chat-control-section">
+                <details class="assistant-more-options">
+                    <summary><span><i class="fa-solid fa-sliders" aria-hidden="true"></i> Response and file actions</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></summary>
+                    <div class="assistant-more-content">
+                        <div class="chat-preference-grid">
+                            <label><span>Detail</span><select id="detailLevel" class="form-select"><option value="brief">Brief</option><option value="balanced" selected>Balanced</option><option value="deep">Deep</option></select></label>
+                            <label><span>Format</span><select id="responseStyle" class="form-select"><option value="practical" selected>Practical</option><option value="step-by-step">Steps</option><option value="checklist">Checklist</option><option value="table">Table</option></select></label>
+                        </div>
+                        <div class="chat-command-row" aria-label="File commands">
+                            <button class="command-chip" type="button" data-template="/open "><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open</button>
+                            <button class="command-chip" type="button" data-template="/inspect "><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Inspect</button>
+                            <button class="command-chip" type="button" data-template="/move source/path -> destination/folder"><i class="fa-solid fa-arrows-up-down-left-right" aria-hidden="true"></i> Move</button>
+                            <button class="command-chip" type="button" data-template="/copy source/path -> destination/folder"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy</button>
+                            <button class="command-chip" type="button" data-template="/rename source/path -> new-name.ext"><i class="fa-solid fa-pen" aria-hidden="true"></i> Rename</button>
+                        </div>
+                    </div>
+                </details>
+            </section>
         </aside>
-        </details>
 
         <section class="chat-conversation" aria-label="AI conversation">
             <div class="chat-conversation-toolbar">
-                <div class="chat-search-wrap">
-                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                    <input id="chatSearchInput" class="form-control" type="search" placeholder="Search this conversation">
+                <div class="conversation-title">
+                    <span class="assistant-orb"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span>
+                    <span><strong>Workspace chat</strong><small id="conversationScope">Using workspace structure</small></span>
                 </div>
-                <button id="scrollBottomBtn" class="btn btn-outline-secondary" type="button" aria-label="Scroll to latest message"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i> Latest</button>
+                <div class="conversation-tools">
+                    <label class="chat-search-wrap">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="chatSearchInput" class="form-control" type="search" placeholder="Search chat" aria-label="Search this conversation">
+                    </label>
+                    <button id="scrollBottomBtn" class="btn btn-outline-secondary" type="button" aria-label="Scroll to latest message"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i><span>Latest</span></button>
+                </div>
             </div>
 
             <div id="chatDropZone" class="chat-message-stage">
@@ -69,11 +97,12 @@
 
             <form id="chatForm" class="chat-composer" action="{{ url_for('chat') }}" method="POST" enctype="multipart/form-data">
                 <div class="chat-composer-main">
-                    <textarea id="chatInput" class="form-control composer-input" name="msg" rows="1" placeholder="Ask about your files" autocomplete="off"></textarea>
+                    <textarea id="chatInput" class="form-control composer-input" name="msg" rows="1" placeholder="Ask about your workspace or the selected file…" autocomplete="off"></textarea>
                     <div class="chat-composer-actions">
                         <input id="imageInput" class="visually-hidden" type="file" name="image" accept="image/*">
                         <label class="chat-attach-button" for="imageInput" title="Attach image"><i class="fa-solid fa-paperclip" aria-hidden="true"></i><span id="imageLabel">Attach</span></label>
                         <button id="removeImageBtn" class="chat-remove-image" type="button" hidden aria-label="Remove attached image"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                        <span id="composerContext" class="composer-context"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i> Workspace</span>
                         <span class="chat-enter-hint">Enter to send · Shift+Enter for a new line</span>
                     </div>
                 </div>

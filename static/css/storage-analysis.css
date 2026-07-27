@@ -1,0 +1,494 @@
+.storage-detail-header h1 {
+    overflow-wrap: anywhere;
+}
+
+.storage-analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.storage-hierarchy-card,
+.storage-file-types-card {
+    min-width: 0;
+}
+
+.storage-chart-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 10px;
+}
+
+.storage-chart-heading h2 {
+    margin: 0;
+    font-size: clamp(1.35rem, 2.2vw, 1.9rem);
+}
+
+.storage-chart-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.storage-chart-button {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: var(--surface-2);
+    color: var(--text);
+    display: inline-grid;
+    place-items: center;
+    text-decoration: none;
+    transition: transform 160ms ease, border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.storage-chart-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    color: var(--primary);
+    border-color: color-mix(in srgb, var(--primary), transparent 42%);
+    background: var(--card-solid);
+}
+
+.storage-chart-button:disabled {
+    opacity: 0.38;
+    cursor: default;
+}
+
+.storage-chart-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 38px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.storage-chart-breadcrumbs button {
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    padding: 7px 8px;
+    font-weight: 800;
+    white-space: nowrap;
+    transition: color 150ms ease, background 150ms ease;
+}
+
+.storage-chart-breadcrumbs button:hover,
+.storage-chart-breadcrumbs button[aria-current="page"] {
+    color: var(--text);
+    background: color-mix(in srgb, var(--primary), transparent 90%);
+}
+
+.storage-chart-breadcrumbs i {
+    color: var(--muted);
+    font-size: 0.72rem;
+}
+
+.storage-explorer-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(250px, 320px);
+    gap: clamp(16px, 2.5vw, 28px);
+    align-items: start;
+}
+
+.sunburst-stage {
+    position: relative;
+    min-width: 0;
+    width: min(100%, 620px);
+    max-width: 620px;
+    aspect-ratio: 1 / 1;
+    justify-self: center;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+#storageSunburstSvg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+#fileTypeSvg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.sunburst-segment {
+    cursor: pointer;
+    stroke: color-mix(in srgb, var(--card-solid), transparent 4%);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+    transition: filter 140ms ease, opacity 140ms ease, stroke-width 140ms ease;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.sunburst-segment:hover,
+.sunburst-segment:focus-visible,
+.sunburst-segment.is-selected {
+    filter: brightness(1.08) saturate(1.08);
+    stroke-width: 4;
+    outline: none;
+}
+
+.sunburst-segment.is-dimmed {
+    opacity: 0.48;
+}
+
+.sunburst-label {
+    fill: #111827;
+    font-size: 12px;
+    font-weight: 850;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.88);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    pointer-events: none;
+    opacity: 0;
+    animation: storage-label-in 180ms ease forwards;
+}
+
+body[data-theme="dark"] .sunburst-label {
+    fill: #f8fafc;
+    stroke: rgba(15, 23, 42, 0.86);
+}
+
+@keyframes storage-label-in {
+    to { opacity: 1; }
+}
+
+.sunburst-center {
+    cursor: pointer;
+    outline: none;
+}
+
+.sunburst-center circle {
+    fill: var(--card-solid);
+    stroke: var(--border);
+    stroke-width: 2;
+    filter: drop-shadow(0 10px 22px rgba(15, 23, 42, 0.10));
+    transition: stroke 160ms ease, transform 160ms ease;
+}
+
+.sunburst-center:hover circle,
+.sunburst-center:focus-visible circle {
+    stroke: var(--primary);
+    transform: scale(1.025);
+}
+
+.sunburst-center.is-root {
+    cursor: default;
+}
+
+.sunburst-center.is-root:hover circle,
+.sunburst-center.is-root:focus-visible circle {
+    stroke: var(--border);
+    transform: none;
+}
+
+.sunburst-center-name,
+.sunburst-center-size,
+.sunburst-center-hint {
+    pointer-events: none;
+    fill: var(--text);
+}
+
+.sunburst-center-name {
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.sunburst-center-size {
+    font-size: 13px;
+    font-weight: 800;
+    fill: var(--muted);
+}
+
+.sunburst-center-hint {
+    font-size: 10px;
+    font-weight: 800;
+    fill: var(--primary);
+}
+
+.storage-chart-tooltip {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    max-width: min(280px, calc(100% - 20px));
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--card-solid), transparent 4%);
+    color: var(--text);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(14px);
+    transform: translate(12px, 12px);
+}
+
+.storage-chart-tooltip strong,
+.storage-chart-tooltip span {
+    display: block;
+}
+
+.storage-chart-tooltip strong {
+    margin-bottom: 2px;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.storage-chart-tooltip span {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.storage-branch-panel {
+    min-width: 0;
+    align-self: stretch;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
+}
+
+.storage-branch-summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 2px;
+}
+
+.storage-branch-summary span {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.storage-branch-summary strong {
+    font-size: 1rem;
+}
+
+.storage-branch-list,
+.file-type-list {
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    min-width: 0;
+}
+
+.storage-branch-item,
+.file-type-item {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    background: transparent;
+    color: var(--text);
+    padding: 10px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+    transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.storage-branch-item:hover,
+.storage-branch-item:focus-visible,
+.storage-branch-item.is-selected,
+.file-type-item:hover,
+.file-type-item:focus-visible,
+.file-type-item.is-selected {
+    border-color: var(--border);
+    background: color-mix(in srgb, var(--primary), transparent 92%);
+    transform: translateX(2px);
+    outline: none;
+}
+
+.storage-branch-swatch,
+.file-type-swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor, transparent 84%);
+}
+
+.storage-branch-copy,
+.file-type-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+}
+
+.storage-branch-copy strong,
+.file-type-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.storage-branch-bar,
+.file-type-bar {
+    height: 6px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--muted), transparent 84%);
+}
+
+.storage-branch-bar span,
+.file-type-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    transition: width 360ms cubic-bezier(.22, .8, .2, 1);
+}
+
+.storage-branch-value,
+.file-type-value {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.storage-empty-state {
+    color: var(--muted);
+    padding: 18px 4px;
+    text-align: center;
+}
+
+.file-type-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.65fr) minmax(260px, 1.35fr);
+    gap: clamp(18px, 3vw, 34px);
+    align-items: center;
+}
+
+.file-type-stage {
+    width: min(100%, 430px);
+    margin-inline: auto;
+}
+
+.file-type-segment {
+    cursor: pointer;
+    stroke: var(--card-solid);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+    transition: opacity 140ms ease, filter 140ms ease, stroke-width 140ms ease;
+}
+
+.file-type-segment:hover,
+.file-type-segment:focus-visible,
+.file-type-segment.is-selected {
+    filter: brightness(1.08) saturate(1.1);
+    stroke-width: 4;
+    outline: none;
+}
+
+.file-type-segment.is-dimmed {
+    opacity: 0.4;
+}
+
+.file-type-center text:first-child {
+    fill: var(--text);
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.file-type-center text:last-child {
+    fill: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sunburst-segment,
+    .sunburst-label,
+    .sunburst-center circle,
+    .storage-chart-button,
+    .storage-branch-item,
+    .file-type-item,
+    .storage-branch-bar span,
+    .file-type-bar span,
+    .file-type-segment {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+@media (max-width: 980px) {
+    .storage-explorer-layout,
+    .file-type-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sunburst-stage {
+        width: min(100%, 620px);
+        max-width: 620px;
+        margin-inline: auto;
+    }
+
+    .storage-branch-panel {
+        align-self: auto;
+    }
+
+    .storage-branch-list,
+    .file-type-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .storage-chart-heading {
+        align-items: flex-start;
+    }
+
+    .storage-chart-actions {
+        flex: 0 0 auto;
+    }
+
+    .storage-chart-button {
+        width: 38px;
+        height: 38px;
+    }
+
+    .storage-branch-list,
+    .file-type-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sunburst-center-name {
+        font-size: 24px;
+    }
+
+    .sunburst-center-size {
+        font-size: 18px;
+    }
+
+    .sunburst-center-hint {
+        font-size: 14px;
+    }
+
+    .file-type-center text:first-child {
+        font-size: 18px;
+    }
+
+    .file-type-center text:last-child {
+        font-size: 15px;
+    }
+
+    .sunburst-label {
+        display: none;
+    }
+}

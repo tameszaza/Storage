@@ -47,6 +47,11 @@
         offProgress: document.getElementById("offProgress"),
         timelinePlayhead: document.getElementById("timelinePlayhead"),
         timelineTrack: document.getElementById("timelineTrack"),
+        timelineDivider: document.getElementById("timelineDivider"),
+        onDurationSlider: document.getElementById("onDurationSlider"),
+        offDurationSlider: document.getElementById("offDurationSlider"),
+        onDurationDisplay: document.getElementById("onDurationDisplay"),
+        offDurationDisplay: document.getElementById("offDurationDisplay"),
         onDurationValue: document.getElementById("onDurationValue"),
         onDurationUnit: document.getElementById("onDurationUnit"),
         offDurationValue: document.getElementById("offDurationValue"),
@@ -57,6 +62,8 @@
         dutyCycle: document.getElementById("dutyCycle"),
         cycleSpent: document.getElementById("cycleSpent"),
         cycleSaved: document.getElementById("cycleSaved"),
+        costStrip: document.getElementById("airconCostStrip"),
+        projectedBadge: document.getElementById("projectedTotalBadge"),
         projectedLabel: document.getElementById("projectedLabel"),
         projectedTotal: document.getElementById("projectedTotal"),
         turnOnNow: document.getElementById("turnOnNow"),
@@ -114,6 +121,23 @@
         return (Math.max(0, Number(seconds) || 0) / 3600) * ratePerHour;
     }
 
+    function roundDurationForSlider(rawSeconds) {
+        const seconds = Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, Number(rawSeconds) || MIN_DURATION_SECONDS));
+        const step = seconds < 60 ? 5 : seconds < 900 ? 30 : seconds < 7200 ? 60 : 300;
+        return Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, Math.round(seconds / step) * step));
+    }
+
+    function secondsToSlider(seconds) {
+        const clamped = Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, Number(seconds) || MIN_DURATION_SECONDS));
+        const ratio = Math.log(clamped / MIN_DURATION_SECONDS) / Math.log(MAX_DURATION_SECONDS / MIN_DURATION_SECONDS);
+        return Math.round(ratio * 1000);
+    }
+
+    function sliderToSeconds(value) {
+        const position = Math.max(0, Math.min(1000, Number(value) || 0)) / 1000;
+        return roundDurationForSlider(MIN_DURATION_SECONDS * Math.pow(MAX_DURATION_SECONDS / MIN_DURATION_SECONDS, position));
+    }
+
     function chooseDurationUnit(seconds) {
         const numeric = Math.max(MIN_DURATION_SECONDS, Number(seconds) || MIN_DURATION_SECONDS);
         if (numeric % 3600 === 0) return { value: numeric / 3600, unit: "hours" };
@@ -141,6 +165,48 @@
         const rawValue = seconds / multiplier;
         unitElement.value = unit;
         valueElement.value = Number.isInteger(rawValue) ? String(rawValue) : rawValue.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+        const slider = elements[`${prefix}DurationSlider`];
+        const display = elements[`${prefix}DurationDisplay`];
+        if (slider) {
+            slider.value = String(secondsToSlider(seconds));
+            slider.setAttribute("aria-valuetext", formatDuration(seconds));
+        }
+        if (display) display.textContent = formatDuration(seconds);
+    }
+
+    function syncSliderFromExact(prefix) {
+        const seconds = readDurationSeconds(prefix);
+        if (!Number.isFinite(seconds) || seconds < MIN_DURATION_SECONDS) return;
+        const clamped = Math.min(MAX_DURATION_SECONDS, seconds);
+        const slider = elements[`${prefix}DurationSlider`];
+        const display = elements[`${prefix}DurationDisplay`];
+        if (slider) {
+            slider.value = String(secondsToSlider(clamped));
+            slider.setAttribute("aria-valuetext", formatDuration(clamped));
+        }
+        if (display) display.textContent = formatDuration(clamped);
+    }
+
+    function setTimelineBalance(onSeconds) {
+        const currentOn = Math.max(MIN_DURATION_SECONDS, readDurationSeconds("on") || MIN_DURATION_SECONDS);
+        const currentOff = Math.max(MIN_DURATION_SECONDS, readDurationSeconds("off") || MIN_DURATION_SECONDS);
+        const total = currentOn + currentOff;
+        const minOn = Math.max(MIN_DURATION_SECONDS, total - MAX_DURATION_SECONDS);
+        const maxOn = Math.min(MAX_DURATION_SECONDS, total - MIN_DURATION_SECONDS);
+        const nextOn = Math.max(minOn, Math.min(maxOn, roundDurationForSlider(onSeconds)));
+        const nextOff = total - nextOn;
+        writeDurationSeconds("on", nextOn, false);
+        writeDurationSeconds("off", nextOff, false);
+        markDirty();
+    }
+
+    function moveTimelineDividerFromPointer(event) {
+        const rect = elements.timelineTrack.getBoundingClientRect();
+        if (!rect.width) return;
+        const currentOn = Math.max(MIN_DURATION_SECONDS, readDurationSeconds("on") || MIN_DURATION_SECONDS);
+        const currentOff = Math.max(MIN_DURATION_SECONDS, readDurationSeconds("off") || MIN_DURATION_SECONDS);
+        const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        setTimelineBalance((currentOn + currentOff) * ratio);
     }
 
     function collectSettings() {
@@ -243,14 +309,16 @@
         elements.offTimelineSegment.style.setProperty("--weight", offSeconds);
         elements.onTimelineLabel.textContent = `ON · ${formatDuration(onSeconds)}`;
         elements.offTimelineLabel.textContent = `OFF · ${formatDuration(offSeconds)}`;
-        elements.scheduleSummary.textContent = `${formatDuration(totalSeconds)} per cycle. Changes apply to the current phase immediately.`;
+        elements.scheduleSummary.textContent = `${formatDuration(totalSeconds)} cycle · drag to adjust`;
         elements.dutyCycle.textContent = `${duty.toFixed(duty >= 10 ? 0 : 1)}%`;
         elements.cycleSpent.textContent = formatMoney(costForSeconds(onSeconds));
         elements.cycleSaved.textContent = formatMoney(costForSeconds(offSeconds));
-        elements.projectedLabel.textContent = fixed ? "Planned total" : "Projected total";
-        elements.projectedTotal.textContent = fixed
-            ? `${formatMoney(costForSeconds(onSeconds) * maxCycles)} spent · ${formatMoney(costForSeconds(offSeconds) * maxCycles)} saved`
-            : "Continuous";
+        if (elements.projectedBadge) elements.projectedBadge.hidden = !fixed;
+        if (elements.costStrip) elements.costStrip.classList.toggle("is-continuous", !fixed);
+        if (fixed) {
+            elements.projectedLabel.textContent = "Planned total";
+            elements.projectedTotal.textContent = `${formatMoney(costForSeconds(onSeconds) * maxCycles)} spent · ${formatMoney(costForSeconds(offSeconds) * maxCycles)} saved`;
+        }
 
         const root = cleanRootUrl(elements.rootUrl.value) || "http://127.0.0.1:8080";
         elements.endpointPreview.textContent = `${root}/ac_on · ${root}/ac_off`;
@@ -258,6 +326,11 @@
             "aria-label",
             `Aircon ON for ${formatDuration(onSeconds)}, then OFF for ${formatDuration(offSeconds)}.`
         );
+        if (elements.timelineDivider) {
+            elements.timelineDivider.style.left = `${duty}%`;
+            elements.timelineDivider.setAttribute("aria-valuenow", String(Math.round(duty)));
+            elements.timelineDivider.setAttribute("aria-valuetext", `ON ${formatDuration(onSeconds)}, OFF ${formatDuration(offSeconds)}`);
+        }
         renderTimelineProgress();
     }
 
@@ -505,26 +578,47 @@
         editable.forEach((control) => {
             const eventName = control.tagName === "SELECT" || control.type === "checkbox" ? "change" : "input";
             control.addEventListener(eventName, () => {
+                if (control === elements.onDurationValue || control === elements.onDurationUnit) syncSliderFromExact("on");
+                if (control === elements.offDurationValue || control === elements.offDurationUnit) syncSliderFromExact("off");
                 updateCycleCountVisibility();
                 markDirty();
             });
         });
 
-        document.querySelectorAll("[data-adjust][data-seconds]").forEach((button) => {
-            button.addEventListener("click", () => {
-                const prefix = button.dataset.adjust;
-                const delta = Number(button.dataset.seconds) || 0;
-                const current = readDurationSeconds(prefix);
-                writeDurationSeconds(prefix, current + delta, true);
+        ["on", "off"].forEach((prefix) => {
+            const slider = elements[`${prefix}DurationSlider`];
+            slider?.addEventListener("input", () => {
+                writeDurationSeconds(prefix, sliderToSeconds(slider.value), false);
                 markDirty();
             });
         });
 
-        document.querySelectorAll("[data-focus]").forEach((button) => {
-            button.addEventListener("click", () => {
-                const target = document.getElementById(button.dataset.focus);
-                if (target) target.focus();
-            });
+        let draggingDivider = false;
+        elements.timelineTrack?.addEventListener("pointerdown", (event) => {
+            if (event.button !== undefined && event.button !== 0) return;
+            draggingDivider = true;
+            elements.timelineTrack?.setPointerCapture?.(event.pointerId);
+            moveTimelineDividerFromPointer(event);
+            event.preventDefault();
+        });
+        window.addEventListener("pointermove", (event) => {
+            if (!draggingDivider) return;
+            moveTimelineDividerFromPointer(event);
+        });
+        window.addEventListener("pointerup", () => { draggingDivider = false; });
+        window.addEventListener("pointercancel", () => { draggingDivider = false; });
+
+        elements.timelineDivider?.addEventListener("keydown", (event) => {
+            const currentOn = Math.max(MIN_DURATION_SECONDS, readDurationSeconds("on") || MIN_DURATION_SECONDS);
+            const currentOff = Math.max(MIN_DURATION_SECONDS, readDurationSeconds("off") || MIN_DURATION_SECONDS);
+            const total = currentOn + currentOff;
+            const step = Math.max(5, total * (event.shiftKey ? 0.05 : 0.01));
+            if (event.key === "ArrowLeft" || event.key === "ArrowDown") setTimelineBalance(currentOn - step);
+            else if (event.key === "ArrowRight" || event.key === "ArrowUp") setTimelineBalance(currentOn + step);
+            else if (event.key === "Home") setTimelineBalance(MIN_DURATION_SECONDS);
+            else if (event.key === "End") setTimelineBalance(total - MIN_DURATION_SECONDS);
+            else return;
+            event.preventDefault();
         });
 
         elements.applyChanges.addEventListener("click", () => saveSettings(true).catch(() => {}));

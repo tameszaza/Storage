@@ -85,7 +85,7 @@
                 <div>
                     <p class="aircon-eyebrow">Live schedule</p>
                     <h2 id="scheduleTitle">ON and OFF timeline</h2>
-                    <p id="scheduleSummary" class="aircon-muted">Adjustments can be applied while the schedule is running.</p>
+                    <p id="scheduleSummary" class="aircon-muted">Drag the divider or either slider.</p>
                 </div>
                 <div class="aircon-save-area">
                     <span id="saveState" class="aircon-save-state">All changes applied</span>
@@ -93,14 +93,17 @@
                 </div>
             </div>
 
-            <div id="timelineTrack" class="aircon-timeline" role="img" aria-label="Aircon schedule timeline">
-                <button id="onTimelineSegment" class="aircon-timeline-segment is-on" type="button" data-focus="onDurationValue" style="--weight: 600">
+            <div id="timelineTrack" class="aircon-timeline" role="group" aria-label="Aircon schedule timeline">
+                <div id="onTimelineSegment" class="aircon-timeline-segment is-on" style="--weight: 600">
                     <span id="onProgress" class="aircon-timeline-fill"></span>
                     <span class="aircon-timeline-copy"><i class="fa-solid fa-snowflake" aria-hidden="true"></i><strong id="onTimelineLabel">ON · 10 min</strong></span>
-                </button>
-                <button id="offTimelineSegment" class="aircon-timeline-segment is-off" type="button" data-focus="offDurationValue" style="--weight: 1200">
+                </div>
+                <div id="offTimelineSegment" class="aircon-timeline-segment is-off" style="--weight: 1200">
                     <span id="offProgress" class="aircon-timeline-fill"></span>
                     <span class="aircon-timeline-copy"><i class="fa-regular fa-moon" aria-hidden="true"></i><strong id="offTimelineLabel">OFF · 20 min</strong></span>
+                </div>
+                <button id="timelineDivider" class="aircon-timeline-divider" type="button" role="slider" aria-label="Balance ON and OFF time" aria-valuemin="0" aria-valuemax="100" aria-valuenow="33">
+                    <span aria-hidden="true"><i></i><i></i><i></i></span>
                 </button>
                 <span id="timelinePlayhead" class="aircon-timeline-playhead" hidden><span></span></span>
             </div>
@@ -109,47 +112,51 @@
                 <article class="aircon-phase-card is-on">
                     <div class="aircon-phase-heading">
                         <span class="aircon-phase-label is-on">ON</span>
-                        <div class="aircon-stepper" aria-label="Adjust ON duration in minutes">
-                            <button type="button" data-adjust="on" data-seconds="-300">−5</button>
-                            <button type="button" data-adjust="on" data-seconds="-60">−1</button>
-                            <button type="button" data-adjust="on" data-seconds="60">+1</button>
-                            <button type="button" data-adjust="on" data-seconds="300">+5</button>
-                        </div>
+                        <strong id="onDurationDisplay" class="aircon-duration-display">10 min</strong>
                     </div>
-                    <label class="aircon-field">
-                        <span>Aircon stays on</span>
-                        <div class="aircon-duration-input">
-                            <input id="onDurationValue" inputmode="decimal" type="number" min="0.1" step="0.1" aria-label="ON duration value">
-                            <select id="onDurationUnit" aria-label="ON duration unit">
-                                <option value="seconds">Seconds</option>
-                                <option value="minutes">Minutes</option>
-                                <option value="hours">Hours</option>
-                            </select>
-                        </div>
+                    <label class="aircon-slider-field" for="onDurationSlider">
+                        <span class="visually-hidden">ON duration</span>
+                        <input id="onDurationSlider" type="range" min="0" max="1000" step="1" value="500" aria-label="ON duration">
                     </label>
+                    <details class="aircon-exact-duration">
+                        <summary>Exact time</summary>
+                        <label class="aircon-field">
+                            <span class="visually-hidden">Exact ON duration</span>
+                            <div class="aircon-duration-input">
+                                <input id="onDurationValue" inputmode="decimal" type="number" min="0.1" step="0.1" aria-label="ON duration value">
+                                <select id="onDurationUnit" aria-label="ON duration unit">
+                                    <option value="seconds">Seconds</option>
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours">Hours</option>
+                                </select>
+                            </div>
+                        </label>
+                    </details>
                 </article>
 
                 <article class="aircon-phase-card is-off">
                     <div class="aircon-phase-heading">
                         <span class="aircon-phase-label is-off">OFF</span>
-                        <div class="aircon-stepper" aria-label="Adjust OFF duration in minutes">
-                            <button type="button" data-adjust="off" data-seconds="-300">−5</button>
-                            <button type="button" data-adjust="off" data-seconds="-60">−1</button>
-                            <button type="button" data-adjust="off" data-seconds="60">+1</button>
-                            <button type="button" data-adjust="off" data-seconds="300">+5</button>
-                        </div>
+                        <strong id="offDurationDisplay" class="aircon-duration-display">20 min</strong>
                     </div>
-                    <label class="aircon-field">
-                        <span>Aircon stays off</span>
-                        <div class="aircon-duration-input">
-                            <input id="offDurationValue" inputmode="decimal" type="number" min="0.1" step="0.1" aria-label="OFF duration value">
-                            <select id="offDurationUnit" aria-label="OFF duration unit">
-                                <option value="seconds">Seconds</option>
-                                <option value="minutes">Minutes</option>
-                                <option value="hours">Hours</option>
-                            </select>
-                        </div>
+                    <label class="aircon-slider-field" for="offDurationSlider">
+                        <span class="visually-hidden">OFF duration</span>
+                        <input id="offDurationSlider" type="range" min="0" max="1000" step="1" value="600" aria-label="OFF duration">
                     </label>
+                    <details class="aircon-exact-duration">
+                        <summary>Exact time</summary>
+                        <label class="aircon-field">
+                            <span class="visually-hidden">Exact OFF duration</span>
+                            <div class="aircon-duration-input">
+                                <input id="offDurationValue" inputmode="decimal" type="number" min="0.1" step="0.1" aria-label="OFF duration value">
+                                <select id="offDurationUnit" aria-label="OFF duration unit">
+                                    <option value="seconds">Seconds</option>
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours">Hours</option>
+                                </select>
+                            </div>
+                        </label>
+                    </details>
                 </article>
             </div>
 
@@ -171,10 +178,10 @@
                 </div>
             </div>
 
-            <div class="aircon-cost-strip" aria-label="Projected cost">
+            <div id="airconCostStrip" class="aircon-cost-strip" aria-label="Cycle cost">
                 <div><small>Per cycle spent</small><strong id="cycleSpent">$0.07</strong></div>
                 <div><small>Per cycle saved</small><strong id="cycleSaved">$0.13</strong></div>
-                <div><small id="projectedLabel">Projected total</small><strong id="projectedTotal">Continuous</strong></div>
+                <div id="projectedTotalBadge" hidden><small id="projectedLabel">Planned total</small><strong id="projectedTotal"></strong></div>
             </div>
         </section>
 

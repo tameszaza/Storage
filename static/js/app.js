@@ -25,8 +25,14 @@
     function applyTheme(preference, persist = true) {
         const normalized = ["light", "dark", "system"].includes(preference) ? preference : "light";
         const resolved = resolveTheme(normalized);
+        document.documentElement.setAttribute("data-theme", resolved);
+        document.documentElement.setAttribute("data-theme-preference", normalized);
+        document.documentElement.style.colorScheme = resolved;
+        document.documentElement.style.backgroundColor = resolved === "dark" ? "#0b1120" : "#f8fafc";
         document.body.setAttribute("data-theme", resolved);
         document.body.setAttribute("data-theme-preference", normalized);
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        if (themeColor) themeColor.content = resolved === "dark" ? "#0b1120" : "#ffffff";
         if (persist) writePreference("theme", normalized);
 
         const icon = document.getElementById("themeIcon");

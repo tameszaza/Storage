@@ -1,5 +1,5 @@
 (function () {
-    const STORAGE_KEY = "tamestorage.ai.chat.v3";
+    const STORAGE_KEY = "tamestorage.ai.chat.v5";
     const imageUrlsToRevoke = [];
     const state = {
         messages: [],
@@ -18,15 +18,79 @@
             .replace(/'/g, "&#039;");
     }
 
-    function formatAssistantText(text) {
-        let escaped = escapeHtml(text || "");
-        escaped = escaped.replace(/```([\s\S]*?)```/g, function (_, code) {
-            return "<pre><code>" + code.trim() + "</code></pre>";
-        });
-        return escaped
+    function inlineAssistantMarkdown(value) {
+        return value
             .replace(/`([^`]+)`/g, "<code>$1</code>")
-            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-            .replace(/\n/g, "<br>");
+            .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    }
+
+    function formatAssistantText(text) {
+        const codeBlocks = [];
+        const escaped = escapeHtml(text || "").replace(/```(?:[a-z0-9_-]+)?\s*\n?([\s\S]*?)```/gi, function (_, code) {
+            const index = codeBlocks.push(`<pre><code>${code.trim()}</code></pre>`) - 1;
+            return `@@TAME_CODE_${index}@@`;
+        });
+        const html = [];
+        let paragraph = [];
+        let listType = "";
+
+        function flushParagraph() {
+            if (!paragraph.length) return;
+            html.push(`<p>${paragraph.join("<br>")}</p>`);
+            paragraph = [];
+        }
+
+        function closeList() {
+            if (!listType) return;
+            html.push(`</${listType}>`);
+            listType = "";
+        }
+
+        escaped.split(/\r?\n/).forEach((rawLine) => {
+            const line = rawLine.trim();
+            const codeMatch = line.match(/^@@TAME_CODE_(\d+)@@$/);
+            if (codeMatch) {
+                flushParagraph();
+                closeList();
+                html.push(codeBlocks[Number(codeMatch[1])] || "");
+                return;
+            }
+            if (!line) {
+                flushParagraph();
+                closeList();
+                return;
+            }
+
+            const heading = line.match(/^(#{1,3})\s+(.+)$/);
+            if (heading) {
+                flushParagraph();
+                closeList();
+                const level = Math.min(4, heading[1].length + 2);
+                html.push(`<h${level}>${inlineAssistantMarkdown(heading[2])}</h${level}>`);
+                return;
+            }
+
+            const unordered = line.match(/^[-*]\s+(.+)$/);
+            const ordered = line.match(/^\d+[.)]\s+(.+)$/);
+            if (unordered || ordered) {
+                flushParagraph();
+                const nextType = unordered ? "ul" : "ol";
+                if (listType !== nextType) {
+                    closeList();
+                    listType = nextType;
+                    html.push(`<${listType}>`);
+                }
+                html.push(`<li>${inlineAssistantMarkdown((unordered || ordered)[1])}</li>`);
+                return;
+            }
+
+            closeList();
+            paragraph.push(inlineAssistantMarkdown(line));
+        });
+
+        flushParagraph();
+        closeList();
+        return html.join("");
     }
 
     function newId() {
@@ -41,6 +105,7 @@
             imageName: message.imageName || "",
             actionUrl: message.actionUrl || "",
             actionLabel: message.actionLabel || "",
+            kind: message.kind || "",
             createdAt: message.createdAt || Date.now(),
         }));
         try {
@@ -61,7 +126,8 @@
             state.messages = [{
                 id: newId(),
                 role: "assistant",
-                text: "Hi. Ask me anything about your storage workspace. I can also run safe commands like `/open path`, `/move source -> folder`, `/copy source -> folder`, and `/rename source -> new-name`.",
+                kind: "welcome",
+                text: "What do you need from your files?",
                 createdAt: Date.now(),
             }];
         }
@@ -106,6 +172,8 @@
     function makeMessageActions(message) {
         const actions = document.createElement("div");
         actions.className = "message-actions inline-message-actions";
+
+        if (message.kind === "welcome" || message.kind === "thinking") return actions;
 
         actions.appendChild(makeSmallButton('<i class="fa-regular fa-copy"></i> Copy', "Copy message", async (event) => {
             const button = event.currentTarget;
@@ -162,13 +230,10 @@
 
             const avatar = document.createElement("span");
             avatar.className = "message-avatar";
-            avatar.innerHTML = message.role === "user" ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
+            avatar.innerHTML = message.role === "user" ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-wand-magic-sparkles"></i>';
 
             const content = document.createElement("div");
             content.className = "message-content";
-
-            const bubble = document.createElement("div");
-            bubble.className = "message-bubble";
 
             if (message.imageUrl) {
                 const imageWrap = document.createElement("div");
@@ -178,21 +243,28 @@
                 image.src = message.imageUrl;
                 image.alt = message.imageName || "Attached image";
                 imageWrap.appendChild(image);
-                bubble.appendChild(imageWrap);
+                content.appendChild(imageWrap);
             } else if (message.imageName) {
                 const imageNote = document.createElement("div");
                 imageNote.className = "message-attachment-note";
                 imageNote.innerHTML = '<i class="fa-solid fa-image"></i> ' + escapeHtml(message.imageName);
-                bubble.appendChild(imageNote);
+                content.appendChild(imageNote);
             }
 
             const body = document.createElement("div");
             body.className = "message-body";
-            if (message.role === "assistant") body.innerHTML = formatAssistantText(text);
-            else body.textContent = text || (message.imageName ? "Attached image" : "");
-            bubble.appendChild(body);
-
-            content.appendChild(bubble);
+            if (message.kind === "welcome") {
+                wrapper.classList.add("welcome-message");
+                body.innerHTML = `<span class="welcome-orb"><i class="fa-solid fa-wand-magic-sparkles"></i></span><strong class="welcome-title">${escapeHtml(text)}</strong><span class="welcome-hint">Ask a question or choose a task.</span>`;
+            } else if (message.kind === "thinking") {
+                wrapper.classList.add("thinking-message");
+                body.innerHTML = '<span class="thinking-dots" aria-label="Assistant is working"><i></i><i></i><i></i></span><span>Thinking…</span>';
+            } else if (message.role === "assistant") {
+                body.innerHTML = formatAssistantText(text);
+            } else {
+                body.textContent = text || (message.imageName ? "Attached image" : "");
+            }
+            content.appendChild(body);
             content.appendChild(makeMessageActions(message));
             wrapper.appendChild(avatar);
             wrapper.appendChild(content);
@@ -209,6 +281,7 @@
             imageName: options.imageName || "",
             actionUrl: options.actionUrl || "",
             actionLabel: options.actionLabel || "",
+            kind: options.kind || "",
             createdAt: Date.now(),
         };
         state.messages.push(message);
@@ -224,6 +297,7 @@
         message.text = text || "";
         message.actionUrl = options.actionUrl || "";
         message.actionLabel = options.actionLabel || "";
+        message.kind = options.kind || "";
         saveHistory();
         renderMessages();
         scrollToBottom();
@@ -233,7 +307,7 @@
         const button = $("sendButton");
         if (!button) return;
         button.disabled = isBusy;
-        button.innerHTML = isBusy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Sending' : '<i class="fa-solid fa-paper-plane"></i> Send';
+        button.innerHTML = isBusy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Working' : '<i class="fa-solid fa-paper-plane"></i> Send';
     }
 
     function updateImageLabel() {
@@ -271,7 +345,7 @@
             });
         }
 
-        const thinking = addMessage("assistant", "Thinking...");
+        const thinking = addMessage("assistant", "", { kind: "thinking" });
         const formData = new FormData();
         formData.append("msg", message);
         formData.append("prompt", $("imagePromptInput")?.value || "Describe this image.");
@@ -286,12 +360,13 @@
         try {
             const response = await fetch($("chatForm").action, { method: "POST", body: formData });
             const data = await response.json();
+            if (!response.ok) throw new Error(data.response || "Request failed");
             updateMessage(thinking.id, data.response || "No response.", {
                 actionUrl: data.action_url || "",
                 actionLabel: data.action_label || "",
             });
         } catch (error) {
-            updateMessage(thinking.id, "Request failed. Please check the server and try again.");
+            updateMessage(thinking.id, error.message || "Request failed. Please check the server and try again.");
         } finally {
             setBusy(false);
             if (!options.keepImage) clearImage();
@@ -335,6 +410,33 @@
         autoResizeInput();
     }
 
+    function selectedContextPath() {
+        return $("fileContextPath")?.value || "";
+    }
+
+    function updateContextUI() {
+        const path = selectedContextPath();
+        const scope = $("conversationScope");
+        const composer = $("composerContext");
+        const help = $("fileContextHelp");
+        if (scope) scope.textContent = path ? `Reading ${path}` : "Using workspace structure";
+        if (composer) {
+            composer.innerHTML = path
+                ? `<i class="fa-regular fa-file-lines" aria-hidden="true"></i> ${escapeHtml(path.split("/").pop())}`
+                : '<i class="fa-solid fa-folder-tree" aria-hidden="true"></i> Workspace';
+            composer.title = path || "Whole workspace";
+        }
+        if (help) {
+            help.classList.toggle("has-file", Boolean(path));
+            help.innerHTML = path
+                ? `<i class="fa-solid fa-check" aria-hidden="true"></i><span class="context-scope-note-text">Reading <strong>${escapeHtml(path)}</strong> for this request.</span>`
+                : '<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span class="context-scope-note-text">Select a text, code, or data file to let the assistant read it.</span>';
+        }
+        document.querySelectorAll(".quick-prompt.requires-file").forEach((button) => {
+            button.classList.toggle("needs-context", !path);
+        });
+    }
+
     window.addEventListener("beforeunload", () => {
         imageUrlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
     });
@@ -344,14 +446,10 @@
         const input = $("chatInput");
         const imageInput = $("imageInput");
         const dropZone = $("chatDropZone");
-        const optionsDisclosure = $("chatOptionsDisclosure");
-        if (optionsDisclosure && window.matchMedia("(max-width: 720px)").matches) {
-            optionsDisclosure.removeAttribute("open");
-        }
-
         loadHistory();
         renderMessages();
         scrollToBottom();
+        updateContextUI();
 
         imageInput?.addEventListener("change", () => setImageFile(imageInput.files?.[0] || null));
         $("removeImageBtn")?.addEventListener("click", clearImage);
@@ -371,12 +469,28 @@
         });
         $("chatSearchInput")?.addEventListener("input", renderMessages);
 
+        $("fileContextPath")?.addEventListener("change", updateContextUI);
+
         document.querySelectorAll(".quick-prompt").forEach((button) => {
-            button.addEventListener("click", () => setComposerText(button.dataset.prompt || button.textContent.trim()));
+            button.addEventListener("click", () => {
+                const path = selectedContextPath();
+                if (button.classList.contains("requires-file") && !path) {
+                    $("fileContextPath")?.focus();
+                    $("fileContextHelp")?.classList.add("context-attention");
+                    setTimeout(() => $("fileContextHelp")?.classList.remove("context-attention"), 1600);
+                    return;
+                }
+                setComposerText((button.dataset.prompt || button.textContent.trim()).replaceAll("{file}", path));
+            });
         });
 
         document.querySelectorAll(".command-chip").forEach((button) => {
-            button.addEventListener("click", () => setComposerText(button.dataset.template || ""));
+            button.addEventListener("click", () => {
+                let template = button.dataset.template || "";
+                const path = selectedContextPath();
+                if (path && /\/(open|inspect)\s$/.test(template)) template += path;
+                setComposerText(template);
+            });
         });
 
         input?.addEventListener("input", autoResizeInput);

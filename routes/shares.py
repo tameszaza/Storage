@@ -80,20 +80,24 @@ def _guard_share(token: str, *, require: str | None = None) -> tuple[dict, dict]
     share = _load_share_or_404(token)
     active, message = share_status(share)
     if not active:
-        return share, {"allowed": False, "message": message, "status": 410}
+        return share, {"allowed": False, "message": message, "status": 410, "kind": "unavailable"}
 
     username = _actor()
     if not user_can_open_share(share, username):
-        return share, {"allowed": False, "message": "You do not have access to this shared item.", "status": 403}
+        return share, {"allowed": False, "message": "You do not have access to this shared item.", "status": 403, "kind": "forbidden"}
 
     if not is_password_unlocked(share, username, _unlock_tokens()):
-        return share, {"allowed": False, "message": "Password required", "status": 401, "password_required": True}
+        return share, {"allowed": False, "message": "Enter the password to open this shared item.", "status": 401, "password_required": True, "kind": "password"}
 
     permissions = share_permissions(share)
     if require and not permissions.get(require):
-        return share, {"allowed": False, "message": "This share does not allow that action.", "status": 403}
+        return share, {"allowed": False, "message": "This link does not allow that action.", "status": 403, "kind": "forbidden"}
 
     return share, {"allowed": True, "permissions": permissions}
+
+
+def _share_root_url(share: dict) -> str:
+    return url_for("shared_view", token=share["token"])
 
 
 def _render_gate(share: dict, guard: dict):
@@ -103,7 +107,20 @@ def _render_gate(share: dict, guard: dict):
         share=share,
         message=guard.get("message"),
         password_required=guard.get("password_required", False),
+        gate_kind=guard.get("kind", "forbidden"),
+        gate_label=guard.get("label"),
+        return_url=guard.get("return_url"),
     ), status_code
+
+
+def _render_path_error(share: dict, message: str = "That path is not available in this shared item.", status: int = 404):
+    return _render_gate(share, {
+        "message": message,
+        "status": status,
+        "kind": "missing",
+        "label": "Path unavailable",
+        "return_url": _share_root_url(share),
+    })
 
 
 def _zip_directory(folder_path: str, download_name: str):
@@ -208,6 +225,9 @@ def delete_share_route(token: str):
 
 def shared_password(token: str):
     share = _load_share_or_404(token)
+    active, message = share_status(share)
+    if not active:
+        return _render_gate(share, {"message": message, "status": 410, "kind": "unavailable"})
     password = request.form.get("password", "")
     if check_share_password(share, password):
         _remember_unlocked(token)
@@ -216,8 +236,10 @@ def shared_password(token: str):
     return render_template(
         "shared_gate.html",
         share=share,
-        message="Incorrect password.",
+        message="That password is incorrect.",
         password_required=True,
+        gate_kind="password",
+        gate_label="Password protected",
     ), 401
 
 
@@ -229,10 +251,10 @@ def shared_view(token: str, subpath: str = ""):
     try:
         relative_path, target_path = target_inside_share(share, subpath)
     except PermissionError:
-        abort(403)
+        return _render_path_error(share)
 
     if not os.path.exists(target_path):
-        abort(404)
+        return _render_path_error(share)
 
     permissions = guard["permissions"]
     share_root_path, share_root_abs = target_inside_share(share, "")
@@ -271,9 +293,9 @@ def shared_raw(token: str, item_path: str = ""):
     try:
         _, target_path = target_inside_share(share, item_path)
     except PermissionError:
-        abort(403)
+        return _render_path_error(share)
     if not os.path.isfile(target_path):
-        abort(404)
+        return _render_path_error(share, "That file is no longer available in this shared item.")
     log_share_event(token, _actor(), "previewed", item_path)
     return send_file(target_path, as_attachment=False, download_name=os.path.basename(target_path))
 
@@ -285,9 +307,9 @@ def shared_download(token: str, item_path: str = ""):
     try:
         _, target_path = target_inside_share(share, item_path)
     except PermissionError:
-        abort(403)
+        return _render_path_error(share)
     if not os.path.exists(target_path):
-        abort(404)
+        return _render_path_error(share)
 
     increment_download_count(token, _actor(), item_path or share.get("path", ""))
     if os.path.isdir(target_path):
@@ -302,9 +324,9 @@ def shared_upload(token: str, subpath: str = ""):
     try:
         _, target_path = target_inside_share(share, subpath)
     except PermissionError:
-        abort(403)
+        return _render_path_error(share)
     if not os.path.isdir(target_path):
-        abort(400)
+        return _render_path_error(share, "Uploads can only be added to a folder in this shared item.", 400)
 
     files = request.files.getlist("file")
     for uploaded in files:
@@ -330,9 +352,9 @@ def shared_edit(token: str, item_path: str = ""):
     try:
         _, target_path = target_inside_share(share, item_path)
     except PermissionError:
-        abort(403)
+        return _render_path_error(share)
     if not os.path.isfile(target_path):
-        abort(404)
+        return _render_path_error(share, "That editable file is no longer available.")
     if Path(target_path).suffix.lower() not in TEXT_PREVIEW_EXTENSIONS:
         flash("Only text files can be edited in the browser.", "warning")
         return redirect(url_for("shared_view", token=token))
@@ -359,7 +381,9 @@ def shared_delete(token: str, item_path: str):
     try:
         _, target_path = target_inside_share(share, item_path)
     except PermissionError:
-        abort(403)
+        return _render_path_error(share)
+    if not os.path.exists(target_path):
+        return _render_path_error(share)
     if os.path.abspath(target_path) == os.path.abspath(safe_upload_path(share.get("path", ""))):
         abort(400)
     if os.path.isdir(target_path):

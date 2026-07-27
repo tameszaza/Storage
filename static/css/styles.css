@@ -2990,7 +2990,7 @@ body[data-theme="dark"] .pdf-thumb-link {
 .operation-card span {
     color: var(--text);
     font-weight: 900;
-    margin-bottom: 4px;
+    margin-bottom: 0;
 }
 
 .operation-card small {

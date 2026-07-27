@@ -34,8 +34,12 @@ def register():
         users[username] = {"password": hashed_password, "suspended": False}
         save_users(users)
         ensure_user_folder(username)
-        logging.info("New user registered: %s", username)
-        return redirect(url_for("login"))
+        session.clear()
+        session["logged_in"] = True
+        session["username"] = username
+        session.permanent = True
+        logging.info("New user registered and logged in: %s", username)
+        return redirect(url_for("user_folder", username=username))
     return render_template("register.html")
 
 

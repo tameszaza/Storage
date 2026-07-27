@@ -330,8 +330,9 @@ def move_copy_item():
     if not os.path.isdir(destination_folder_abs):
         return finish(False, "Destination is not a folder.", 400, os.path.dirname(sources[0]))
 
-    completed = 0
-    for index, source in enumerate(sources):
+    planned_operations = []
+    planned_destinations = set()
+    for source in sources:
         source_absolute = safe_upload_path(source)
         if not os.path.exists(source_absolute):
             return finish(False, f"Source does not exist: {source}", 404, os.path.dirname(source))
@@ -349,9 +350,14 @@ def move_copy_item():
             if destination_prefix.startswith(source_prefix):
                 return finish(False, "A folder cannot be moved inside itself.", 400, os.path.dirname(source))
 
-        if os.path.exists(dest_absolute):
+        if os.path.exists(dest_absolute) or destination in planned_destinations:
             return finish(False, f"Destination already exists: {destination}", 409, destination_folder)
 
+        planned_destinations.add(destination)
+        planned_operations.append((source, source_absolute, destination, dest_absolute))
+
+    completed = 0
+    for source, source_absolute, destination, dest_absolute in planned_operations:
         os.makedirs(os.path.dirname(dest_absolute), exist_ok=True)
         if operation == "copy":
             if os.path.isdir(source_absolute):
@@ -408,29 +414,144 @@ def notifications_page():
     return render_template("notifications.html", items=list_notifications(username))
 
 
+def _file_request_destination_options(username: str) -> list[dict]:
+    base_path = "" if username == "Admin" else normalize_relative_path(username)
+    base_absolute = safe_upload_path(base_path)
+    options = [{
+        "path": base_path,
+        "label": "Storage root" if username == "Admin" else "My files",
+        "name": "Storage root" if username == "Admin" else "My files",
+        "parent": None,
+        "child_count": 0,
+    }]
+    if not os.path.isdir(base_absolute):
+        return options
+
+    for root, directories, _files in os.walk(base_absolute):
+        directories[:] = sorted(
+            (name for name in directories if name != ".tamestorage_system"),
+            key=str.casefold,
+        )
+        for directory in directories:
+            absolute = os.path.join(root, directory)
+            relative = normalize_relative_path(
+                os.path.join(base_path, os.path.relpath(absolute, base_absolute))
+            )
+            display_path = relative
+            if username != "Admin" and relative == username:
+                display_path = ""
+            elif username != "Admin" and relative.startswith(username + "/"):
+                display_path = relative[len(username) + 1:]
+            options.append({
+                "path": relative,
+                "label": display_path.replace("/", " › ") or "My files",
+                "name": directory,
+                "parent": normalize_relative_path(os.path.dirname(relative)),
+                "child_count": 0,
+            })
+
+    options_by_path = {option["path"]: option for option in options}
+    for option in options[1:]:
+        parent = options_by_path.get(option["parent"])
+        if parent:
+            parent["child_count"] += 1
+    return options
+
+
+@login_required
+def folder_destinations_api():
+    username = session.get("username")
+    folders = _file_request_destination_options(username)
+    root = folders[0]
+    return jsonify(
+        success=True,
+        root_path=root["path"],
+        root_label=root["label"],
+        folders=folders,
+    )
+
+
 @login_required
 def file_requests_page():
     username = session.get("username")
+    destination_options = _file_request_destination_options(username)
+    allowed_destinations = {option["path"] for option in destination_options}
+    default_destination = username if username in allowed_destinations else destination_options[0]["path"]
+    selected_destination = default_destination
     if request.method == "POST":
-        destination = visible_path_for_user(request.form.get("destination", username or ""), username)
+        destination = visible_path_for_user(request.form.get("destination", default_destination), username)
+        if destination not in allowed_destinations:
+            flash("Choose an existing destination folder from the list.", "warning")
+            selected_option = next(option for option in destination_options if option["path"] == default_destination)
+            return render_template(
+                "file_requests.html",
+                requests=list_requests(username),
+                destination_options=destination_options,
+                selected_destination=default_destination,
+                selected_destination_label=selected_option["label"],
+                form_values=request.form,
+            ), 400
         item = create_request(request.form.get("title", ""), destination, request.form.get("password", ""), request.form.get("expires_at", ""), request.form.get("allowed_ext", ""), request.form.get("max_size_mb", ""))
         flash("Upload request created.", "success")
         log_activity("file_request.create", item["id"])
         return redirect(url_for("file_requests_page"))
-    return render_template("file_requests.html", requests=list_requests(username))
+    return render_template(
+        "file_requests.html",
+        requests=list_requests(username),
+        destination_options=destination_options,
+        selected_destination=selected_destination,
+        selected_destination_label=next(option["label"] for option in destination_options if option["path"] == selected_destination),
+        form_values={},
+    )
 
 
 @login_required
 def disable_file_request(request_id):
-    update_request(request_id, active=False)
-    flash("File request disabled.", "success")
+    item = get_request(request_id)
+    if not item:
+        abort(404)
+    if session.get("username") not in {item.get("owner"), "Admin"}:
+        abort(403)
+    if item.get("active"):
+        update_request(request_id, active=False)
+        flash("File request disabled.", "success")
+    else:
+        flash("File request is already disabled.", "info")
     return redirect(url_for("file_requests_page"))
 
 
 def public_file_request(request_id):
     item = get_request(request_id)
-    if not item or not item.get("active") or is_expired(item):
-        return render_template("shared_gate.html", error="This upload request is not available."), 404
+    if not item:
+        return render_template(
+            "shared_gate.html",
+            share=None,
+            resource_name="File request",
+            message="This upload request does not exist.",
+            password_required=False,
+            gate_kind="missing",
+            gate_label="Request not found",
+        ), 404
+    if not item.get("active"):
+        return render_template(
+            "shared_gate.html",
+            share=None,
+            resource_name=item.get("title") or "File request",
+            message="This upload request has been disabled by its owner.",
+            password_required=False,
+            gate_kind="unavailable",
+            gate_label="Request disabled",
+        ), 410
+    if is_expired(item):
+        return render_template(
+            "shared_gate.html",
+            share=None,
+            resource_name=item.get("title") or "File request",
+            message="This upload request has expired.",
+            password_required=False,
+            gate_kind="unavailable",
+            gate_label="Request expired",
+        ), 410
     if request.method == "POST":
         if item.get("password") and request.form.get("password") != item.get("password"):
             return render_template("file_request_upload.html", item=item, error="Wrong password."), 403
@@ -540,6 +661,7 @@ def register_routes(app):
     app.add_url_rule("/backup/download", "download_backup", download_backup, methods=["POST"])
     app.add_url_rule("/activity", "activity_page", activity_page)
     app.add_url_rule("/notifications", "notifications_page", notifications_page, methods=["GET", "POST"])
+    app.add_url_rule("/api/folders", "folder_destinations_api", folder_destinations_api)
     app.add_url_rule("/file-requests", "file_requests_page", file_requests_page, methods=["GET", "POST"])
     app.add_url_rule("/file-requests/disable/<request_id>", "disable_file_request", disable_file_request, methods=["POST"])
     app.add_url_rule("/request/<request_id>", "public_file_request", public_file_request, methods=["GET", "POST"])

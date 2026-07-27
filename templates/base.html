@@ -4,6 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#ffffff">
+    <script>
+        (function () {
+            var preference = "light";
+            try {
+                preference = localStorage.getItem("theme") || "light";
+            } catch (_error) {
+                preference = "light";
+            }
+            if (!["light", "dark", "system"].includes(preference)) preference = "light";
+            var resolved = preference === "system"
+                ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+                : preference;
+            var root = document.documentElement;
+            root.dataset.theme = resolved;
+            root.dataset.themePreference = preference;
+            root.style.colorScheme = resolved;
+            root.style.backgroundColor = resolved === "dark" ? "#0b1120" : "#f8fafc";
+            document.querySelector('meta[name="theme-color"]').content = resolved === "dark" ? "#0b1120" : "#ffffff";
+        })();
+    </script>
     <title>{% block title %}Tamestorage{% endblock %}</title>
     <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" rel="stylesheet">
@@ -15,6 +35,10 @@
     {% block link %}{% endblock %}
 </head>
 <body class="antialiased{% if session.get('logged_in') %} authenticated{% else %} public-page{% endif %}">
+<script>
+    document.body.dataset.theme = document.documentElement.dataset.theme || "light";
+    document.body.dataset.themePreference = document.documentElement.dataset.themePreference || "light";
+</script>
 <a class="skip-link" href="#mainContent">Skip to main content</a>
 {% if session.get('logged_in') %}
     <div class="app-layout">
@@ -22,7 +46,7 @@
         <aside id="appSidebar" class="app-sidebar" aria-label="Storage navigation">
             <a class="sidebar-brand" href="{{ url_for('index') }}">
                 <span class="sidebar-brand-mark"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-                <span class="sidebar-brand-copy"><strong>Tamestorage</strong><small>Personal cloud</small></span>
+                <span class="sidebar-brand-copy"><strong>Tamestorage</strong></span>
             </a>
             <nav class="sidebar-nav">
                 <p class="sidebar-label">Workspace</p>
@@ -45,7 +69,7 @@
                     <small>{{ shell_storage_used|default('0 B') }} of {{ shell_storage_quota|default('Unlimited') }}</small>
                     <a href="{{ url_for('settings_page') }}">Manage storage</a>
                 </div>
-                <a class="sidebar-profile" href="{{ url_for('settings_page') }}"><span class="avatar">{{ shell_initials|default('TS') }}</span><span><strong>{{ shell_username|default('Account') }}</strong><small>Account settings</small></span><i class="fa-solid fa-chevron-right"></i></a>
+                <a class="sidebar-profile" href="{{ url_for('settings_page') }}"><span class="avatar">{{ shell_initials|default('TS') }}</span><span><strong>{{ shell_username|default('Account') }}</strong></span><i class="fa-solid fa-chevron-right"></i></a>
             </div>
         </aside>
         <div class="app-main">
@@ -58,14 +82,14 @@
                             <i class="fa-solid fa-plus" aria-hidden="true"></i><span>New</span><i class="fa-solid fa-chevron-down new-button-chevron" aria-hidden="true"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end new-dropdown">
-                            <a class="dropdown-item" href="{{ url_for('index', path=path|default('')) if request.endpoint == 'index' else url_for('index') }}#dropArea"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span><strong>Upload</strong><small>Files or a whole folder</small></span></a>
-                            <a class="dropdown-item" href="{{ url_for('index', path=path|default(''), new='folder') if request.endpoint == 'index' else url_for('index', new='folder') }}"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span><strong>New folder</strong><small>Organize your files</small></span></a>
-                            <a class="dropdown-item" href="{{ url_for('index', path=path|default(''), new='text') if request.endpoint == 'index' else url_for('index', new='text') }}"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i><span><strong>New text file</strong><small>Open the web editor</small></span></a>
+                            <a class="dropdown-item" href="{{ url_for('index', path=path|default('')) if request.endpoint == 'index' else url_for('index') }}#dropArea"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i><span><strong>Upload</strong></span></a>
+                            <a class="dropdown-item" href="{{ url_for('index', path=path|default(''), new='folder') if request.endpoint == 'index' else url_for('index', new='folder') }}"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i><span><strong>New folder</strong></span></a>
+                            <a class="dropdown-item" href="{{ url_for('index', path=path|default(''), new='text') if request.endpoint == 'index' else url_for('index', new='text') }}"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i><span><strong>New text file</strong></span></a>
                         </div>
                     </div>
                     <a class="topbar-icon" href="{{ url_for('notifications_page') }}" aria-label="Notifications" title="Notifications" data-tooltip="true"><i class="fa-regular fa-bell" aria-hidden="true"></i></a>
                     <button id="themeToggle" class="topbar-icon" type="button" aria-label="Toggle light or dark theme" title="Toggle light or dark theme" data-tooltip="true"><i id="themeIcon" class="fa-regular fa-moon" aria-hidden="true"></i></button>
-                    <div class="dropdown account-menu"><button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="avatar small">{{ shell_initials|default('TS') }}</span><span class="account-trigger-copy"><strong>{{ shell_username|default('Account') }}</strong><small>Personal</small></span><i class="fa-solid fa-chevron-down"></i></button><div class="dropdown-menu dropdown-menu-end account-dropdown"><a class="dropdown-item" href="{{ url_for('settings_page') }}"><i class="fa-regular fa-user"></i> Account settings</a><a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fa-regular fa-message"></i> Send feedback</a><div class="dropdown-divider"></div><a class="dropdown-item danger-text" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</a></div></div>
+                    <div class="dropdown account-menu"><button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="avatar small">{{ shell_initials|default('TS') }}</span><span class="account-trigger-copy"><strong>{{ shell_username|default('Account') }}</strong></span><i class="fa-solid fa-chevron-down"></i></button><div class="dropdown-menu dropdown-menu-end account-dropdown"><a class="dropdown-item" href="{{ url_for('settings_page') }}"><i class="fa-regular fa-user"></i> Account settings</a><a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fa-regular fa-message"></i> Send feedback</a><div class="dropdown-divider"></div><a class="dropdown-item danger-text" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</a></div></div>
                 </div>
             </header>
             <main id="mainContent" class="app-content" tabindex="-1">

@@ -4,7 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
-from lib.charts import analyze_directory_space, generate_pie_chart
+from lib.charts import build_storage_analysis
 from lib.editor_service import EditorConflictError, load_document, save_document
 from lib.activity import log_activity
 from lib.metadata import get_metadata, move_metadata
@@ -49,12 +49,43 @@ def _wants_json_response() -> bool:
     return request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.best == "application/json"
 
 
-def _upload_result(success: bool, message: str, path: str, status: int = 200, count: int = 0):
+def _upload_result(success: bool, message: str, path: str, status: int = 200, count: int = 0, **details):
     if _wants_json_response():
-        return jsonify(success=success, message=message, uploaded=count, redirect_url=url_for("index", path=path)), status
+        payload = {
+            "success": success,
+            "message": message,
+            "uploaded": count,
+            "redirect_url": url_for("index", path=path),
+        }
+        payload.update(details)
+        return jsonify(**payload), status
     if message:
         flash(message, "success" if success else "warning")
     return redirect(url_for("index", path=path))
+
+
+def _available_upload_target(relative_target: str, reserved: set[str]) -> str:
+    directory, filename = os.path.split(relative_target)
+    stem, extension = os.path.splitext(filename)
+    number = 1
+    while True:
+        candidate_name = f"{stem} ({number}){extension}"
+        candidate = normalize_relative_path(os.path.join(directory, candidate_name))
+        if candidate not in reserved and not os.path.exists(safe_upload_path(candidate)):
+            return candidate
+        number += 1
+
+
+def _upload_conflict_names(path: str, filenames: list[str]) -> list[str]:
+    conflicts = []
+    seen_targets = set()
+    for filename in filenames:
+        relative_name = safe_relative_upload_name(filename)
+        relative_target = normalize_relative_path(os.path.join(path, relative_name))
+        if os.path.exists(safe_upload_path(relative_target)) or relative_target in seen_targets:
+            conflicts.append(relative_name)
+        seen_targets.add(relative_target)
+    return list(dict.fromkeys(conflicts))
 
 
 @login_required
@@ -87,14 +118,73 @@ def user_folder(username):
 
 
 @login_required
+def upload_conflicts(path=""):
+    path = visible_path_for_user(path, session.get("username"))
+    payload = request.get_json(silent=True) or {}
+    filenames = payload.get("filenames") or []
+    if not isinstance(filenames, list):
+        return jsonify(success=False, message="Invalid upload selection."), 400
+    filenames = [str(name) for name in filenames if str(name).strip()]
+    return jsonify(success=True, conflicts=_upload_conflict_names(path, filenames))
+
+
+@login_required
 def upload_file(path=""):
     path = visible_path_for_user(path, session.get("username"))
     files = request.files.getlist("file")
     if not files or not any(file.filename for file in files):
         return _upload_result(False, "Choose at least one file to upload.", path, 400)
 
+    conflict_action = request.form.get("conflict_action", "").strip().lower()
+    if conflict_action not in {"", "replace", "rename"}:
+        return _upload_result(False, "Choose a valid duplicate-file action.", path, 400)
+
     current_path = safe_upload_path(path)
     os.makedirs(current_path, exist_ok=True)
+
+    prepared = []
+    conflicts = []
+    seen_targets = set()
+    for uploaded in files:
+        if not uploaded or not uploaded.filename:
+            continue
+        relative_name = safe_relative_upload_name(uploaded.filename)
+        relative_target = normalize_relative_path(os.path.join(path, relative_name))
+        destination_exists = os.path.exists(safe_upload_path(relative_target))
+        if destination_exists or relative_target in seen_targets:
+            conflicts.append(relative_name)
+        seen_targets.add(relative_target)
+        prepared.append((uploaded, relative_name, relative_target))
+
+    if conflicts and not conflict_action:
+        return _upload_result(
+            False,
+            "One or more files already exist. Choose whether to replace or rename them.",
+            path,
+            409,
+            conflict=True,
+            conflicts=list(dict.fromkeys(conflicts)),
+        )
+
+    planned = []
+    reserved_targets = set()
+    renamed_count = 0
+    for uploaded, relative_name, relative_target in prepared:
+        final_target = relative_target
+        if conflict_action == "rename" and (
+            os.path.exists(safe_upload_path(final_target)) or final_target in reserved_targets
+        ):
+            final_target = _available_upload_target(final_target, reserved_targets)
+            renamed_count += 1
+        if conflict_action == "replace" and os.path.isdir(safe_upload_path(final_target)):
+            return _upload_result(
+                False,
+                f'A folder already uses the name "{relative_name}". Choose Rename to keep both.',
+                path,
+                409,
+            )
+        reserved_targets.add(final_target)
+        planned.append((uploaded, final_target))
 
     username = session.get("username")
     if username != "Admin":
@@ -102,7 +192,9 @@ def upload_file(path=""):
         quota = int(users.get(username, {}).get("quota_bytes") or current_app.config.get("DEFAULT_USER_QUOTA_BYTES", 0) or 0)
         if quota:
             incoming = 0
-            for uploaded in files:
+            replaced_bytes = 0
+            replaced_targets = set()
+            for uploaded, relative_target in planned:
                 try:
                     position = uploaded.stream.tell()
                     uploaded.stream.seek(0, os.SEEK_END)
@@ -110,16 +202,17 @@ def upload_file(path=""):
                     uploaded.stream.seek(position)
                 except Exception:
                     pass
+                if conflict_action == "replace" and relative_target not in replaced_targets:
+                    existing_path = safe_upload_path(relative_target)
+                    if os.path.isfile(existing_path):
+                        replaced_bytes += os.path.getsize(existing_path)
+                        replaced_targets.add(relative_target)
             used = get_folder_size(safe_upload_path(username))
-            if used + incoming > quota:
+            if used - replaced_bytes + incoming > quota:
                 return _upload_result(False, "Upload blocked because it would exceed your storage quota.", path, 413)
 
     uploaded_count = 0
-    for uploaded in files:
-        if not uploaded or not uploaded.filename:
-            continue
-        relative_name = safe_relative_upload_name(uploaded.filename)
-        relative_target = normalize_relative_path(os.path.join(path, relative_name))
+    for uploaded, relative_target in planned:
         filepath = safe_upload_path(relative_target)
         if os.path.exists(filepath) and os.path.isfile(filepath):
             create_version(relative_target, "before upload replace")
@@ -130,7 +223,10 @@ def upload_file(path=""):
         log_activity("file.upload", relative_target)
 
     label = "file" if uploaded_count == 1 else "files"
-    return _upload_result(True, f"Uploaded {uploaded_count} {label} successfully.", path, 201, uploaded_count)
+    message = f"Uploaded {uploaded_count} {label} successfully."
+    if renamed_count:
+        message = f"Uploaded {uploaded_count} {label}; renamed {renamed_count} to keep both."
+    return _upload_result(True, message, path, 201, uploaded_count)
 
 
 @login_required
@@ -453,20 +549,30 @@ def detail(directory):
     if not os.path.isdir(directory_path):
         abort(404)
 
-    directory_data, file_type_data = analyze_directory_space(directory_path)
-    file_count = sum(len(files) for _, _, files in os.walk(directory_path))
-    total_storage = get_folder_size(directory_path) / (1024 ** 2)
-    chart_path, chart_info = generate_pie_chart(directory_data)
-    file_type_chart_path, file_type_chart_info = generate_pie_chart(file_type_data, is_file_type=True)
+    chart_title = os.path.basename(directory.rstrip("/")) if directory else "Root"
+    storage_tree, file_type_data = build_storage_analysis(directory_path, chart_title)
+    total_size = int(storage_tree.get("size", 0))
+    file_type_rows = [
+        {"name": extension, "size": int(size)}
+        for extension, size in sorted(
+            file_type_data.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        if size > 0
+    ]
+    storage_analysis = {
+        "tree": storage_tree,
+        "fileTypes": file_type_rows,
+        "basePath": directory,
+        "browserBaseUrl": url_for("index"),
+    }
     return render_template(
         "detail.html",
         directory=directory or "Root",
-        chart_filename=os.path.basename(chart_path),
-        file_type_chart_filename=os.path.basename(file_type_chart_path),
-        file_count=file_count,
-        total_storage=round(total_storage, 2),
-        chart_info=chart_info,
-        file_type_chart_info=file_type_chart_info,
+        file_count=storage_tree.get("file_count", 0),
+        total_storage=round(total_size / (1024 ** 2), 2),
+        storage_analysis=storage_analysis,
     )
 
 
@@ -482,6 +588,8 @@ def register_routes(app):
     app.add_url_rule("/user/<username>", "user_folder", user_folder)
     app.add_url_rule("/upload", "upload_file", upload_file, methods=["POST"], defaults={"path": ""})
     app.add_url_rule("/upload/<path:path>", "upload_file", upload_file, methods=["POST"])
+    app.add_url_rule("/upload-conflicts", "upload_conflicts", upload_conflicts, methods=["POST"], defaults={"path": ""})
+    app.add_url_rule("/upload-conflicts/<path:path>", "upload_conflicts", upload_conflicts, methods=["POST"])
     app.add_url_rule("/uploads/<filename>", "uploaded_file", uploaded_file, defaults={"path": ""})
     app.add_url_rule("/uploads/<path:path>/<filename>", "uploaded_file", uploaded_file)
     app.add_url_rule("/download/<filename>", "download_file", download_file, defaults={"path": ""})

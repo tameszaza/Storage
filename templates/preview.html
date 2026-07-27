@@ -12,6 +12,7 @@
         <div class="header-actions compact-actions">
             <a class="btn btn-outline-primary" href="{{ url_for('index', path=parent_path) }}" title="Return to the containing folder"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</a>
             {% if kind == 'text' %}<a class="btn btn-outline-primary" href="{{ url_for('edit_file', path=parent_path, filename=name) }}" title="Edit this file in the browser"><i class="fa-solid fa-code" aria-hidden="true"></i> Edit</a>{% endif %}
+            {% if kind == 'text' or ext in ['.csv', '.tsv', '.toml', '.ini', '.tex', '.rst'] %}<a class="btn btn-outline-primary" href="{{ url_for('chat_page', file=target) }}" title="Ask the file assistant about this file"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Ask AI</a>{% endif %}
             <a class="btn btn-outline-primary" href="{{ url_for('raw_file', target=target) }}" target="_blank" rel="noopener" title="Open the raw file in a new tab"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open raw</a>
             <a class="btn btn-primary" href="{{ url_for('download_file', path=parent_path, filename=name) }}" title="Download {{ name }}"><i class="fa-solid fa-download" aria-hidden="true"></i> Download</a>
         </div>

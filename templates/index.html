@@ -1,34 +1,47 @@
 {% extends "base.html" %}
+{% from "_folder_picker.html" import folder_picker %}
 {% block title %}Files · Tamestorage{% endblock %}
-{% block link %}<link href="{{ url_for('static', filename='css/files-page.css') }}" rel="stylesheet">{% endblock %}
+{% block link %}
+<link href="{{ url_for('static', filename='css/files-page.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/folder-picker.css') }}" rel="stylesheet">
+{% endblock %}
 {% block content %}
 {% set folder_count = files|selectattr('is_dir')|list|length %}
 {% set file_count = files|rejectattr('is_dir')|list|length %}
 
 <section class="workspace-header glass-card">
     <div>
-        <p class="eyebrow">File manager</p>
         <h1>My Files</h1>
-        <div class="breadcrumb-line">
-            <a href="{{ url_for('index') }}">Root</a>
-            {% if path %}<span>/ {{ path }}</span>{% endif %}
-        </div>
+        <nav class="breadcrumb-line" aria-label="Current folder path">
+            <a href="{{ url_for('index') }}" {% if not path %}aria-current="page"{% endif %}>Root</a>
+            {% set crumbs = namespace(current='') %}
+            {% for segment in path.split('/') if segment %}
+                {% set crumbs.current = segment if not crumbs.current else crumbs.current ~ '/' ~ segment %}
+                <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                <a href="{{ url_for('index', path=crumbs.current) }}" {% if loop.last %}aria-current="page"{% endif %}>{{ segment }}</a>
+            {% endfor %}
+        </nav>
     </div>
+    {% if files %}
     <div class="stats-grid mini">
         <div class="stat-card"><span>{{ files|length }}</span><p>Total items</p></div>
         <div class="stat-card"><span>{{ folder_count }}</span><p>Folders</p></div>
         <div class="stat-card"><span>{{ file_count }}</span><p>Files</p></div>
     </div>
+    {% endif %}
 </section>
 
-<section id="dropArea" class="upload-panel glass-card" aria-labelledby="uploadHeading" aria-describedby="uploadHelp">
-    <form id="uploadForm" action="{% if path %}{{ url_for('upload_file', path=path) }}{% else %}{{ url_for('upload_file') }}{% endif %}" method="POST" enctype="multipart/form-data">
+<section id="dropArea" class="upload-panel glass-card" aria-labelledby="uploadHeading">
+    <form id="uploadForm"
+          action="{% if path %}{{ url_for('upload_file', path=path) }}{% else %}{{ url_for('upload_file') }}{% endif %}"
+          data-conflict-url="{% if path %}{{ url_for('upload_conflicts', path=path) }}{% else %}{{ url_for('upload_conflicts') }}{% endif %}"
+          method="POST"
+          enctype="multipart/form-data">
         <a class="upload-modal-close" href="{{ url_for('index', path=path) }}" aria-label="Close upload panel" title="Close upload panel" data-tooltip="true"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>
         <div class="drop-content">
             <div class="drop-icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></div>
             <div>
-                <p class="eyebrow mb-1">Upload</p><h2 id="uploadHeading">Add files or folders</h2>
-                <p id="uploadHelp" class="muted">Drag items here, or choose files from your device. Nested folder paths are preserved.</p>
+                <h2 id="uploadHeading">Add files or folders</h2>
             </div>
         </div>
         <div class="upload-actions">
@@ -46,21 +59,25 @@
     </form>
 </section>
 
-<div class="content-section-heading"><div><h2>Folders and files</h2><p>Organize, preview, edit, and share everything in this location.</p></div></div>
-<section class="toolbar glass-card" aria-label="File manager tools">
+<div class="content-section-heading"><div><h2>Folders and files</h2></div></div>
+<section class="toolbar glass-card{% if not files and not search_query %} empty-folder-toolbar{% endif %}" aria-label="File manager tools">
     <div class="toolbar-primary-actions">
         <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newFolderModal" title="Create a folder in this location"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i> New folder</button>
         <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTextModal" title="Create a text or code file and open the web editor"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> New text file</button>
         <a class="btn btn-outline-primary" href="#dropArea" title="Open the upload panel"><i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i> Upload</a>
     </div>
+    {% if files or search_query %}
     <form action="{{ url_for('index', path=path) }}" method="GET" class="file-toolbar-search" role="search">
         <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
         <input type="search" name="search" value="{{ search_query or '' }}" placeholder="Search this folder" aria-label="Search this folder">
         {% if search_query %}<a href="{{ url_for('index', path=path) }}" aria-label="Clear folder search"><i class="fa-solid fa-xmark" aria-hidden="true"></i></a>{% endif %}
     </form>
+    {% endif %}
+    {% if files %}
     <div class="view-controls" role="group" aria-label="Choose file view">
         <button id="viewToggleBtn" class="icon-button" type="button" aria-label="Switch between grid and list view" title="Switch between grid and list view" data-tooltip="true"><i id="viewToggleIcon" class="fa-solid fa-list" aria-hidden="true"></i></button>
     </div>
+    {% endif %}
 </section>
 
 <section id="selectionBar" class="selection-bar glass-card" hidden>
@@ -85,13 +102,12 @@
 
 {% if folder_readme %}
 <section class="folder-readme glass-card">
-    <p class="eyebrow">Folder note</p>
     <pre>{{ folder_readme }}</pre>
 </section>
 {% endif %}
 
 <section id="fileBrowser"
-         class="file-browser browser-grid"
+         class="file-browser browser-grid{% if not files %} is-empty-browser{% endif %}"
          data-current-path="{{ path }}"
          data-move-url="{{ url_for('move_copy_item') }}"
          data-download-selected-url="{{ url_for('download_selected') }}"
@@ -99,8 +115,14 @@
          data-toggle-star-url="{{ url_for('toggle_star_route') }}"
          data-open-new="{{ request.args.get('new', '') }}">
     <div class="file-list-header" aria-hidden="true"><span></span><span>Name</span><span>Size</span><span>Modified</span><span>Actions</span></div>
+    {% set parent_path = '/'.join(path.split('/')[:-1]) if path else '' %}
     {% if path and (session['username'] == 'Admin' or path != session['username']) %}
-        {% set parent_path = '/'.join(path.split('/')[:-1]) %}
+        {% if not files %}
+        <a class="empty-parent-link" href="{{ url_for('index', path=parent_path) }}">
+            <span class="empty-parent-icon"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></span>
+            <span><strong>Back to parent</strong><small>{{ parent_path or "Root" }}</small></span>
+        </a>
+        {% else %}
         <article class="file-card back-card drop-target" data-drop-path="{{ parent_path }}" data-drop-name="Parent folder">
             <a class="file-main" href="{{ url_for('index', path=parent_path) }}">
                 <span class="file-icon folder"><i class="fa-solid fa-arrow-turn-up"></i></span>
@@ -108,6 +130,7 @@
             </a>
             <a class="file-tile-visual is-parent" href="{{ url_for('index', path=parent_path) }}" aria-hidden="true"><i class="fa-solid fa-arrow-turn-up"></i></a>
         </article>
+        {% endif %}
     {% endif %}
 
     {% for file in files %}
@@ -235,11 +258,14 @@
             {% endif %}
         </article>
     {% else %}
-        <div class="empty-state glass-card">
-            <i class="fa-regular fa-folder-open"></i>
-            <h2>This folder is empty</h2>
-            <p class="muted">Upload something, create a folder, or start a new text file in the web editor.</p>
-            <div class="empty-state-actions"><button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTextModal"><i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i> New text file</button><a class="btn btn-outline-primary" href="#dropArea">Upload files</a></div>
+        <div class="empty-state empty-folder-state glass-card">
+            <span class="empty-folder-icon"><i class="{% if search_query %}fa-solid fa-magnifying-glass{% else %}fa-regular fa-folder-open{% endif %}" aria-hidden="true"></i></span>
+            <div class="empty-folder-copy">
+                <h2>{% if search_query %}No matching items{% else %}This folder is ready{% endif %}</h2>
+            </div>
+            {% if search_query %}
+            <a class="btn btn-outline-primary" href="{{ url_for('index', path=path) }}"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Clear search</a>
+            {% endif %}
         </div>
     {% endfor %}
 </section>
@@ -250,9 +276,11 @@
     <div class="bottom-actions-left">
         {% if path %}
             <a href="{{ url_for('detail', directory=path) }}" class="btn btn-outline-primary"><i class="fa-solid fa-chart-pie"></i> Storage detail</a>
+            {% if files %}
             <form action="{{ url_for('download_folder', path=path) }}" method="POST" data-confirm="Download this folder as a zip file?">
                 <button class="btn btn-outline-primary" type="submit"><i class="fa-solid fa-file-zipper"></i> Download folder</button>
             </form>
+            {% endif %}
         {% else %}
             <a href="{{ url_for('detail', directory='Root') }}" class="btn btn-outline-primary"><i class="fa-solid fa-chart-pie"></i> Storage detail</a>
         {% endif %}
@@ -266,9 +294,9 @@
 <div class="modal fade" id="newFolderModal" tabindex="-1" aria-labelledby="newFolderTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header"><div><p class="eyebrow mb-1">Create</p><h2 class="modal-title fs-5" id="newFolderTitle">New folder</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-header"><h2 class="modal-title fs-5" id="newFolderTitle">New folder</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <form action="{% if path %}{{ url_for('create_folder', path=path) }}{% else %}{{ url_for('create_folder') }}{% endif %}" method="POST">
-                <div class="modal-body"><label class="form-label" for="folderNameInput">Folder name</label><input id="folderNameInput" class="form-control" type="text" name="folder_name" placeholder="Example: Project photos" maxlength="120" autocomplete="off" required><p class="form-hint">The folder will be created in <strong>{{ path or 'Root' }}</strong>.</p></div>
+                <div class="modal-body"><label class="form-label" for="folderNameInput">Folder name</label><input id="folderNameInput" class="form-control" type="text" name="folder_name" placeholder="Example: Project photos" maxlength="120" autocomplete="off" required></div>
                 <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button id="createFolderButton" class="btn btn-primary" type="submit"><i class="fa-solid fa-folder-plus" aria-hidden="true"></i> Create folder</button></div>
             </form>
         </div>
@@ -278,12 +306,11 @@
 <div class="modal fade" id="newTextModal" tabindex="-1" aria-labelledby="newTextTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header"><div><p class="eyebrow mb-1">Create and edit</p><h2 class="modal-title fs-5" id="newTextTitle">New text file</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-header"><h2 class="modal-title fs-5" id="newTextTitle">New text file</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
             <form action="{% if path %}{{ url_for('create_text_file', path=path) }}{% else %}{{ url_for('create_text_file') }}{% endif %}" method="POST">
                 <div class="modal-body">
                     <label class="form-label" for="newTextName">File name</label>
                     <div class="new-file-name-row"><input id="newTextName" class="form-control" type="text" name="file_name" placeholder="untitled" maxlength="160" autocomplete="off" required><select class="form-select" name="extension" aria-label="File extension"><option value=".txt">.txt</option><option value=".md">.md</option><option value=".py">.py</option><option value=".js">.js</option><option value=".html">.html</option><option value=".css">.css</option><option value=".json">.json</option><option value=".yaml">.yaml</option><option value=".log">.log</option></select></div>
-                    <p class="form-hint">You can include a supported extension in the name. The file opens immediately in the browser editor.</p>
                     <label class="form-label mt-3" for="initialContent">Optional starting content</label><textarea id="initialContent" class="form-control" name="initial_content" rows="4" placeholder="Start writing now, or leave this empty"></textarea>
                 </div>
                 <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit"><i class="fa-solid fa-code" aria-hidden="true"></i> Create and edit</button></div>
@@ -318,7 +345,6 @@
         <div class="modal-content">
             <div class="modal-header">
                 <div>
-                    <p class="eyebrow mb-1">Access control</p>
                     <h5 class="modal-title" id="shareTitle">Share item</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -344,7 +370,6 @@
                             <option value="edit">Editor</option>
                             <option value="manage">Full control</option>
                         </select>
-                        <small class="muted">Use full control only for people you trust.</small>
                     </div>
 
                     <div class="form-group">
@@ -358,7 +383,6 @@
                     <div class="form-group share-restricted-field">
                         <label class="form-label" for="shareAllowedUsers">Allowed usernames</label>
                         <input id="shareAllowedUsers" class="form-control" name="allowed_users" placeholder="Admin, Tames, family_user">
-                        <small class="muted">Comma separated. Owner and Admin always keep access.</small>
                     </div>
 
                     <div class="form-group">
@@ -395,7 +419,6 @@
         <div class="modal-content move-modal-content">
             <div class="modal-header">
                 <div>
-                    <p id="moveCopySubtitle" class="eyebrow mb-1">File operation</p>
                     <h5 id="moveCopyTitle" class="modal-title">Move or copy</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -417,23 +440,19 @@
                         <label class="operation-card">
                             <input type="radio" name="operation" value="move" checked>
                             <span><i class="fa-solid fa-arrows-up-down-left-right"></i> Move</span>
-                            <small>Relocate the original item.</small>
                         </label>
                         <label class="operation-card">
                             <input type="radio" name="operation" value="copy">
                             <span><i class="fa-solid fa-copy"></i> Copy</span>
-                            <small>Keep the original and duplicate it.</small>
                         </label>
                     </div>
 
-                    <label class="form-label mt-3" for="destinationFolder">Destination folder</label>
-                    <div class="destination-row">
-                        <input id="destinationFolder" class="form-control" name="destination_folder" placeholder="Example: Admin/archive or Tames/photos" autocomplete="off">
-                        <button class="btn btn-outline-primary" type="button" id="useCurrentFolderBtn">Current</button>
-                        <button class="btn btn-outline-primary" type="button" id="useParentFolderBtn">Parent</button>
-                        <button class="btn btn-outline-primary" type="button" id="useRootFolderBtn">Root</button>
+                    <div class="move-destination-heading">
+                        <div>
+                            <label class="form-label mb-0" for="destinationFolderPickerButton">Destination folder</label>
+                        </div>
                     </div>
-                    <small class="muted d-block mt-2">You can also drag any file card onto a folder card to move it instantly.</small>
+                    {{ folder_picker("destinationFolder", "destination_folder", path, (path|replace("/", " › ")) or "Storage root", true) }}
 
                     <div id="moveCopyNameGroup" class="rename-at-destination">
                         <label class="form-label mt-3" for="newMoveName">Optional new name at destination</label>
@@ -452,14 +471,53 @@
 <div class="modal fade" id="progressModal" tabindex="-1" aria-labelledby="progressTitle" aria-describedby="progressStatus" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content upload-progress-dialog">
-            <div class="modal-header"><div><p class="eyebrow mb-1">Transfer</p><h2 class="modal-title fs-5" id="progressTitle">Uploading files</h2></div></div>
+            <div class="modal-header"><h2 class="modal-title fs-5" id="progressTitle">Uploading files</h2></div>
             <div class="modal-body">
-                <div class="upload-progress-summary"><span class="upload-progress-icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong id="progressFileCount">Preparing upload</strong><small id="progressCurrentFile">Please keep this tab open.</small></div><strong id="progressPercentage">0%</strong></div>
+                <div class="upload-progress-summary"><span class="upload-progress-icon" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span><div><strong id="progressFileCount">Preparing upload</strong><small id="progressCurrentFile"></small></div><strong id="progressPercentage">0%</strong></div>
                 <div class="progress upload-progress-track" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressBar" class="progress-bar" style="width: 0%"></div></div>
                 <div class="upload-progress-meta"><span id="progressBytes">0 B of 0 B</span><span id="progressSpeed">Calculating speed…</span><span id="progressEta">Estimating time…</span></div>
                 <p id="progressStatus" class="upload-progress-status" role="status" aria-live="polite">Preparing your files…</p>
+                <div id="uploadProgressFiles" class="upload-progress-files" aria-live="polite"></div>
             </div>
             <div id="progressModalFooter" class="modal-footer"><button id="cancelUploadButton" type="button" class="btn btn-outline-danger"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Cancel upload</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="uploadConflictModal" tabindex="-1" aria-labelledby="uploadConflictTitle" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="uploadConflictTitle">Files already exist</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel upload"></button>
+            </div>
+            <div class="modal-body">
+                <div id="uploadConflictList" class="list-group" aria-live="polite"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button id="renameUploadConflicts" type="button" class="btn btn-outline-primary"><i class="fa-solid fa-copy" aria-hidden="true"></i> Rename new files</button>
+                <button id="replaceUploadConflicts" type="button" class="btn btn-danger"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Replace existing</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="exportProgressModal" tabindex="-1" aria-labelledby="exportProgressTitle" aria-describedby="exportProgressStatus" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content upload-progress-dialog">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="exportProgressTitle">Download selected files</h2></div>
+            <div class="modal-body">
+                <div class="upload-progress-summary">
+                    <span class="upload-progress-icon" aria-hidden="true"><i class="fa-solid fa-file-zipper"></i></span>
+                    <div><strong id="exportProgressSummary">Preparing selected items</strong></div>
+                    <strong id="exportProgressPercentage">…</strong>
+                </div>
+                <div class="progress upload-progress-track" role="progressbar" aria-label="Preparing ZIP archive" aria-valuemin="0" aria-valuemax="100"><div id="exportProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div></div>
+                <div class="upload-progress-meta"><span id="exportProgressBytes">Waiting for archive</span><span id="exportProgressSpeed">Preparing…</span><span id="exportProgressEta">Please wait</span></div>
+                <p id="exportProgressStatus" class="upload-progress-status" role="status" aria-live="polite">Preparing ZIP on the server…</p>
+            </div>
+            <div class="modal-footer"><button id="cancelExportButton" type="button" class="btn btn-outline-danger"><i class="fa-solid fa-xmark" aria-hidden="true"></i> Cancel export</button></div>
         </div>
     </div>
 </div>
@@ -467,5 +525,6 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/pdf_preview.js') }}"></script>
+<script src="{{ url_for('static', filename='js/folder-picker.js') }}"></script>
 <script src="{{ url_for('static', filename='js/storage.js') }}"></script>
 {% endblock %}

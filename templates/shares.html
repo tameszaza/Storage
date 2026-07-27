@@ -62,15 +62,19 @@
                             </div>
                         </div>
                         <div class="share-row-actions">
-                            <button class="btn btn-sm btn-primary js-copy" type="button" data-copy="{{ share.url }}"><i class="fa-solid fa-copy"></i> Copy</button>
-                            <a class="btn btn-sm btn-outline-primary" href="{{ share.url }}" target="_blank" rel="noopener">Open</a>
+                            {% if share.active %}
+                                <button class="btn btn-sm btn-primary js-copy" type="button" data-copy="{{ share.url }}"><i class="fa-solid fa-copy"></i> Copy</button>
+                                <a class="btn btn-sm btn-outline-primary" href="{{ share.url }}" target="_blank" rel="noopener">Open</a>
+                            {% else %}
+                                <span class="share-unavailable-action" aria-label="This share link is unavailable"><i class="fa-solid fa-link-slash" aria-hidden="true"></i> Unavailable</span>
+                            {% endif %}
                             {% if not share.revoked %}
                                 <form action="{{ url_for('revoke_share_route', token=share.token) }}" method="POST" data-confirm="Revoke this share link?">
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button>
                                 </form>
                             {% endif %}
                             <form action="{{ url_for('delete_share_route', token=share.token) }}" method="POST" data-confirm="Delete this share record?">
-                                <button class="btn btn-sm btn-light danger-text" type="submit"><i class="fa-solid fa-trash"></i></button>
+                                <button class="btn btn-sm btn-light danger-text" type="submit" aria-label="Delete share record" title="Delete share record"><i class="fa-solid fa-trash"></i></button>
                             </form>
                         </div>
                     </article>
@@ -109,15 +113,20 @@
         {% if received_shares %}
             <div class="share-list">
                 {% for share in received_shares %}
-                    <article class="share-row">
+                    <article class="share-row {% if not share.active %}is-inactive{% endif %}">
                         <div class="share-row-main">
                             <span class="file-icon {{ 'folder' if share.is_dir else 'file' }}"><i class="fa-solid {{ 'fa-folder' if share.is_dir else 'fa-file' }}"></i></span>
                             <div>
                                 <h3>{{ share.name }}</h3>
                                 <p class="muted">Owner: {{ share.owner }} · {{ share.permission_label }}</p>
+                                <span class="status-pill {{ 'success' if share.active else 'danger' }}">{{ share.status_text }}</span>
                             </div>
                         </div>
-                        <a class="btn btn-sm btn-primary" href="{{ share.url }}">Open</a>
+                        {% if share.active %}
+                            <a class="btn btn-sm btn-primary" href="{{ share.url }}">Open</a>
+                        {% else %}
+                            <span class="share-unavailable-action"><i class="fa-solid fa-link-slash" aria-hidden="true"></i> Unavailable</span>
+                        {% endif %}
                     </article>
                 {% endfor %}
             </div>

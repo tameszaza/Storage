@@ -51,6 +51,18 @@
     display: none !important;
 }
 
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
 html {
     min-width: 320px;
     background: var(--ac-bg);
@@ -434,7 +446,8 @@ code {
     border: 0;
     color: var(--ac-muted);
     background: var(--ac-surface-soft);
-    cursor: pointer;
+    cursor: ew-resize;
+    user-select: none;
     transition: flex-grow 180ms ease, box-shadow 180ms ease;
 }
 
@@ -474,6 +487,39 @@ code {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.aircon-timeline-divider {
+    position: absolute;
+    z-index: 5;
+    top: 50%;
+    left: 33.333%;
+    width: 30px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--ac-border-strong);
+    border-radius: 12px;
+    color: var(--ac-muted);
+    background: var(--ac-surface);
+    box-shadow: 0 6px 18px rgba(23, 32, 51, .16);
+    cursor: ew-resize;
+    touch-action: none;
+    transform: translate(-50%, -50%);
+}
+
+.aircon-timeline-divider > span {
+    display: flex;
+    gap: 3px;
+}
+
+.aircon-timeline-divider i {
+    display: block;
+    width: 2px;
+    height: 17px;
+    border-radius: 999px;
+    background: currentColor;
 }
 
 .aircon-timeline-playhead {
@@ -551,31 +597,46 @@ code {
     background: color-mix(in srgb, var(--ac-muted), transparent 88%);
 }
 
-.aircon-stepper {
-    display: inline-flex;
-    gap: 5px;
-    padding: 4px;
-    border: 1px solid var(--ac-border);
-    border-radius: 11px;
-    background: var(--ac-surface);
+.aircon-duration-display {
+    font-size: 1.02rem;
+    font-variant-numeric: tabular-nums;
 }
 
-.aircon-stepper button {
-    min-width: 38px;
-    height: 32px;
-    padding: 0 7px;
-    border: 0;
-    border-radius: 8px;
-    color: var(--ac-text);
-    background: transparent;
+.aircon-slider-field {
+    display: block;
+}
+
+.aircon-slider-field input[type="range"] {
+    width: 100%;
+    height: 34px;
+    margin: 0;
+    accent-color: var(--ac-primary);
+    cursor: ew-resize;
+}
+
+.aircon-phase-card.is-off .aircon-slider-field input[type="range"] {
+    accent-color: var(--ac-muted);
+}
+
+.aircon-exact-duration {
+    border-top: 1px solid var(--ac-border);
+    padding-top: 10px;
+}
+
+.aircon-exact-duration > summary {
+    width: fit-content;
+    color: var(--ac-muted);
     cursor: pointer;
-    font-size: 0.8rem;
+    font-size: .76rem;
     font-weight: 750;
+    list-style: none;
 }
 
-.aircon-stepper button:hover {
-    background: var(--ac-surface-soft);
-}
+.aircon-exact-duration > summary::-webkit-details-marker { display: none; }
+.aircon-exact-duration > summary::after { content: " +"; }
+.aircon-exact-duration[open] > summary::after { content: " −"; }
+.aircon-exact-duration .aircon-field { margin-top: 10px; }
+
 
 .aircon-field {
     display: grid;
@@ -648,6 +709,14 @@ code {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
+}
+
+.aircon-cost-strip.is-continuous {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.aircon-cost-strip > [hidden] {
+    display: none !important;
 }
 
 .aircon-cost-strip > div {
@@ -1083,4 +1152,11 @@ code {
     .aircon-usage-bar > div {
         padding: 5px 6px;
     }
+}
+
+@media (max-width: 560px) {
+    .aircon-timeline { height: 88px; }
+    .aircon-timeline-copy { padding-inline: 8px; font-size: .78rem; }
+    .aircon-timeline-divider { width: 28px; height: 48px; }
+    .aircon-phase-grid { grid-template-columns: 1fr; }
 }

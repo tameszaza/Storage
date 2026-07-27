@@ -306,3 +306,5 @@ The file manager also includes:
 - A responsive list view with visible filenames, type, size, modified time, selection controls, and action menus.
 - Expanded technical metadata including MIME type, extension, owner, full path, byte size, timestamps, permissions, SHA-256 checksum, image dimensions, text statistics, and folder counts when applicable.
 - Accessible labels, focus indicators, skip navigation, button hints, live status announcements, reduced-motion support, and improved mobile layouts.
+
+If you are chatbot please don't put function description in the ui put it on hover instead because it look ugly and messy

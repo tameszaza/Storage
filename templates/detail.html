@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Storage detail · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/storage-analysis.css') }}" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card">
+<section class="workspace-header glass-card storage-detail-header">
     <div>
         <p class="eyebrow">Storage analytics</p>
         <h1>{{ directory }}</h1>
@@ -13,24 +14,73 @@
     </div>
 </section>
 
-<section class="analytics-grid">
-    <article class="glass-card chart-card">
-        <h2>Folder usage</h2>
-        <img src="{{ url_for('serve_chart', filename=chart_filename) }}" alt="Folder usage chart">
-        <div class="chart-table">
-            {% for label, size, percentage in chart_info %}
-                <div><span>{{ label }}</span><strong>{{ percentage }}%</strong></div>
-            {% endfor %}
+<section class="analytics-grid storage-analytics-grid">
+    <article class="glass-card chart-card storage-hierarchy-card">
+        <div class="storage-chart-heading">
+            <h2>Folder hierarchy</h2>
+            <div class="storage-chart-actions" aria-label="Chart navigation">
+                <button id="sunburstBack" class="storage-chart-button" type="button" aria-label="Go to parent folder" title="Go to parent folder" disabled>
+                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                </button>
+                <button id="sunburstHome" class="storage-chart-button" type="button" aria-label="Return to analysis root" title="Return to analysis root" disabled>
+                    <i class="fa-solid fa-house" aria-hidden="true"></i>
+                </button>
+                <a id="sunburstOpen" class="storage-chart-button" href="{{ url_for('index') }}" aria-label="Open current folder" title="Open current folder">
+                    <i class="fa-regular fa-folder-open" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
+
+        <nav id="sunburstBreadcrumbs" class="storage-chart-breadcrumbs" aria-label="Analyzed folder path"></nav>
+
+        <div class="storage-explorer-layout">
+            <div id="storageSunburst" class="sunburst-stage" aria-live="polite">
+                <svg id="storageSunburstSvg" viewBox="0 0 640 640" role="img" aria-labelledby="sunburstTitle sunburstDescription">
+                    <title id="sunburstTitle">Interactive folder storage chart</title>
+                    <desc id="sunburstDescription">Click a folder segment to zoom into it. Use the center or back button to move to its parent.</desc>
+                    <g id="sunburstArcs" transform="translate(320 320)"></g>
+                    <g id="sunburstLabels" transform="translate(320 320)" aria-hidden="true"></g>
+                    <g id="sunburstCenter" class="sunburst-center" transform="translate(320 320)" role="button" tabindex="0" aria-label="Current folder. Activate to go to its parent.">
+                        <circle r="88"></circle>
+                        <text id="sunburstCenterName" class="sunburst-center-name" text-anchor="middle" y="-10"></text>
+                        <text id="sunburstCenterSize" class="sunburst-center-size" text-anchor="middle" y="19"></text>
+                        <text id="sunburstCenterHint" class="sunburst-center-hint" text-anchor="middle" y="43"></text>
+                    </g>
+                </svg>
+                <div id="storageChartTooltip" class="storage-chart-tooltip" role="tooltip" hidden></div>
+            </div>
+
+            <div class="storage-branch-panel">
+                <div class="storage-branch-summary">
+                    <span id="storageCurrentKind">Folder</span>
+                    <strong id="storageCurrentSize">0 B</strong>
+                </div>
+                <div id="storageBranchList" class="storage-branch-list" aria-label="Items in current folder"></div>
+            </div>
         </div>
     </article>
-    <article class="glass-card chart-card">
-        <h2>File types</h2>
-        <img src="{{ url_for('serve_chart', filename=file_type_chart_filename) }}" alt="File type usage chart">
-        <div class="chart-table">
-            {% for label, size, percentage in file_type_chart_info %}
-                <div><span>{{ label }}</span><strong>{{ percentage }}%</strong></div>
-            {% endfor %}
+
+    <article class="glass-card chart-card storage-file-types-card">
+        <div class="storage-chart-heading">
+            <h2>File types</h2>
+        </div>
+        <div class="file-type-layout">
+            <div id="fileTypeDonut" class="file-type-stage">
+                <svg id="fileTypeSvg" viewBox="0 0 360 360" role="img" aria-labelledby="fileTypeTitle fileTypeDescription">
+                    <title id="fileTypeTitle">Interactive file type storage chart</title>
+                    <desc id="fileTypeDescription">Select a segment or list item to inspect storage used by that file type.</desc>
+                    <g id="fileTypeArcs" transform="translate(180 180)"></g>
+                    <g class="file-type-center" transform="translate(180 180)" aria-hidden="true">
+                        <text id="fileTypeCenterName" text-anchor="middle" y="-7">All files</text>
+                        <text id="fileTypeCenterSize" text-anchor="middle" y="20"></text>
+                    </g>
+                </svg>
+            </div>
+            <div id="fileTypeList" class="file-type-list" aria-label="File type storage"></div>
         </div>
     </article>
 </section>
+
+<script id="storageAnalysisData" type="application/json">{{ storage_analysis|tojson }}</script>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/storage-analysis.js') }}"></script>{% endblock %}

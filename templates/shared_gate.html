@@ -1,24 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Shared access · Tamestorage{% endblock %}
+{% set display_name = share.name if share else (resource_name or "Shared link") %}
+{% set kind = gate_kind or ("password" if password_required else "unavailable") %}
+{% block title %}{{ display_name }} · Tamestorage{% endblock %}
 {% block content %}
-<section class="shared-public-shell glass-card">
-    <div class="shared-public-icon"><i class="fa-solid fa-lock"></i></div>
-    <p class="eyebrow">Shared access</p>
-    <h1>{{ share.name }}</h1>
-    <p class="muted">{{ message }}</p>
+<section class="shared-public-shell glass-card shared-gate shared-gate-{{ kind }}">
+    <div class="shared-public-icon">
+        {% if kind == "password" %}<i class="fa-solid fa-lock" aria-hidden="true"></i>
+        {% elif kind == "forbidden" %}<i class="fa-solid fa-user-lock" aria-hidden="true"></i>
+        {% elif kind == "missing" %}<i class="fa-regular fa-folder-open" aria-hidden="true"></i>
+        {% else %}<i class="fa-solid fa-link-slash" aria-hidden="true"></i>{% endif %}
+    </div>
+    <p class="eyebrow">{{ gate_label or ("Password protected" if kind == "password" else "Link unavailable") }}</p>
+    <h1>{{ display_name }}</h1>
+    <p class="muted">{{ message or "This link cannot be opened." }}</p>
 
-    {% if password_required %}
+    {% if password_required and share %}
         <form class="shared-password-form" action="{{ url_for('shared_password', token=share.token) }}" method="POST">
-            <label class="form-label" for="sharePasswordInput">Enter share password</label>
+            <label class="form-label" for="sharePasswordInput">Password</label>
             <div class="copy-row">
-                <input id="sharePasswordInput" class="form-control" type="password" name="password" required autofocus>
+                <input id="sharePasswordInput" class="form-control" type="password" name="password" required autofocus autocomplete="current-password">
                 <button class="btn btn-primary" type="submit">Unlock</button>
             </div>
         </form>
     {% else %}
-        {% if not session.get('logged_in') %}
-            <a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>
-        {% endif %}
+        <div class="shared-gate-actions">
+            {% if return_url %}
+                <a class="btn btn-outline-primary" href="{{ return_url }}">Back to shared item</a>
+            {% else %}
+                <a class="btn btn-outline-primary" href="{{ url_for('index') if session.get('logged_in') else url_for('introduction') }}">Back to Tamestorage</a>
+            {% endif %}
+            {% if kind == "forbidden" and not session.get('logged_in') %}<a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>{% endif %}
+        </div>
     {% endif %}
 </section>
 {% endblock %}

@@ -46,7 +46,7 @@
 body[data-theme="dark"] .planner-event:hover { filter: brightness(1.18); }
 .planner-event time { flex: 0 0 auto; color: var(--ts-muted); font-size: .63rem; font-variant-numeric: tabular-nums; }
 .planner-event span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
-.planner-event.is-microsoft { border-left-color: #6264a7; background: color-mix(in srgb, #6264a7, transparent 88%); }
+.planner-event.is-published { border-left-color: #6264a7; background: color-mix(in srgb, #6264a7, transparent 88%); }
 
 .planner-todos { position: sticky; top: 90px; }
 .planner-todo-header { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--ts-border); }
@@ -107,7 +107,7 @@ body[data-theme="dark"] .planner-event:hover { filter: brightness(1.18); }
     .planner-day-number { width: 25px; height: 25px; margin-bottom: 3px; font-size: .68rem; }
     .planner-day-events { display: flex; flex-wrap: wrap; align-content: start; gap: 3px; padding: 1px 2px; }
     .planner-event { width: 9px; height: 9px; flex: 0 0 9px; padding: 0; border: 0; border-radius: 50%; background: var(--ts-primary); }
-    .planner-event.is-microsoft { background: #6264a7; }
+    .planner-event.is-published { background: #6264a7; }
     .planner-event time, .planner-event span { display: none; }
     .planner-event:hover, .planner-event:focus-visible { transform: scale(1.2); filter: none; }
 }
@@ -120,4 +120,41 @@ body[data-theme="dark"] .planner-event:hover { filter: brightness(1.18); }
 @media (prefers-reduced-motion: reduce) {
     .planner-icon-button, .planner-event { transition: none; }
     .planner-icon-button.is-syncing i { animation: none; }
+}
+
+/* Multi-day calendar spans */
+.planner-event.is-multi-day {
+    position: relative;
+    border-radius: 3px;
+}
+.planner-event.is-span-start {
+    border-radius: 5px 2px 2px 5px;
+}
+.planner-event.is-span-middle {
+    border-left-color: transparent;
+    border-radius: 2px;
+}
+.planner-event.is-span-end {
+    border-left-color: transparent;
+    border-radius: 2px 5px 5px 2px;
+}
+.planner-event.is-span-middle::before,
+.planner-event.is-span-end::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: color-mix(in srgb, var(--ts-primary), transparent 45%);
+}
+.planner-event.is-published.is-span-middle::before,
+.planner-event.is-published.is-span-end::before {
+    background: color-mix(in srgb, #6264a7, transparent 42%);
+}
+
+@media (max-width: 760px) {
+    .planner-event.is-multi-day::before {
+        display: none;
+    }
 }

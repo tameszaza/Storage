@@ -45,11 +45,12 @@ class Config:
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
     GEMINI_CONFIG_PATH = os.environ.get("GEMINI_CONFIG_PATH", os.path.join("uploads", "Admin", "config.txt"))
     PLANNER_DATA_FILE = os.environ.get("PLANNER_DATA_FILE", "planner.json")
-    MICROSOFT_CALENDAR_CONFIG_PATH = os.environ.get(
-        "MICROSOFT_CALENDAR_CONFIG_PATH", os.path.join("uploads", "Admin", "microsoft_calendar.json")
+    APP_TIMEZONE = os.environ.get("APP_TIMEZONE", "Asia/Singapore")
+    ICS_CALENDAR_CONFIG_PATH = os.environ.get(
+        "ICS_CALENDAR_CONFIG_PATH", os.path.join("uploads", "Admin", "ics_calendar.json")
     )
-    MICROSOFT_CALENDAR_CACHE_FILE = os.environ.get(
-        "MICROSOFT_CALENDAR_CACHE_FILE", os.path.join("uploads", "Admin", "microsoft_calendar_cache.json")
+    ICS_CALENDAR_CACHE_FILE = os.environ.get(
+        "ICS_CALENDAR_CACHE_FILE", os.path.join("uploads", "Admin", "ics_calendar_cache.json")
     )
     SHARE_DATA_FILE = os.environ.get("SHARE_DATA_FILE", "shares.json")
     SHARE_AUDIT_FILE = os.environ.get("SHARE_AUDIT_FILE", "share_audit.json")

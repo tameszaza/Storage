@@ -7,7 +7,16 @@ from pathlib import Path
 from flask import jsonify, render_template, request, session, url_for
 
 from lib.activity import log_activity
-from lib.ai_client import ask_image, ask_text, build_ai_context, initial_history, is_ai_readable_file
+from lib.assistant_agenda import direct_temporal_answer
+from lib.ai_client import (
+    ask_image,
+    ask_text,
+    build_ai_context,
+    direct_command_catalog,
+    initial_history,
+    is_ai_readable_file,
+    tool_catalog,
+)
 from lib.metadata import move_metadata
 from lib.security import login_required
 from lib.storage import (
@@ -71,12 +80,16 @@ def _assistant_workspace() -> dict:
 
     context_files.sort(key=lambda item: item["path"].casefold())
     recent_files.sort(key=lambda item: item["modified_timestamp"], reverse=True)
+    tools = tool_catalog(username)
     return {
         "file_count": file_count,
         "folder_count": folder_count,
         "total_size_label": format_bytes(total_bytes),
         "context_files": context_files,
         "recent_files": recent_files[:4],
+        "tools": tools,
+        "tool_summary": "Available tools: " + ", ".join(item["name"] for item in tools) + ".",
+        "commands": direct_command_catalog(),
     }
 
 
@@ -318,6 +331,14 @@ def handle_file_command(message: str) -> dict | None:
     return None
 
 
+def _store_direct_chat_turn(message: str, response: str) -> None:
+    history = session.get("conversation_history") or initial_history(session.get("username"))
+    history = list(history)[-998:]
+    history.append({"role": "user", "parts": message})
+    history.append({"role": "model", "parts": response})
+    session["conversation_history"] = history
+
+
 @login_required
 def chat():
     history = session.get("conversation_history") or initial_history(session.get("username"))
@@ -325,12 +346,19 @@ def chat():
     image = request.files.get("image")
     prompt = request.form.get("prompt", "Describe this image.").strip() or "Describe this image."
 
+    include_context = request.form.get("include_context", "1") == "1"
+
     if msg and not image:
+        if include_context:
+            temporal_response = direct_temporal_answer(session.get("username"), msg)
+            if temporal_response:
+                _store_direct_chat_turn(msg, temporal_response)
+                return jsonify({"response": temporal_response})
+
         command_result = handle_file_command(msg)
         if command_result and command_result.get("handled"):
             return jsonify(command_result)
 
-    include_context = request.form.get("include_context", "1") == "1"
     file_path = request.form.get("file_path", "").strip()
     detail_level = request.form.get("detail_level", "balanced").strip() or "balanced"
     response_style = request.form.get("response_style", "practical").strip() or "practical"
@@ -344,13 +372,22 @@ def chat():
 
     try:
         if image and image.filename:
-            response_text, history = ask_image(history, image.read(), prompt, msg, extra_context=extra_context)
+            response_text, history = ask_image(
+                history,
+                image.read(),
+                prompt,
+                msg,
+                extra_context=extra_context,
+                username=session.get("username"),
+                allow_tools=include_context,
+            )
         elif msg:
             response_text, history = ask_text(
                 history,
                 msg,
                 username=session.get("username"),
                 extra_context=extra_context,
+                allow_tools=include_context,
             )
         else:
             return jsonify({"response": "No valid input provided."}), 400

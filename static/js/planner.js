@@ -7,16 +7,33 @@
         }
     }
 
+    function formatDate(raw, includeWeekday = true) {
+        const parsed = new Date(`${raw || ""}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) return raw || "";
+        const options = includeWeekday
+            ? { weekday: "long", month: "long", day: "numeric", year: "numeric" }
+            : { month: "long", day: "numeric", year: "numeric" };
+        return new Intl.DateTimeFormat(undefined, options).format(parsed);
+    }
+
     function readableDate(item) {
-        const raw = item.date || "";
-        const date = new Date(`${raw}T00:00:00`);
-        const dateText = Number.isNaN(date.getTime())
-            ? raw
-            : new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(date);
-        if (item.all_day) return `${dateText} · All day`;
-        if (item.start_time && item.end_time) return `${dateText} · ${item.start_time}–${item.end_time}`;
-        if (item.start_time) return `${dateText} · ${item.start_time}`;
-        return dateText;
+        const startDate = item.date || "";
+        const endDate = item.end_date || startDate;
+        const spansDays = Boolean(startDate && endDate && startDate !== endDate);
+        const startText = formatDate(startDate, true);
+        const endText = spansDays ? formatDate(endDate, false) : "";
+
+        if (item.all_day) {
+            return spansDays ? `${startText} – ${endText} · All day` : `${startText} · All day`;
+        }
+        if (spansDays) {
+            const starts = item.start_time ? `${startText}, ${item.start_time}` : startText;
+            const ends = item.end_time ? `${endText}, ${item.end_time}` : endText;
+            return `${starts} – ${ends}`;
+        }
+        if (item.start_time && item.end_time) return `${startText} · ${item.start_time}–${item.end_time}`;
+        if (item.start_time) return `${startText} · ${item.start_time}`;
+        return startText;
     }
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -54,7 +71,7 @@
         const notesTarget = detailElement?.querySelector("[data-event-notes]");
         const sourceTarget = detailElement?.querySelector("[data-event-source]");
         const deleteForm = detailElement?.querySelector("[data-event-delete-form]");
-        const microsoftLink = detailElement?.querySelector("[data-event-open-microsoft]");
+        const sourceLink = detailElement?.querySelector("[data-event-open-source]");
 
         document.querySelectorAll("[data-event]").forEach((button) => {
             button.addEventListener("click", () => {
@@ -67,21 +84,21 @@
                 if (notesTarget) notesTarget.textContent = item.notes || "";
                 if (notesRow) notesRow.hidden = !item.notes;
 
-                const microsoft = item.source === "microsoft";
+                const published = item.source === "ics";
                 if (sourceTarget) {
-                    sourceTarget.textContent = microsoft ? "Microsoft Calendar" : "";
-                    sourceTarget.classList.toggle("is-visible", microsoft);
+                    sourceTarget.textContent = published ? "Published calendar" : "";
+                    sourceTarget.classList.toggle("is-visible", published);
                 }
                 if (deleteForm) {
-                    deleteForm.hidden = microsoft;
-                    if (!microsoft) {
+                    deleteForm.hidden = published;
+                    if (!published) {
                         const template = deleteForm.dataset.deleteTemplate || "";
                         deleteForm.action = template.replace("__EVENT_ID__", encodeURIComponent(item.id || ""));
                     }
                 }
-                if (microsoftLink) {
-                    microsoftLink.hidden = !microsoft || !item.web_link;
-                    microsoftLink.href = item.web_link || "#";
+                if (sourceLink) {
+                    sourceLink.hidden = !published || !item.web_link;
+                    sourceLink.href = item.web_link || "#";
                 }
                 detailModal?.show();
             });
@@ -107,9 +124,9 @@
         filterButtons.forEach((button) => button.addEventListener("click", () => applyFilter(button.dataset.todoFilter || "open")));
         applyFilter("open");
 
-        const syncForm = document.getElementById("microsoftSyncForm");
-        const syncButton = document.getElementById("microsoftSyncButton");
-        async function syncMicrosoft(event) {
+        const syncForm = document.getElementById("calendarSyncForm");
+        const syncButton = document.getElementById("calendarSyncButton");
+        async function syncPublishedCalendar(event) {
             event?.preventDefault();
             if (!syncForm || syncForm.dataset.configured !== "true" || syncButton?.classList.contains("is-syncing")) return;
             syncButton?.classList.add("is-syncing");
@@ -122,12 +139,12 @@
                     headers: { "Accept": "application/json", "X-Requested-With": "fetch" },
                 });
                 const payload = await response.json().catch(() => ({}));
-                if (!response.ok || !payload.success) throw new Error(payload.error || "Microsoft Calendar sync failed.");
+                if (!response.ok || !payload.success) throw new Error(payload.error || "Calendar refresh failed.");
                 syncButton?.classList.add("is-synced");
                 window.location.reload();
             } catch (error) {
                 if (syncButton) {
-                    syncButton.title = error.message || "Microsoft Calendar sync failed.";
+                    syncButton.title = error.message || "Calendar refresh failed.";
                     bootstrap.Tooltip.getInstance(syncButton)?.dispose();
                     bootstrap.Tooltip.getOrCreateInstance(syncButton, { container: "body", trigger: "hover focus" });
                 }
@@ -136,8 +153,8 @@
                 syncButton?.removeAttribute("disabled");
             }
         }
-        syncForm?.addEventListener("submit", syncMicrosoft);
-        if (syncForm?.dataset.autoSync === "true") window.setTimeout(() => syncMicrosoft(), 350);
+        syncForm?.addEventListener("submit", syncPublishedCalendar);
+        if (syncForm?.dataset.autoSync === "true") window.setTimeout(() => syncPublishedCalendar(), 350);
 
         const calendarButtons = Array.from(document.querySelectorAll(".planner-day-number"));
         calendarButtons.forEach((button, index) => {

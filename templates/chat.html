@@ -20,27 +20,26 @@
             <section class="chat-control-section">
                 <div class="chat-section-heading">
                     <h2><i class="fa-solid fa-database" aria-hidden="true"></i> Workspace</h2>
-                    <span>Live context</span>
                 </div>
                 <div class="assistant-workspace-stats" aria-label="Workspace summary">
                     <span><strong>{{ assistant_workspace.file_count }}</strong> Files</span>
                     <span><strong>{{ assistant_workspace.folder_count }}</strong> Folders</span>
                     <span><strong>{{ assistant_workspace.total_size_label }}</strong> Used</span>
                 </div>
-                <label class="form-label" for="fileContextPath">File to inspect</label>
+                <label class="form-label" for="fileContextPath">Optional file</label>
                 <select id="fileContextPath" class="form-select">
-                    <option value="">Whole workspace · names and folders</option>
+                    <option value="">Automatic context</option>
                     {% for item in assistant_workspace.context_files %}
                     <option value="{{ item.path }}" {% if item.path == selected_context_path %}selected{% endif %}>{{ item.path }} · {{ item.size_label }}</option>
                     {% endfor %}
                 </select>
-                <p id="fileContextHelp" class="context-scope-note" tabindex="0">
+                <p id="fileContextHelp" class="context-scope-note" tabindex="0" data-tool-summary="{{ assistant_workspace.tool_summary }}">
                     <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                    <span class="context-scope-note-text">Select a text, code, or data file to let the assistant read it.</span>
+                    <span class="context-scope-note-text">{{ assistant_workspace.tool_summary }}</span>
                 </p>
                 <label class="chat-check-row">
                     <input id="includeTreeContext" type="checkbox" checked>
-                    <span>Include workspace structure</span>
+                    <span>Allow private tools</span>
                 </label>
             </section>
 
@@ -49,10 +48,10 @@
                     <h2><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Useful tasks</h2>
                 </div>
                 <div class="chat-prompt-list">
-                    <button class="quick-prompt" type="button" data-prompt="Give me a useful overview of this workspace. Identify the important folders, what is known from file names, and what needs a file selected before you can verify it."><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><span><strong>Workspace overview</strong><small>Files and folders</small></span></button>
+                    <button class="quick-prompt" type="button" data-prompt="Inspect this workspace with the available tools and give me a useful overview. Verify important folders and large items before answering."><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><span><strong>Workspace overview</strong><small>Files and folders</small></span></button>
                     <button class="quick-prompt requires-file" type="button" data-prompt="Explain the selected file: {file}. Summarize its contents, describe its structure and purpose, flag anything important, and suggest useful next steps."><i class="fa-regular fa-file-lines" aria-hidden="true"></i><span><strong>Explain selected file</strong><small>Read and explain</small></span></button>
                     <button class="quick-prompt requires-file" type="button" data-prompt="Review the selected file: {file}. Find errors, inconsistencies, risky content, or improvements. Be specific and cite the relevant content."><i class="fa-solid fa-magnifying-glass-chart" aria-hidden="true"></i><span><strong>Review selected file</strong><small>Check for problems</small></span></button>
-                    <button class="quick-prompt" type="button" data-prompt="Propose a practical cleanup and organization plan using only the workspace tree you can verify. Use exact paths and separate verified facts from suggestions."><i class="fa-solid fa-broom" aria-hidden="true"></i><span><strong>Organize workspace</strong><small>Cleanup suggestions</small></span></button>
+                    <button class="quick-prompt" type="button" data-prompt="Inspect the workspace and propose a practical cleanup plan. Use exact verified paths and separate facts from suggestions."><i class="fa-solid fa-broom" aria-hidden="true"></i><span><strong>Organize workspace</strong><small>Cleanup suggestions</small></span></button>
                 </div>
             </section>
 
@@ -65,11 +64,9 @@
                             <label><span>Format</span><select id="responseStyle" class="form-select"><option value="practical" selected>Practical</option><option value="step-by-step">Steps</option><option value="checklist">Checklist</option><option value="table">Table</option></select></label>
                         </div>
                         <div class="chat-command-row" aria-label="File commands">
-                            <button class="command-chip" type="button" data-template="/open "><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open</button>
-                            <button class="command-chip" type="button" data-template="/inspect "><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Inspect</button>
-                            <button class="command-chip" type="button" data-template="/move source/path -> destination/folder"><i class="fa-solid fa-arrows-up-down-left-right" aria-hidden="true"></i> Move</button>
-                            <button class="command-chip" type="button" data-template="/copy source/path -> destination/folder"><i class="fa-regular fa-copy" aria-hidden="true"></i> Copy</button>
-                            <button class="command-chip" type="button" data-template="/rename source/path -> new-name.ext"><i class="fa-solid fa-pen" aria-hidden="true"></i> Rename</button>
+                            {% for command in assistant_workspace.commands %}
+                            <button class="command-chip" type="button" data-template="{{ command.template }}" title="{{ command.description }}" data-tooltip="true"><i class="{{ command.icon }}" aria-hidden="true"></i> {{ command.label }}</button>
+                            {% endfor %}
                         </div>
                     </div>
                 </details>
@@ -80,7 +77,7 @@
             <div class="chat-conversation-toolbar">
                 <div class="conversation-title">
                     <span class="assistant-orb"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></span>
-                    <span><strong>Workspace chat</strong><small id="conversationScope">Using workspace structure</small></span>
+                    <span><strong>Workspace chat</strong><small id="conversationScope">Tools ready</small></span>
                 </div>
                 <div class="conversation-tools">
                     <label class="chat-search-wrap">

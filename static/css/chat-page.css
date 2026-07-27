@@ -907,3 +907,7 @@
         animation: none;
     }
 }
+
+.context-scope-note-text {
+    width: min(360px, 78vw);
+}

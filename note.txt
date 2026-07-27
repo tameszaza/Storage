@@ -1,5 +1,2 @@
-remove notification and search from the toolss bar since I can already access it from somewhere else
-add calendar (schedule) and todo list in a single page and can acccess it in tools panel
-for admin only the calendar will also sync from microsoft calendar secret and keys store in admin folder justlike the gemini api key
-the overall design style and theme should match what're in the main tamestorage web
-I already applied your last change so give me only the dif for this patch
+make the tool for ai to add or edit the calendar
+server and transfer logs is inaccessible and don't have proper error handling from admin path

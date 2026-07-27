@@ -9,20 +9,20 @@
     <div class="planner-header-actions">
         {% if session.get('username') == 'Admin' %}
         <div class="planner-sync-tip"
-             title="{% if microsoft.configured %}Sync Microsoft Calendar{% if microsoft.last_sync %} · Last synced {{ microsoft.last_sync }}{% endif %}{% else %}Add credentials to {{ microsoft.path }}{% endif %}"
+             title="{% if published_calendar.configured %}Refresh published calendar{% if published_calendar.last_sync %} · Last refreshed {{ published_calendar.last_sync }}{% endif %}{% else %}Add the feed to {{ published_calendar.path }}{% endif %}"
              data-tooltip="true">
-            <form id="microsoftSyncForm"
-                  action="{{ url_for('planner_microsoft_sync') }}"
+            <form id="calendarSyncForm"
+                  action="{{ url_for('planner_calendar_sync') }}"
                   method="POST"
-                  data-configured="{{ 'true' if microsoft.configured else 'false' }}"
-                  data-auto-sync="{{ 'true' if microsoft.stale else 'false' }}">
+                  data-configured="{{ 'true' if published_calendar.configured else 'false' }}"
+                  data-auto-sync="{{ 'true' if published_calendar.stale else 'false' }}">
                 <input type="hidden" name="month" value="{{ month_token }}">
-                <button id="microsoftSyncButton"
+                <button id="calendarSyncButton"
                         class="planner-icon-button"
                         type="submit"
-                        aria-label="Sync Microsoft Calendar"
-                        {% if not microsoft.configured %}disabled{% endif %}>
-                    <i class="fa-brands fa-microsoft" aria-hidden="true"></i>
+                        aria-label="Refresh published calendar"
+                        {% if not published_calendar.configured %}disabled{% endif %}>
+                    <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
                     <span class="planner-sync-indicator" aria-hidden="true"></span>
                 </button>
             </form>
@@ -62,11 +62,11 @@
                     </button>
                     <div class="planner-day-events">
                         {% for item in day_events %}
-                        <button class="planner-event{% if item.source == 'microsoft' %} is-microsoft{% endif %}"
+                        <button class="planner-event{% if item.source == 'ics' %} is-published{% endif %}{% if item.span_position != 'single' %} is-multi-day is-span-{{ item.span_position }}{% endif %}"
                                 type="button"
                                 data-event="{{ item|tojson|forceescape }}"
-                                title="{{ item.title }}{% if item.location %} · {{ item.location }}{% endif %}">
-                            {% if not item.all_day and item.start_time %}<time>{{ item.start_time }}</time>{% endif %}
+                                title="{{ item.title }}{% if item.end_date and item.end_date != item.date %} · {{ item.date }} to {{ item.end_date }}{% endif %}{% if item.location %} · {{ item.location }}{% endif %}">
+                            {% if not item.all_day and item.display_start_time %}<time>{{ item.display_start_time }}</time>{% endif %}
                             <span>{{ item.title }}</span>
                         </button>
                         {% endfor %}
@@ -177,7 +177,7 @@
                     <input type="hidden" name="return_month" value="{{ month_token }}">
                     <button class="btn btn-outline-danger" type="submit">Delete</button>
                 </form>
-                <a class="btn btn-primary" href="#" target="_blank" rel="noopener" data-event-open-microsoft hidden>Open in Microsoft</a>
+                <a class="btn btn-primary" href="#" target="_blank" rel="noopener" data-event-open-source hidden>Open event</a>
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>

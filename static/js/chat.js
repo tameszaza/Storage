@@ -416,21 +416,23 @@
 
     function updateContextUI() {
         const path = selectedContextPath();
+        const toolsEnabled = $("includeTreeContext")?.checked !== false;
         const scope = $("conversationScope");
         const composer = $("composerContext");
         const help = $("fileContextHelp");
-        if (scope) scope.textContent = path ? `Reading ${path}` : "Using workspace structure";
+        if (scope) scope.textContent = path ? `Reading ${path}` : (toolsEnabled ? "Tools ready" : "Private tools off");
         if (composer) {
             composer.innerHTML = path
                 ? `<i class="fa-regular fa-file-lines" aria-hidden="true"></i> ${escapeHtml(path.split("/").pop())}`
-                : '<i class="fa-solid fa-folder-tree" aria-hidden="true"></i> Workspace';
-            composer.title = path || "Whole workspace";
+                : `<i class="fa-solid ${toolsEnabled ? "fa-wand-magic-sparkles" : "fa-lock"}" aria-hidden="true"></i> ${toolsEnabled ? "Automatic" : "Private tools off"}`;
+            composer.title = path || (toolsEnabled ? "The assistant requests only the context it needs" : "Private tools disabled");
         }
         if (help) {
+            const toolSummary = help.dataset.toolSummary || "Workspace, calendar, and task tools are available.";
             help.classList.toggle("has-file", Boolean(path));
             help.innerHTML = path
                 ? `<i class="fa-solid fa-check" aria-hidden="true"></i><span class="context-scope-note-text">Reading <strong>${escapeHtml(path)}</strong> for this request.</span>`
-                : '<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span class="context-scope-note-text">Select a text, code, or data file to let the assistant read it.</span>';
+                : `<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span class="context-scope-note-text">${escapeHtml(toolsEnabled ? toolSummary : "Private workspace, calendar, and task tools are disabled for this request.")}</span>`;
         }
         document.querySelectorAll(".quick-prompt.requires-file").forEach((button) => {
             button.classList.toggle("needs-context", !path);
@@ -470,6 +472,7 @@
         $("chatSearchInput")?.addEventListener("input", renderMessages);
 
         $("fileContextPath")?.addEventListener("change", updateContextUI);
+        $("includeTreeContext")?.addEventListener("change", updateContextUI);
 
         document.querySelectorAll(".quick-prompt").forEach((button) => {
             button.addEventListener("click", () => {

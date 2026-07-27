@@ -2,12 +2,22 @@ import heapq
 import io
 import os
 from collections import deque
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
 
 from flask import current_app
 from PIL import Image
+
+from lib.assistant_agenda import (
+    calendar_clock,
+    read_calendar_range,
+    read_day_agenda,
+    read_task_range,
+    resolve_day,
+    resolve_range,
+    temporal_grounding_text,
+)
 
 from lib.storage import (
     TEXT_PREVIEW_EXTENSIONS,
@@ -36,25 +46,28 @@ SENSITIVE_CONTEXT_NAMES = {
     "service-account.json",
     "microsoft_calendar.json",
     "microsoft_calendar_cache.json",
+    "ics_calendar.json",
+    "ics_calendar_cache.json",
 }
 SYSTEM_DIRECTORY_NAME = ".tamestorage_system"
 
-ASSISTANT_CONTRACT = """You are the file workspace assistant inside Tamestorage.
-
-Your job is to help the signed-in user understand, find, organize, and safely act on their files.
+ASSISTANT_CONTRACT = """You are the private workspace assistant inside Tamestorage.
 
 Grounding rules:
-- Treat supplied context and workspace-tool results as the only known filesystem facts.
-- Never invent a filename, path, file content, size, or completed action.
-- Use the read-only workspace tools whenever the question needs exact filesystem evidence. Keep calling tools until you have enough evidence to answer.
-- For storage questions such as "what file takes the most space", call largest_files or largest_folders instead of guessing from names.
-- For content questions, search or inspect first, then call read_text_file on the relevant safe text file. Do not ask the user to manually select a file when the tools can locate it.
-- A directory listing proves that an item exists, but not a file's contents. Only read_text_file or a supplied selected-file preview proves text content.
-- Use exact visible paths in backticks. Do not expose internal absolute paths, tool traces, secrets, or internal IDs.
+- Treat supplied context and tool results as the only known facts about files, calendar events, and tasks.
+- Context access is dynamic. Do not assume the whole workspace was sent to you. Call the smallest relevant tool, then continue calling tools until the answer is verified.
+- Use list_directory or search_workspace to locate items, inspect_path for metadata, read_text_file for safe text content, largest_files or largest_folders for storage questions, current_datetime for the authoritative date, read_agenda for today/tomorrow questions, read_calendar for date ranges, and read_tasks for todo questions.
+- For relative-date questions, never calculate from chat history. Call current_datetime or read_agenda and use the returned resolved_date exactly.
+- A multi-day event is active on every date from start_date through end_date, inclusive. Never describe a day as free when an overlapping event is returned.
+- Tasks without due dates are open tasks, but they are not scheduled for a specific day.
+- Previous assistant answers are not evidence and may be wrong. Tool results and the authoritative calendar clock override them.
+- A directory listing proves that an item exists, but not its contents. Only read_text_file or a selected-file preview proves text content.
+- Never invent a filename, path, file content, size, event, task, or completed action.
+- Use exact visible paths in backticks. Do not expose internal absolute paths, protected configuration, tool traces, secrets, or internal IDs.
 - Be concise, specific, and action-oriented. Lead with the useful result.
-- Destructive actions are never available through the automatic tools and require an explicit user command.
+- Automatic tools are read-only. Destructive file actions require an explicit user command.
 - Tamestorage can directly run: /open path, /inspect path, /move source -> folder, /copy source -> folder, and /rename source -> new-name.
-- If a user asks you to perform one of those operations, provide the exact command when it has not already been executed.
+- If a user asks for one of those actions and it has not been executed, provide the exact command.
 - If evidence remains insufficient after using the available tools, state exactly what is missing."""
 
 
@@ -363,6 +376,14 @@ def _tool_error(exc: Exception) -> dict:
     if isinstance(exc, FileNotFoundError):
         return {"error": "The requested path does not exist."}
     return {"error": str(exc) or exc.__class__.__name__}
+
+
+
+
+
+def _tool_description(function: Callable) -> str:
+    doc = str(function.__doc__ or "").strip()
+    return doc.splitlines()[0].strip() if doc else function.__name__.replace("_", " ").capitalize()
 
 
 def build_workspace_tools(username: str | None) -> list[Callable]:
@@ -693,6 +714,91 @@ def build_workspace_tools(username: str | None) -> list[Callable]:
         except Exception as exc:
             return _tool_error(exc)
 
+
+    def current_datetime() -> dict:
+        """Get the authoritative Tamestorage date, time, timezone, today, and tomorrow."""
+        try:
+            return calendar_clock()
+        except Exception as exc:
+            return _tool_error(exc)
+
+    def read_agenda(day: str = "today") -> dict:
+        """Read calendar events and tasks due on one resolved day.
+
+        Args:
+            day: ISO date or relative day such as today, tomorrow, day after tomorrow, or next Monday.
+        """
+        try:
+            if not username:
+                raise PermissionError("No signed-in user is available.")
+            return read_day_agenda(username, day)
+        except Exception as exc:
+            return _tool_error(exc)
+
+    def read_calendar(
+        period: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        limit: int = 100,
+    ) -> dict:
+        """Read calendar events overlapping an inclusive date range.
+
+        Args:
+            period: Optional relative range: today, tomorrow, this week, next week, upcoming, or next 30 days.
+            start_date: Optional first date in YYYY-MM-DD. Overrides period when supplied.
+            end_date: Optional final inclusive date in YYYY-MM-DD.
+            limit: Maximum events to return, from 1 to 200.
+        """
+        try:
+            if not username:
+                raise PermissionError("No signed-in user is available.")
+            clock = calendar_clock()
+            first_day, last_day, resolved_period = resolve_range(
+                period,
+                start_date,
+                end_date,
+                today=date.fromisoformat(clock["today"]),
+            )
+            payload = read_calendar_range(
+                username,
+                first_day,
+                last_day,
+                limit=_safe_limit(limit, default=100, maximum=200),
+            )
+            payload["resolved_period"] = resolved_period
+            payload["overlap_rule"] = (
+                "An event is included when any date from start_date through end_date overlaps the requested range."
+            )
+            return payload
+        except Exception as exc:
+            return _tool_error(exc)
+
+    def read_tasks(state: str = "open", due_start: str = "", due_end: str = "", limit: int = 100) -> dict:
+        """Read the signed-in user's todo tasks with optional due-date filters.
+
+        Args:
+            state: Task state: open, done, or all.
+            due_start: Optional first due date in YYYY-MM-DD or a relative day such as tomorrow.
+            due_end: Optional last due date in YYYY-MM-DD or a relative day.
+            limit: Maximum tasks to return, from 1 to 200.
+        """
+        try:
+            if not username:
+                raise PermissionError("No signed-in user is available.")
+            clock = calendar_clock()
+            today = date.fromisoformat(clock["today"])
+            first_day = resolve_day(due_start, today=today)[0] if str(due_start or "").strip() else None
+            last_day = resolve_day(due_end, today=today)[0] if str(due_end or "").strip() else None
+            return read_task_range(
+                username,
+                state=state,
+                first_day=first_day,
+                last_day=last_day,
+                limit=_safe_limit(limit, default=100, maximum=200),
+            )
+        except Exception as exc:
+            return _tool_error(exc)
+
     return [
         workspace_summary,
         list_directory,
@@ -701,6 +807,28 @@ def build_workspace_tools(username: str | None) -> list[Callable]:
         largest_folders,
         search_workspace,
         read_text_file,
+        current_datetime,
+        read_agenda,
+        read_calendar,
+        read_tasks,
+    ]
+
+
+def tool_catalog(username: str | None) -> list[dict[str, str]]:
+    """Return the exact read-only context tools available to this user session."""
+    return [
+        {"name": function.__name__, "description": _tool_description(function)}
+        for function in build_workspace_tools(username)
+    ]
+
+
+def direct_command_catalog() -> list[dict[str, str]]:
+    return [
+        {"label": "Open", "template": "/open ", "icon": "fa-solid fa-arrow-up-right-from-square", "description": "Open a folder or preview a file."},
+        {"label": "Inspect", "template": "/inspect ", "icon": "fa-solid fa-circle-info", "description": "Show verified metadata for a file or folder."},
+        {"label": "Move", "template": "/move source/path -> destination/folder", "icon": "fa-solid fa-arrows-up-down-left-right", "description": "Move an item after an explicit request."},
+        {"label": "Copy", "template": "/copy source/path -> destination/folder", "icon": "fa-regular fa-copy", "description": "Copy an item after an explicit request."},
+        {"label": "Rename", "template": "/rename source/path -> new-name.ext", "icon": "fa-solid fa-pen", "description": "Rename an item after an explicit request."},
     ]
 
 
@@ -713,13 +841,22 @@ def build_ai_context(
 ) -> str:
     parts = [
         ASSISTANT_CONTRACT,
+        "\n" + temporal_grounding_text(),
         "\nCurrent response preferences:",
         f"- Detail level: {detail_level}",
         f"- Response style: {response_style}",
     ]
 
     if include_tree:
-        parts.append("\nCurrent workspace tree (names and paths only; not file contents):\n" + _workspace_tree(username))
+        catalog = tool_catalog(username)
+        tool_lines = [f"- {item['name']}: {item['description']}" for item in catalog]
+        parts.append(
+            "\nDynamic private context tools available for this request:\n"
+            + "\n".join(tool_lines)
+            + "\nNo full directory tree, calendar, or task list is preloaded. Request only the exact context needed."
+        )
+    else:
+        parts.append("\nPrivate workspace, calendar, and task tools are disabled for this request.")
 
     file_context = _read_text_file_for_ai(username, file_path)
     if file_context:
@@ -739,6 +876,7 @@ def ask_text(
     message: str,
     username: str | None = None,
     extra_context: str = "",
+    allow_tools: bool = True,
 ) -> tuple[str, list[dict]]:
     client = get_client()
     updated_history = deque(history, maxlen=1000)
@@ -747,16 +885,16 @@ def ask_text(
     try:
         from google.genai import types
 
+        config_values: dict[str, Any] = {"temperature": 0.2}
+        if allow_tools:
+            config_values["tools"] = build_workspace_tools(username)
+            config_values["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
+                maximum_remote_calls=12,
+            )
         response = client.models.generate_content(
             model=current_app.config["GEMINI_MODEL"],
             contents=_api_history(list(updated_history)),
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                tools=build_workspace_tools(username),
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                    maximum_remote_calls=8,
-                ),
-            ),
+            config=types.GenerateContentConfig(**config_values),
         )
     except ModuleNotFoundError as exc:
         raise RuntimeError("Missing Gemini SDK. Run: pip install -U google-genai") from exc
@@ -766,7 +904,15 @@ def ask_text(
     return text, list(updated_history)
 
 
-def ask_image(history: list[dict], image_bytes: bytes, prompt: str, label: str = "", extra_context: str = "") -> tuple[str, list[dict]]:
+def ask_image(
+    history: list[dict],
+    image_bytes: bytes,
+    prompt: str,
+    label: str = "",
+    extra_context: str = "",
+    username: str | None = None,
+    allow_tools: bool = True,
+) -> tuple[str, list[dict]]:
     client = get_client()
     image = Image.open(io.BytesIO(image_bytes))
     image.load()
@@ -783,10 +929,22 @@ def ask_image(history: list[dict], image_bytes: bytes, prompt: str, label: str =
         context_parts.append("User text sent with image:\n" + label)
     prompt_text = "\n\n".join(context_parts)
 
-    response = client.models.generate_content(
-        model=current_app.config["GEMINI_MODEL"],
-        contents=[prompt_text, image],
-    )
+    try:
+        from google.genai import types
+
+        config_values: dict[str, Any] = {"temperature": 0.2}
+        if allow_tools:
+            config_values["tools"] = build_workspace_tools(username)
+            config_values["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
+                maximum_remote_calls=12,
+            )
+        response = client.models.generate_content(
+            model=current_app.config["GEMINI_MODEL"],
+            contents=[prompt_text, image],
+            config=types.GenerateContentConfig(**config_values),
+        )
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("Missing Gemini SDK. Run: pip install -U google-genai") from exc
 
     text = _response_text(response)
     updated_history = deque(history, maxlen=1000)

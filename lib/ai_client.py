@@ -34,6 +34,8 @@ SENSITIVE_CONTEXT_NAMES = {
     "credentials.json",
     "secrets.json",
     "service-account.json",
+    "microsoft_calendar.json",
+    "microsoft_calendar_cache.json",
 }
 SYSTEM_DIRECTORY_NAME = ".tamestorage_system"
 

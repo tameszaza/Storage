@@ -56,9 +56,8 @@
                 <a class="sidebar-link {% if request.endpoint == 'starred_files' %}active{% endif %}" href="{{ url_for('starred_files') }}"><i class="fa-regular fa-star"></i><span>Starred</span></a>
                 <a class="sidebar-link {% if request.endpoint == 'trash_page' %}active{% endif %}" href="{{ url_for('trash_page') }}"><i class="fa-regular fa-trash-can"></i><span>Trash</span></a>
                 <p class="sidebar-label sidebar-label-spaced">Tools</p>
-                <a class="sidebar-link {% if request.endpoint == 'advanced_search' %}active{% endif %}" href="{{ url_for('advanced_search') }}"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></a>
                 <a class="sidebar-link {% if request.endpoint == 'file_requests_page' %}active{% endif %}" href="{{ url_for('file_requests_page') }}"><i class="fa-regular fa-paper-plane"></i><span>File requests</span></a>
-                <a class="sidebar-link {% if request.endpoint == 'notifications_page' %}active{% endif %}" href="{{ url_for('notifications_page') }}"><i class="fa-regular fa-bell"></i><span>Notifications</span></a>
+                <a class="sidebar-link {% if request.endpoint and request.endpoint.startswith('planner_') %}active{% endif %}" href="{{ url_for('planner_page') }}"><i class="fa-regular fa-calendar-check"></i><span>Schedule &amp; tasks</span></a>
                 <a class="sidebar-link {% if request.endpoint == 'chat_page' %}active{% endif %}" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
                 {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
             </nav>

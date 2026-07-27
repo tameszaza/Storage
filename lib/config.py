@@ -44,6 +44,13 @@ class Config:
     DATA_TRANSFER_LOG = os.environ.get("DATA_TRANSFER_LOG", "data_transfer.log")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
     GEMINI_CONFIG_PATH = os.environ.get("GEMINI_CONFIG_PATH", os.path.join("uploads", "Admin", "config.txt"))
+    PLANNER_DATA_FILE = os.environ.get("PLANNER_DATA_FILE", "planner.json")
+    MICROSOFT_CALENDAR_CONFIG_PATH = os.environ.get(
+        "MICROSOFT_CALENDAR_CONFIG_PATH", os.path.join("uploads", "Admin", "microsoft_calendar.json")
+    )
+    MICROSOFT_CALENDAR_CACHE_FILE = os.environ.get(
+        "MICROSOFT_CALENDAR_CACHE_FILE", os.path.join("uploads", "Admin", "microsoft_calendar_cache.json")
+    )
     SHARE_DATA_FILE = os.environ.get("SHARE_DATA_FILE", "shares.json")
     SHARE_AUDIT_FILE = os.environ.get("SHARE_AUDIT_FILE", "share_audit.json")
     ACTIVITY_FILE = os.environ.get("ACTIVITY_FILE", "activity_log.json")

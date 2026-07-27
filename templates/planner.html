@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Schedule · Tamestorage{% endblock %}
+{% block link %}
+<link href="{{ url_for('static', filename='css/planner.css') }}?v={{ planner_asset_version }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<section class="workspace-header planner-page-header">
+    <div><h1>Schedule</h1></div>
+    <div class="planner-header-actions">
+        {% if session.get('username') == 'Admin' %}
+        <div class="planner-sync-tip"
+             title="{% if microsoft.configured %}Sync Microsoft Calendar{% if microsoft.last_sync %} · Last synced {{ microsoft.last_sync }}{% endif %}{% else %}Add credentials to {{ microsoft.path }}{% endif %}"
+             data-tooltip="true">
+            <form id="microsoftSyncForm"
+                  action="{{ url_for('planner_microsoft_sync') }}"
+                  method="POST"
+                  data-configured="{{ 'true' if microsoft.configured else 'false' }}"
+                  data-auto-sync="{{ 'true' if microsoft.stale else 'false' }}">
+                <input type="hidden" name="month" value="{{ month_token }}">
+                <button id="microsoftSyncButton"
+                        class="planner-icon-button"
+                        type="submit"
+                        aria-label="Sync Microsoft Calendar"
+                        {% if not microsoft.configured %}disabled{% endif %}>
+                    <i class="fa-brands fa-microsoft" aria-hidden="true"></i>
+                    <span class="planner-sync-indicator" aria-hidden="true"></span>
+                </button>
+            </form>
+        </div>
+        {% endif %}
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#todoCreateModal">
+            <i class="fa-solid fa-check" aria-hidden="true"></i> Task
+        </button>
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#eventCreateModal">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i> Event
+        </button>
+    </div>
+</section>
+
+<div class="planner-layout" data-planner-root data-month="{{ month_token }}">
+    <section class="glass-card planner-calendar" aria-labelledby="calendarMonthTitle">
+        <header class="planner-calendar-header">
+            <div class="planner-month-navigation">
+                <a class="planner-icon-button" href="{{ url_for('planner_page', month=previous_month) }}" aria-label="Previous month" title="Previous month" data-tooltip="true"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('planner_page') }}">Today</a>
+                <a class="planner-icon-button" href="{{ url_for('planner_page', month=next_month) }}" aria-label="Next month" title="Next month" data-tooltip="true"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
+            </div>
+            <h2 id="calendarMonthTitle">{{ month_label }}</h2>
+        </header>
+
+        <div class="planner-weekdays" aria-hidden="true">
+            {% for label in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}<span>{{ label }}</span>{% endfor %}
+        </div>
+        <div class="planner-calendar-grid" role="grid" aria-label="{{ month_label }} calendar">
+            {% for week in weeks %}
+                {% for day in week %}
+                {% set day_key = day.isoformat() %}
+                {% set day_events = events_by_date.get(day_key, []) %}
+                <article class="planner-day{% if day.month != month %} is-outside{% endif %}{% if day == today %} is-today{% endif %}" role="gridcell" data-calendar-date="{{ day_key }}">
+                    <button class="planner-day-number" type="button" data-create-date="{{ day_key }}" aria-label="Add event on {{ day.strftime('%B %d, %Y') }}" title="Add event">
+                        <span>{{ day.day }}</span>
+                    </button>
+                    <div class="planner-day-events">
+                        {% for item in day_events %}
+                        <button class="planner-event{% if item.source == 'microsoft' %} is-microsoft{% endif %}"
+                                type="button"
+                                data-event="{{ item|tojson|forceescape }}"
+                                title="{{ item.title }}{% if item.location %} · {{ item.location }}{% endif %}">
+                            {% if not item.all_day and item.start_time %}<time>{{ item.start_time }}</time>{% endif %}
+                            <span>{{ item.title }}</span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
+
+    <aside class="glass-card planner-todos" aria-labelledby="todoHeading">
+        <header class="planner-todo-header">
+            <div class="planner-todo-title"><h2 id="todoHeading">Todo</h2><span class="planner-count" aria-label="{{ open_todos }} open tasks">{{ open_todos }}</span></div>
+            <button class="planner-icon-button" type="button" data-bs-toggle="modal" data-bs-target="#todoCreateModal" aria-label="Add task" title="Add task" data-tooltip="true"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+        </header>
+        <div class="planner-todo-filters" role="group" aria-label="Filter tasks">
+            <button class="planner-filter active" type="button" data-todo-filter="open" aria-pressed="true">Open</button>
+            <button class="planner-filter" type="button" data-todo-filter="all" aria-pressed="false">All</button>
+            <button class="planner-filter" type="button" data-todo-filter="done" aria-pressed="false">Done</button>
+        </div>
+        <div class="planner-todo-list" data-todo-list>
+            {% for item in todos %}
+            <article class="planner-todo-item{% if item.completed %} is-complete{% endif %}" data-todo-state="{{ 'done' if item.completed else 'open' }}">
+                <form method="POST" action="{{ url_for('planner_toggle_todo', todo_id=item.id) }}">
+                    <input type="hidden" name="return_month" value="{{ month_token }}">
+                    <button class="planner-todo-check" type="submit" aria-label="{{ 'Mark task open' if item.completed else 'Complete task' }}" title="{{ 'Mark open' if item.completed else 'Complete' }}" data-tooltip="true">
+                        <i class="fa-solid fa-check" aria-hidden="true"></i>
+                    </button>
+                </form>
+                <div class="planner-todo-copy">
+                    <strong>{{ item.title }}</strong>
+                    {% if item.due_date or item.priority != 'none' %}
+                    <span>
+                        {% if item.due_date %}<time datetime="{{ item.due_date }}{% if item.due_time %}T{{ item.due_time }}{% endif %}">{{ item.due_date }}{% if item.due_time %} · {{ item.due_time }}{% endif %}</time>{% endif %}
+                        {% if item.priority != 'none' %}<b class="planner-priority is-{{ item.priority }}">{{ item.priority }}</b>{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('planner_delete_todo', todo_id=item.id) }}" data-confirm="Delete this task?">
+                    <input type="hidden" name="return_month" value="{{ month_token }}">
+                    <button class="planner-row-action" type="submit" aria-label="Delete task" title="Delete" data-tooltip="true"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                </form>
+            </article>
+            {% else %}
+            <div class="planner-empty" data-todo-empty><i class="fa-regular fa-circle-check" aria-hidden="true"></i><span>No tasks</span></div>
+            {% endfor %}
+        </div>
+        <div class="planner-empty planner-filter-empty" data-filter-empty hidden><i class="fa-regular fa-circle-check" aria-hidden="true"></i><span>No matching tasks</span></div>
+    </aside>
+</div>
+
+<div class="modal fade" id="eventCreateModal" tabindex="-1" aria-labelledby="eventCreateTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content planner-modal-form" method="POST" action="{{ url_for('planner_create_event') }}">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="eventCreateTitle">New event</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="return_month" value="{{ month_token }}">
+                <label class="form-label" for="eventTitle">Title</label>
+                <input id="eventTitle" class="form-control" name="title" maxlength="160" autocomplete="off" required>
+                <div class="planner-form-grid">
+                    <label class="form-label" for="eventDate"><span>Date</span><input id="eventDate" class="form-control" type="date" name="date" value="{{ today.isoformat() }}" required></label>
+                    <label class="form-check form-switch planner-all-day" for="eventAllDay"><input id="eventAllDay" class="form-check-input" type="checkbox" name="all_day"><span class="form-check-label">All day</span></label>
+                </div>
+                <div class="planner-form-grid" data-event-time-fields>
+                    <label class="form-label" for="eventStart"><span>Starts</span><input id="eventStart" class="form-control" type="time" name="start_time" value="09:00" required></label>
+                    <label class="form-label" for="eventEnd"><span>Ends</span><input id="eventEnd" class="form-control" type="time" name="end_time" value="10:00"></label>
+                </div>
+                <details class="planner-more-fields"><summary>More</summary>
+                    <label class="form-label" for="eventLocation">Location</label><input id="eventLocation" class="form-control" name="location" maxlength="180">
+                    <label class="form-label" for="eventNotes">Notes</label><textarea id="eventNotes" class="form-control" name="notes" rows="3" maxlength="1000"></textarea>
+                </details>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Add event</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="todoCreateModal" tabindex="-1" aria-labelledby="todoCreateTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content planner-modal-form" method="POST" action="{{ url_for('planner_create_todo') }}">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="todoCreateTitle">New task</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="return_month" value="{{ month_token }}">
+                <label class="form-label" for="todoTitle">Task</label><input id="todoTitle" class="form-control" name="title" maxlength="220" autocomplete="off" required>
+                <div class="planner-form-grid">
+                    <label class="form-label" for="todoDate"><span>Due date</span><input id="todoDate" class="form-control" type="date" name="due_date"></label>
+                    <label class="form-label" for="todoTime"><span>Time</span><input id="todoTime" class="form-control" type="time" name="due_time"></label>
+                </div>
+                <label class="form-label" for="todoPriority">Priority</label>
+                <select id="todoPriority" class="form-select" name="priority"><option value="none">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Add task</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><div><span class="planner-source-mark" data-event-source></span><h2 class="modal-title fs-5" id="eventDetailTitle" data-event-title></h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body planner-event-detail">
+                <p><i class="fa-regular fa-calendar" aria-hidden="true"></i><span data-event-date></span></p>
+                <p data-event-location-row hidden><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span data-event-location></span></p>
+                <p data-event-notes-row hidden><i class="fa-regular fa-note-sticky" aria-hidden="true"></i><span data-event-notes></span></p>
+            </div>
+            <div class="modal-footer">
+                <form method="POST" data-event-delete-form data-delete-template="{{ url_for('planner_delete_event', event_id='__EVENT_ID__') }}">
+                    <input type="hidden" name="return_month" value="{{ month_token }}">
+                    <button class="btn btn-outline-danger" type="submit">Delete</button>
+                </form>
+                <a class="btn btn-primary" href="#" target="_blank" rel="noopener" data-event-open-microsoft hidden>Open in Microsoft</a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/planner.js') }}?v={{ planner_asset_version }}"></script>{% endblock %}

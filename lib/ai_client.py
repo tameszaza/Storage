@@ -1,6 +1,7 @@
 import heapq
 import io
 import os
+import re
 from collections import deque
 from datetime import date, datetime
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import Any, Callable
 from flask import current_app
 from PIL import Image
 
+from lib.activity import log_activity
 from lib.assistant_agenda import (
     calendar_clock,
     read_calendar_range,
@@ -17,6 +19,12 @@ from lib.assistant_agenda import (
     resolve_day,
     resolve_range,
     temporal_grounding_text,
+)
+
+from lib.planner import (
+    PlannerValidationError,
+    create_event as create_planner_event,
+    update_event as update_planner_event,
 )
 
 from lib.storage import (
@@ -37,6 +45,8 @@ MAX_TOOL_TEXT_CHARS = 16000
 MAX_TOOL_LINES = 240
 MAX_TOOL_RESULTS = 50
 MAX_TOOL_SCAN_FILES = 250000
+SESSION_HISTORY_MESSAGES = 6
+SESSION_HISTORY_CHARS_PER_MESSAGE = 500
 SAFE_TEXT_EXTENSIONS = set(TEXT_PREVIEW_EXTENSIONS) | {".csv", ".tsv", ".tex", ".rst", ".ini", ".toml"}
 SENSITIVE_CONTEXT_NAMES = {
     ".env",
@@ -50,6 +60,49 @@ SENSITIVE_CONTEXT_NAMES = {
     "ics_calendar_cache.json",
 }
 SYSTEM_DIRECTORY_NAME = ".tamestorage_system"
+
+_CALENDAR_WRITE_VERB_RE = re.compile(
+    r"\b(?:add|create|schedule|book|insert|put|make|edit|update|change|move|reschedule|rename|correct|postpone)\b",
+    re.IGNORECASE,
+)
+_CALENDAR_NOUN_RE = re.compile(
+    r"\b(?:calendar|event|meeting|appointment|schedule)\b",
+    re.IGNORECASE,
+)
+_CALENDAR_DATE_RE = re.compile(
+    r"\b(?:today|tomorrow|tommorrow|tmr|monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
+    r"\d{4}-\d{2}-\d{2})\b",
+    re.IGNORECASE,
+)
+_CALENDAR_STRONG_VERB_RE = re.compile(r"\b(?:schedule|book|reschedule|postpone)\b", re.IGNORECASE)
+_CALENDAR_CREATE_VERB_RE = re.compile(r"\b(?:add|create|insert|put|make)\b", re.IGNORECASE)
+_NON_CALENDAR_OBJECT_RE = re.compile(r"\b(?:task|todo|file|folder|directory)\b", re.IGNORECASE)
+_CALENDAR_EXPLANATION_RE = re.compile(
+    r"^\s*(?:how\s+(?:do|can|would)\s+i|how\s+does|what\s+(?:tool|can)|can\s+the\s+ai|"
+    r"explain|show\s+me\s+how)\b",
+    re.IGNORECASE,
+)
+_CALENDAR_NEGATION_RE = re.compile(
+    r"\b(?:do\s+not|don['’]?t|dont|never|not)\s+(?:add|create|schedule|book|insert|put|make|edit|"
+    r"update|change|move|reschedule|rename|correct|postpone)\b",
+    re.IGNORECASE,
+)
+
+
+def calendar_write_requested(message: str) -> bool:
+    """Return whether this turn explicitly asks Tamestorage to modify a calendar event."""
+    text = str(message or "").strip()
+    if not text or _CALENDAR_EXPLANATION_RE.search(text) or _CALENDAR_NEGATION_RE.search(text):
+        return False
+    has_write_verb = bool(_CALENDAR_WRITE_VERB_RE.search(text))
+    has_calendar_noun = bool(_CALENDAR_NOUN_RE.search(text))
+    strong_scheduling_request = bool(_CALENDAR_STRONG_VERB_RE.search(text) and _CALENDAR_DATE_RE.search(text))
+    generic_dated_creation = bool(
+        _CALENDAR_CREATE_VERB_RE.search(text)
+        and _CALENDAR_DATE_RE.search(text)
+        and not _NON_CALENDAR_OBJECT_RE.search(text)
+    )
+    return has_write_verb and (has_calendar_noun or strong_scheduling_request or generic_dated_creation)
 
 ASSISTANT_CONTRACT = """You are the private workspace assistant inside Tamestorage.
 
@@ -65,7 +118,10 @@ Grounding rules:
 - Never invent a filename, path, file content, size, event, task, or completed action.
 - Use exact visible paths in backticks. Do not expose internal absolute paths, protected configuration, tool traces, secrets, or internal IDs.
 - Be concise, specific, and action-oriented. Lead with the useful result.
-- Automatic tools are read-only. Destructive file actions require an explicit user command.
+- Workspace inspection tools are read-only. Calendar write tools are available only for an explicit request to create or edit a local Tamestorage event.
+- Before editing an event, read the relevant calendar range and use the exact editable local event ID returned by the tool. If multiple local events match, ask which one instead of guessing. Published ICS events are read-only and must never be presented as editable.
+- After a successful calendar write, state exactly what was created or changed. Never claim a calendar change unless the write tool returned success.
+- Destructive file actions require an explicit user command.
 - Tamestorage can directly run: /open path, /inspect path, /move source -> folder, /copy source -> folder, and /rename source -> new-name.
 - If a user asks for one of those actions and it has not been executed, provide the exact command.
 - If evidence remains insufficient after using the available tools, state exactly what is missing."""
@@ -195,6 +251,20 @@ def _api_history(history: list[dict]) -> list[dict]:
             contents.append(content)
 
     return contents
+
+
+def compact_session_history(history: list[dict]) -> list[dict]:
+    """Keep Flask's browser-backed session below common cookie size limits."""
+    compact = []
+    for item in history[-SESSION_HISTORY_MESSAGES:]:
+        text = _message_text(item).strip()
+        if not text:
+            continue
+        compact.append({
+            "role": "model" if item.get("role") == "model" else "user",
+            "parts": text[:SESSION_HISTORY_CHARS_PER_MESSAGE],
+        })
+    return compact
 
 
 def _response_text(response: Any) -> str:
@@ -386,8 +456,8 @@ def _tool_description(function: Callable) -> str:
     return doc.splitlines()[0].strip() if doc else function.__name__.replace("_", " ").capitalize()
 
 
-def build_workspace_tools(username: str | None) -> list[Callable]:
-    """Create user-scoped read-only functions for Gemini automatic function calling."""
+def build_workspace_tools(username: str | None, *, allow_calendar_write: bool = False) -> list[Callable]:
+    """Create user-scoped workspace and calendar functions for Gemini."""
 
     def workspace_summary() -> dict:
         """Get exact file, folder, and storage totals for the signed-in user's workspace."""
@@ -799,7 +869,166 @@ def build_workspace_tools(username: str | None) -> list[Callable]:
         except Exception as exc:
             return _tool_error(exc)
 
-    return [
+    def create_calendar_event(
+        title: str,
+        start_date: str,
+        all_day: bool = True,
+        start_time: str = "",
+        end_date: str = "",
+        end_time: str = "",
+        location: str = "",
+        notes: str = "",
+    ) -> dict:
+        """Create a local Tamestorage calendar event after an explicit user request.
+
+        Args:
+            title: Event title.
+            start_date: ISO date or relative day such as today, tomorrow, or next Monday.
+            all_day: Whether the event is all day.
+            start_time: Start time in HH:MM for a timed event.
+            end_date: Optional ISO or relative final date. Defaults to start_date.
+            end_time: Optional end time in HH:MM.
+            location: Optional location.
+            notes: Optional notes.
+        """
+        try:
+            if not allow_calendar_write:
+                raise PermissionError("Calendar writes are disabled because this message did not explicitly request a calendar change.")
+            if not username:
+                raise PermissionError("No signed-in user is available.")
+            clock = calendar_clock()
+            today = date.fromisoformat(clock["today"])
+            first_day = resolve_day(start_date, today=today)[0]
+            last_day = resolve_day(end_date, today=today)[0] if str(end_date or "").strip() else first_day
+            item = create_planner_event(
+                username,
+                {
+                    "title": title,
+                    "date": first_day.isoformat(),
+                    "end_date": last_day.isoformat(),
+                    "all_day": bool(all_day),
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "location": location,
+                    "notes": notes,
+                },
+            )
+            log_activity(
+                "ai.calendar.create",
+                item.get("title", ""),
+                details={"date": item.get("date"), "end_date": item.get("end_date")},
+            )
+            return {
+                "success": True,
+                "event_id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "start_date": item.get("date", ""),
+                "end_date": item.get("end_date", item.get("date", "")),
+                "all_day": bool(item.get("all_day")),
+                "start_time": item.get("start_time", ""),
+                "end_time": item.get("end_time", ""),
+                "location": item.get("location", ""),
+                "notes": item.get("notes", ""),
+                "source": "local",
+            }
+        except (PlannerValidationError, ValueError) as exc:
+            return {"error": str(exc)}
+        except Exception as exc:
+            return _tool_error(exc)
+
+    def edit_calendar_event(
+        event_id: str,
+        title: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        all_day: str = "keep",
+        start_time: str = "",
+        end_time: str = "",
+        location: str = "",
+        notes: str = "",
+        clear_location: bool = False,
+        clear_notes: bool = False,
+    ) -> dict:
+        """Edit one editable local event using an event_id returned by read_calendar.
+
+        Args:
+            event_id: Exact editable local event ID from read_calendar.
+            title: Replacement title, or empty to keep the current title.
+            start_date: Replacement ISO or relative start date, or empty to keep it.
+            end_date: Replacement ISO or relative end date, or empty to keep it.
+            all_day: keep, true, or false.
+            start_time: Replacement HH:MM time, or empty to keep it.
+            end_time: Replacement HH:MM time, or empty to keep it.
+            location: Replacement location, or empty to keep it.
+            notes: Replacement notes, or empty to keep them.
+            clear_location: Set true to remove the current location.
+            clear_notes: Set true to remove the current notes.
+        """
+        try:
+            if not allow_calendar_write:
+                raise PermissionError("Calendar writes are disabled because this message did not explicitly request a calendar change.")
+            if not username:
+                raise PermissionError("No signed-in user is available.")
+            if not str(event_id or "").strip():
+                return {"error": "No editable local event ID was supplied. Published ICS events are read-only, and read_calendar returns event IDs only for local events."}
+
+            values: dict[str, Any] = {}
+            if str(title or "").strip():
+                values["title"] = title
+            clock = calendar_clock()
+            today = date.fromisoformat(clock["today"])
+            if str(start_date or "").strip():
+                values["date"] = resolve_day(start_date, today=today)[0].isoformat()
+            if str(end_date or "").strip():
+                values["end_date"] = resolve_day(end_date, today=today)[0].isoformat()
+
+            all_day_value = str(all_day or "keep").strip().lower()
+            if all_day_value not in {"keep", "true", "false"}:
+                return {"error": "all_day must be `keep`, `true`, or `false`."}
+            if all_day_value != "keep":
+                values["all_day"] = all_day_value == "true"
+            if str(start_time or "").strip():
+                values["start_time"] = start_time
+            if str(end_time or "").strip():
+                values["end_time"] = end_time
+            if clear_location:
+                values["location"] = ""
+            elif str(location or "").strip():
+                values["location"] = location
+            if clear_notes:
+                values["notes"] = ""
+            elif str(notes or "").strip():
+                values["notes"] = notes
+            if not values:
+                return {"error": "No event changes were provided."}
+
+            item = update_planner_event(username, event_id, values)
+            if item is None:
+                return {"error": "The local event was not found. Read the calendar again and use its current editable event ID."}
+            log_activity(
+                "ai.calendar.update",
+                item.get("title", ""),
+                details={"date": item.get("date"), "end_date": item.get("end_date"), "fields": sorted(values)},
+            )
+            return {
+                "success": True,
+                "event_id": item.get("id", ""),
+                "title": item.get("title", ""),
+                "start_date": item.get("date", ""),
+                "end_date": item.get("end_date", item.get("date", "")),
+                "all_day": bool(item.get("all_day")),
+                "start_time": item.get("start_time", ""),
+                "end_time": item.get("end_time", ""),
+                "location": item.get("location", ""),
+                "notes": item.get("notes", ""),
+                "source": "local",
+            }
+        except (PlannerValidationError, ValueError) as exc:
+            return {"error": str(exc)}
+        except Exception as exc:
+            return _tool_error(exc)
+
+    tools = [
         workspace_summary,
         list_directory,
         inspect_path,
@@ -812,13 +1041,16 @@ def build_workspace_tools(username: str | None) -> list[Callable]:
         read_calendar,
         read_tasks,
     ]
+    if allow_calendar_write:
+        tools.extend([create_calendar_event, edit_calendar_event])
+    return tools
 
 
-def tool_catalog(username: str | None) -> list[dict[str, str]]:
-    """Return the exact read-only context tools available to this user session."""
+def tool_catalog(username: str | None, *, include_calendar_write: bool = True) -> list[dict[str, str]]:
+    """Return the workspace and calendar capabilities available to this user session."""
     return [
         {"name": function.__name__, "description": _tool_description(function)}
-        for function in build_workspace_tools(username)
+        for function in build_workspace_tools(username, allow_calendar_write=include_calendar_write)
     ]
 
 
@@ -853,7 +1085,8 @@ def build_ai_context(
         parts.append(
             "\nDynamic private context tools available for this request:\n"
             + "\n".join(tool_lines)
-            + "\nNo full directory tree, calendar, or task list is preloaded. Request only the exact context needed."
+            + "\nNo full directory tree, calendar, or task list is preloaded. Request only the exact context needed. "
+            + "Calendar write tools are enabled only on turns that explicitly ask to create or edit a local event."
         )
     else:
         parts.append("\nPrivate workspace, calendar, and task tools are disabled for this request.")
@@ -880,26 +1113,35 @@ def ask_text(
 ) -> tuple[str, list[dict]]:
     client = get_client()
     updated_history = deque(history, maxlen=1000)
-    updated_history.append({"role": "user", "parts": _with_context(message, extra_context)})
+    request_history = deque(history, maxlen=1000)
+    write_allowed = bool(allow_tools and calendar_write_requested(message))
+    permission_note = (
+        "Calendar write permission for this turn: enabled because the user explicitly requested a calendar change."
+        if write_allowed
+        else "Calendar write permission for this turn: disabled. Do not claim to create or edit an event."
+    )
+    combined_context = f"{extra_context}\n\n{permission_note}" if extra_context else permission_note
+    request_history.append({"role": "user", "parts": _with_context(message, combined_context)})
 
     try:
         from google.genai import types
 
         config_values: dict[str, Any] = {"temperature": 0.2}
         if allow_tools:
-            config_values["tools"] = build_workspace_tools(username)
+            config_values["tools"] = build_workspace_tools(username, allow_calendar_write=write_allowed)
             config_values["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
                 maximum_remote_calls=12,
             )
         response = client.models.generate_content(
             model=current_app.config["GEMINI_MODEL"],
-            contents=_api_history(list(updated_history)),
+            contents=_api_history(list(request_history)),
             config=types.GenerateContentConfig(**config_values),
         )
     except ModuleNotFoundError as exc:
         raise RuntimeError("Missing Gemini SDK. Run: pip install -U google-genai") from exc
 
     text = _response_text(response)
+    updated_history.append({"role": "user", "parts": message})
     updated_history.append({"role": "model", "parts": text})
     return text, list(updated_history)
 
@@ -934,7 +1176,7 @@ def ask_image(
 
         config_values: dict[str, Any] = {"temperature": 0.2}
         if allow_tools:
-            config_values["tools"] = build_workspace_tools(username)
+            config_values["tools"] = build_workspace_tools(username, allow_calendar_write=False)
             config_values["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
                 maximum_remote_calls=12,
             )

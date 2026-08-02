@@ -21,7 +21,17 @@
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-        fetchSystemUsage();
-        window.setInterval(fetchSystemUsage, 5000);
+        if (document.getElementById("cpuUsage")) {
+            fetchSystemUsage();
+            window.setInterval(fetchSystemUsage, 5000);
+        }
+
+        document.querySelectorAll("[data-log-auto-submit]").forEach((control) => {
+            control.addEventListener("change", () => control.form?.requestSubmit());
+        });
+
+        document.querySelectorAll("[data-log-refresh]").forEach((button) => {
+            button.addEventListener("click", () => window.location.reload());
+        });
     });
 })();

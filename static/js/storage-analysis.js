@@ -38,7 +38,7 @@
     };
 
     const CENTER_RADIUS = 88;
-    const OUTER_RADIUS = 282;
+    const OUTER_RADIUS = 298;
     const MAX_RINGS = 4;
     const MAX_VISIBLE_ARCS = 2500;
     const FULL_CIRCLE = Math.PI * 2;
@@ -96,7 +96,8 @@
 
     function browserUrl(node) {
         const base = String(payload.browserBaseUrl || "/index").replace(/\/+$/, "");
-        const path = routePath(joinPath(payload.basePath, node?.path));
+        const relative = node?.path;
+        const path = routePath(joinPath(payload.basePath, relative));
         return path ? `${base}/${path}` : base;
     }
 
@@ -106,11 +107,12 @@
         const path = normalizePath(node.path);
         node.path = path;
         node.size = Math.max(0, Number(node.size) || 0);
+        node.direct_size = Math.max(0, Number(node.direct_size) || 0);
         node.file_count = Math.max(0, Number(node.file_count) || 0);
+        node.direct_file_count = Math.max(0, Number(node.direct_file_count) || 0);
         node.kind = "folder";
         node._uid = `folder:${path || "@root"}`;
-        node.children = (Array.isArray(node.children) ? node.children : [])
-            .filter((child) => child && child.kind !== "files");
+        node.children = Array.isArray(node.children) ? node.children : [];
         node.children.forEach((child) => attachTreeMetadata(child, node, depth + 1));
     }
 
@@ -166,8 +168,8 @@
 
     function treeDepth(node, remaining) {
         if (remaining <= 0) return 0;
-        const folders = node.children.filter((child) => child.size > 0 && child.children.length > 0);
-        if (!folders.length) return node.children.some((child) => child.size > 0) ? 1 : 0;
+        const folders = node.children.filter((child) => child.kind === "folder" && child.size > 0);
+        if (!folders.length) return 0;
         return 1 + Math.max(...folders.map((child) => treeDepth(child, remaining - 1)));
     }
 
@@ -180,16 +182,17 @@
         function visit(parent, startAngle, endAngle, depth, inheritedBranch) {
             if (depth > depthCount || visibleCount >= MAX_VISIBLE_ARCS) return;
             const children = parent.children
-                .filter((child) => child.size > 0)
+                .filter((child) => child.kind === "folder" && child.size > 0)
                 .slice()
                 .sort((a, b) => b.size - a.size || a.name.localeCompare(b.name));
-            const total = children.reduce((sum, child) => sum + child.size, 0);
-            if (!total) return;
+            const childrenSize = children.reduce((sum, child) => sum + child.size, 0);
+            const parentSize = Math.max(Number(parent.size) || 0, childrenSize);
+            if (!childrenSize || !parentSize) return;
 
             let cursor = startAngle;
             children.forEach((child, index) => {
                 if (visibleCount >= MAX_VISIBLE_ARCS) return;
-                const childSpan = (endAngle - startAngle) * (child.size / total);
+                const childSpan = (endAngle - startAngle) * (child.size / parentSize);
                 if (childSpan <= 0) return;
                 const branchIndex = depth === 1 ? index : inheritedBranch;
                 const arc = {
@@ -277,7 +280,8 @@
     }
 
     function accessibleNodeLabel(node) {
-        const action = node.children.length ? "Activate to zoom in." : "Activate to inspect.";
+        const hasSubfolders = node.children.some((child) => child.kind === "folder" && child.size > 0);
+        const action = hasSubfolders ? "Activate to zoom in." : "Activate to inspect.";
         return `Folder: ${node.name}. ${formatBytes(node.size)}. ${action}`;
     }
 
@@ -418,7 +422,7 @@
 
     function activateNode(node) {
         if (!node || state.animating) return;
-        if (node.kind === "folder" && node.children.some((child) => child.size > 0)) {
+        if (node.children.some((child) => child.kind === "folder" && child.size > 0)) {
             navigateTo(node, "in");
             return;
         }
@@ -503,7 +507,7 @@
     function renderBranchList() {
         elements.branchList.replaceChildren();
         const children = state.current.children
-            .filter((child) => child.size > 0)
+            .filter((child) => child.kind === "folder" && child.size > 0)
             .slice()
             .sort((a, b) => b.size - a.size || a.name.localeCompare(b.name));
         if (!children.length) {

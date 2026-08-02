@@ -7,11 +7,19 @@ import threading
 import time
 from pathlib import Path
 
-from flask import current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import current_app, flash, jsonify, make_response, redirect, render_template, request, url_for
 
 from lib.ac_control import AcControlError, get_ac_controller
 from lib.charts import clear_charts
 from lib.feedback_store import delete_feedback as delete_feedback_item, load_feedback, mark_all_as_read
+from lib.log_viewer import (
+    LogAccessError,
+    clear_log_file,
+    filter_entries,
+    parse_server_entries,
+    parse_transfer_entries,
+    read_recent_lines,
+)
 from lib.security import admin_required
 from lib.storage import format_bytes, safe_upload_path, user_storage_usage
 from lib.system_info import system_usage as collect_system_usage
@@ -55,39 +63,118 @@ def system_usage():
     return jsonify(collect_system_usage())
 
 
+def _log_limit() -> int:
+    try:
+        return max(50, min(500, int(request.args.get("limit", "200"))))
+    except (TypeError, ValueError):
+        return 200
+
+
+def _render_log_page(log_type: str):
+    is_transfer = log_type == "transfer"
+    config_key = "DATA_TRANSFER_LOG" if is_transfer else "SERVER_LOG_FILE"
+    query = request.args.get("query", "").strip()
+    category = request.args.get("category", "all").strip().lower() or "all"
+    limit = _log_limit()
+    categories = (
+        ("all", "All"),
+        ("request", "Requests"),
+        ("response", "Responses"),
+        ("unknown", "Unparsed"),
+    ) if is_transfer else (
+        ("all", "All"),
+        ("critical", "Critical"),
+        ("error", "Errors"),
+        ("warning", "Warnings"),
+        ("info", "Info"),
+        ("debug", "Debug"),
+        ("unknown", "Unparsed"),
+    )
+    valid_categories = {value for value, _label in categories}
+    if category not in valid_categories:
+        category = "all"
+
+    try:
+        snapshot = read_recent_lines(current_app.config[config_key])
+        parsed = parse_transfer_entries(snapshot["lines"]) if is_transfer else parse_server_entries(snapshot["lines"])
+        entries, summary = filter_entries(parsed, query=query, category=category, limit=limit)
+        error = ""
+        status_code = 200
+    except LogAccessError as exc:
+        logging.error("Could not open %s logs: %s", log_type, exc)
+        snapshot = {
+            "filename": Path(str(current_app.config.get(config_key) or "log")).name,
+            "file_size": "Unavailable",
+            "modified_at": None,
+            "window_truncated": False,
+            "loaded_lines": 0,
+        }
+        entries = []
+        summary = {
+            "matched": 0,
+            "available": 0,
+            "limit": limit,
+            "server_counts": {},
+            "transfer_counts": {},
+            "transfer_size": "0 B",
+        }
+        error = str(exc)
+        status_code = 503
+
+    rendered = render_template(
+        "admin_logs.html",
+        log_type=log_type,
+        page_title="Transfer logs" if is_transfer else "Server logs",
+        page_eyebrow="Network" if is_transfer else "Runtime",
+        entries=entries,
+        snapshot=snapshot,
+        summary=summary,
+        error=error,
+        query=query,
+        category=category,
+        categories=categories,
+        selected_limit=limit,
+        clear_endpoint="clear_transfer_logs" if is_transfer else "clear_logs",
+        alternate_endpoint="admin_logs" if is_transfer else "view_transfer_logs",
+        alternate_label="Server logs" if is_transfer else "Transfer logs",
+        admin_asset_version=_admin_asset_version(),
+    )
+    response = make_response(rendered, status_code)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @admin_required
 def admin_logs():
-    log_contents = read_text_file(current_app.config["SERVER_LOG_FILE"], "Log file not found.")
-    return render_template("admin_logs.html", log_contents=log_contents)
+    return _render_log_page("server")
 
 
 @admin_required
 def clear_logs():
     try:
-        write_empty_file(current_app.config["SERVER_LOG_FILE"])
+        clear_log_file(current_app.config["SERVER_LOG_FILE"])
         logging.info("Server log file cleared by Admin.")
         flash("Server logs cleared.", "success")
-    except Exception as exc:
-        logging.exception("Error clearing server logs")
-        flash(f"Error clearing server logs: {exc}", "danger")
+    except LogAccessError as exc:
+        logging.error("Could not clear server logs: %s", exc)
+        flash(str(exc), "danger")
     return redirect(url_for("admin_logs"))
 
 
 @admin_required
 def view_transfer_logs():
-    log_contents = read_text_file(current_app.config["DATA_TRANSFER_LOG"], "Transfer log file not found.")
-    return render_template("transfer_logs.html", log_contents=log_contents)
+    return _render_log_page("transfer")
 
 
 @admin_required
 def clear_transfer_logs():
     try:
-        write_empty_file(current_app.config["DATA_TRANSFER_LOG"])
+        clear_log_file(current_app.config["DATA_TRANSFER_LOG"])
         logging.info("Transfer log file cleared by Admin.")
         flash("Transfer logs cleared.", "success")
-    except Exception as exc:
-        logging.exception("Error clearing transfer logs")
-        flash(f"Error clearing transfer logs: {exc}", "danger")
+    except LogAccessError as exc:
+        logging.error("Could not clear transfer logs: %s", exc)
+        flash(str(exc), "danger")
     return redirect(url_for("view_transfer_logs"))
 
 

@@ -1,14 +1,107 @@
 {% extends "base.html" %}
-{% block title %}Server logs · Tamestorage{% endblock %}
+{% block title %}{{ page_title }} · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/admin.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="log-page glass-card">
-    <div class="section-heading">
-        <div><p class="eyebrow">Admin logs</p><h1>Server logs</h1></div>
-        <div class="button-row">
-            <form action="{{ url_for('clear_logs') }}" method="POST" data-confirm="Clear all server logs?"><button class="btn btn-outline-danger" type="submit">Clear logs</button></form>
-            <a class="btn btn-outline-primary" href="{{ url_for('admin') }}">Back to admin</a>
+<section class="glass-card log-page-shell">
+    <div class="section-heading log-page-heading">
+        <div>
+            <p class="eyebrow">{{ page_eyebrow }}</p>
+            <h1>{{ page_title }}</h1>
+        </div>
+        <div class="button-row log-page-actions">
+            <a class="btn btn-outline-primary" href="{{ url_for(alternate_endpoint) }}">{{ alternate_label }}</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}">Admin</a>
+            <form action="{{ url_for(clear_endpoint) }}" method="POST" data-confirm="Clear all {{ page_title|lower }}?">
+                <button class="btn btn-outline-danger" type="submit">Clear</button>
+            </form>
         </div>
     </div>
-    <pre class="log-box">{{ log_contents }}</pre>
+
+    {% if error %}
+        <div class="log-error-state" role="alert">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <div>
+                <h2>Logs unavailable</h2>
+                <p>{{ error }}</p>
+            </div>
+            <button class="btn btn-primary" type="button" data-log-refresh>Retry</button>
+        </div>
+    {% else %}
+        <div class="log-summary-grid" aria-label="Log summary">
+            {% if log_type == 'server' %}
+                <div class="metric-card"><span class="metric-label">Loaded</span><strong>{{ summary.available }}</strong></div>
+                <div class="metric-card"><span class="metric-label">Errors</span><strong>{{ (summary.server_counts.get('critical', 0) + summary.server_counts.get('error', 0)) }}</strong></div>
+                <div class="metric-card"><span class="metric-label">Warnings</span><strong>{{ summary.server_counts.get('warning', 0) }}</strong></div>
+                <div class="metric-card"><span class="metric-label">File size</span><strong>{{ snapshot.file_size }}</strong></div>
+            {% else %}
+                <div class="metric-card"><span class="metric-label">Requests</span><strong>{{ summary.transfer_counts.get('request', 0) }}</strong></div>
+                <div class="metric-card"><span class="metric-label">Responses</span><strong>{{ summary.transfer_counts.get('response', 0) }}</strong></div>
+                <div class="metric-card"><span class="metric-label">Window traffic</span><strong>{{ summary.transfer_size }}</strong></div>
+                <div class="metric-card"><span class="metric-label">File size</span><strong>{{ snapshot.file_size }}</strong></div>
+            {% endif %}
+        </div>
+
+        <form class="log-toolbar" method="GET" action="{{ request.path }}" data-log-filter-form>
+            <label class="log-search-field" for="logQuery">
+                <span class="visually-hidden">Search logs</span>
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input id="logQuery" class="form-control" type="search" name="query" value="{{ query }}" placeholder="Search logs" autocomplete="off">
+            </label>
+            <label class="visually-hidden" for="logCategory">Category</label>
+            <select id="logCategory" class="form-select" name="category" data-log-auto-submit>
+                {% for value, label in categories %}<option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <label class="visually-hidden" for="logLimit">Rows</label>
+            <select id="logLimit" class="form-select" name="limit" data-log-auto-submit>
+                {% for value in (50, 100, 200, 500) %}<option value="{{ value }}" {% if selected_limit == value %}selected{% endif %}>{{ value }} rows</option>{% endfor %}
+            </select>
+            <button class="btn btn-primary" type="submit">Apply</button>
+            {% if query or category != 'all' or selected_limit != 200 %}<a class="btn btn-outline-secondary" href="{{ request.path }}">Reset</a>{% endif %}
+            <button class="btn btn-icon btn-outline-secondary" type="button" data-log-refresh title="Reload the newest log entries" aria-label="Reload logs"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+        </form>
+
+        <div class="log-window-meta">
+            <span><i class="fa-regular fa-file-lines" aria-hidden="true"></i> {{ snapshot.filename }}</span>
+            <span>{{ summary.matched }} shown</span>
+            {% if snapshot.modified_at %}<span>Updated {{ snapshot.modified_at.strftime('%d %b %Y, %H:%M:%S') }}</span>{% endif %}
+            {% if snapshot.window_truncated %}<span class="log-window-note" title="Only the newest bounded section is loaded so very large log files remain responsive"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><span class="visually-hidden">Newest bounded window loaded</span></span>{% endif %}
+        </div>
+
+        <div class="log-entry-list" aria-live="polite">
+            {% for item in entries %}
+                {% if log_type == 'server' %}
+                    <article class="log-entry log-level-{{ item.level|lower }}">
+                        <div class="log-entry-head">
+                            <span class="log-level-badge">{{ item.level }}</span>
+                            {% if item.request_method %}<span class="log-method">{{ item.request_method }}</span>{% endif %}
+                            {% if item.status_code %}<span class="log-status log-status-{{ item.status_code // 100 }}xx">{{ item.status_code }}</span>{% endif %}
+                            <time>{{ item.timestamp_label }}</time>
+                            {% if item.duration_ms %}<span class="log-duration">{{ item.duration_ms }} ms</span>{% endif %}
+                            <span class="log-source">{% if item.client_ip %}{{ item.client_ip }}{% if item.audit_user %} · {{ item.audit_user }}{% endif %}{% if item.request_id %} · {{ item.request_id }}{% endif %}{% else %}{{ item.logger }}{% if item.thread %} · {{ item.thread }}{% endif %}{% endif %}</span>
+                        </div>
+                        {% if item.request_path %}<p class="log-path" title="{{ item.request_path }}">{{ item.request_path }}</p>{% else %}<p class="log-message">{{ item.message }}</p>{% endif %}
+                        {% if item.details %}<details class="log-details"><summary>Trace details</summary><pre>{{ item.details }}</pre></details>{% endif %}
+                    </article>
+                {% else %}
+                    <article class="log-entry log-transfer-{{ item.kind }}">
+                        <div class="log-entry-head">
+                            <span class="log-direction-badge">{% if item.kind == 'request' %}IN{% elif item.kind == 'response' %}OUT{% else %}?{% endif %}</span>
+                            {% if item.method %}<span class="log-method">{{ item.method }}</span>{% endif %}
+                            <time>{{ item.timestamp_label }}</time>
+                            <span class="log-size">{{ item.size }}</span>
+                        </div>
+                        {% if item.path %}<p class="log-path" title="{{ item.path }}">{{ item.path }}</p>{% else %}<p class="log-message">{{ item.message }}</p>{% endif %}
+                        {% if item.ip %}<span class="log-source">{{ item.ip }}</span>{% endif %}
+                    </article>
+                {% endif %}
+            {% else %}
+                <div class="log-empty-state">
+                    <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
+                    <p>No matching entries.</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 </section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}

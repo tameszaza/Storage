@@ -106,24 +106,73 @@ def list_items(username: str) -> dict[str, list[dict[str, Any]]]:
     return {"events": events, "todos": todos}
 
 
-def create_event(username: str, values: dict[str, Any]) -> dict[str, Any]:
-    title = _clean_text(values.get("title"), maximum=160, required=True)
-    event_date = _date_value(values.get("date"), required=True)
-    all_day = str(values.get("all_day", "")).lower() in {"1", "true", "on", "yes"}
-    start_time = "" if all_day else _time_value(values.get("start_time"), required=True)
-    end_time = "" if all_day else _time_value(values.get("end_time"))
-    if end_time and end_time <= start_time:
+def _event_values(values: dict[str, Any], existing: dict[str, Any] | None = None) -> dict[str, Any]:
+    current = existing or {}
+
+    def supplied(name: str) -> bool:
+        return name in values
+
+    title = _clean_text(
+        values.get("title") if supplied("title") else current.get("title"),
+        maximum=160,
+        required=True,
+    )
+    event_date = _date_value(
+        values.get("date") if supplied("date") else current.get("date"),
+        required=True,
+    )
+    if supplied("end_date"):
+        end_date = _date_value(values.get("end_date")) or event_date
+    elif current and supplied("date"):
+        try:
+            previous_start = date.fromisoformat(str(current.get("date") or event_date))
+            previous_end = date.fromisoformat(str(current.get("end_date") or current.get("date") or event_date))
+            duration = max(0, (previous_end - previous_start).days)
+        except ValueError:
+            duration = 0
+        end_date = date.fromordinal(date.fromisoformat(event_date).toordinal() + duration).isoformat()
+    else:
+        end_date = _date_value(current.get("end_date") or event_date) or event_date
+    if end_date < event_date:
+        raise PlannerValidationError("End date must not be before the start date.")
+
+    if supplied("all_day"):
+        all_day = str(values.get("all_day", "")).lower() in {"1", "true", "on", "yes"}
+    else:
+        all_day = bool(current.get("all_day"))
+
+    start_time = "" if all_day else _time_value(
+        values.get("start_time") if supplied("start_time") else current.get("start_time"),
+        required=True,
+    )
+    end_time = "" if all_day else _time_value(
+        values.get("end_time") if supplied("end_time") else current.get("end_time")
+    )
+    if end_date == event_date and end_time and end_time <= start_time:
         raise PlannerValidationError("End time must be after the start time.")
 
-    item = {
-        "id": secrets.token_urlsafe(12),
+    return {
         "title": title,
         "date": event_date,
+        "end_date": end_date,
         "all_day": all_day,
         "start_time": start_time,
         "end_time": end_time,
-        "location": _clean_text(values.get("location"), maximum=180),
-        "notes": _clean_text(values.get("notes"), maximum=1000),
+        "location": _clean_text(
+            values.get("location") if supplied("location") else current.get("location"),
+            maximum=180,
+        ),
+        "notes": _clean_text(
+            values.get("notes") if supplied("notes") else current.get("notes"),
+            maximum=1000,
+        ),
+    }
+
+
+def create_event(username: str, values: dict[str, Any]) -> dict[str, Any]:
+    item = {
+        "id": secrets.token_urlsafe(12),
+        **_event_values(values),
         "source": "local",
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
@@ -133,6 +182,32 @@ def create_event(username: str, values: dict[str, Any]) -> dict[str, Any]:
         _user_bucket(payload, username)["events"].append(item)
         write_json(_data_path(), payload)
     return dict(item)
+
+
+def update_event(username: str, event_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+    event_id = str(event_id or "").strip()
+    if not event_id:
+        raise PlannerValidationError("An event ID is required.")
+
+    with _LOCK:
+        payload = _load()
+        events = _user_bucket(payload, username)["events"]
+        for item in events:
+            if not isinstance(item, dict) or item.get("id") != event_id:
+                continue
+            if item.get("source", "local") != "local":
+                raise PlannerValidationError("Published calendar events are read-only.")
+            updated = {
+                **item,
+                **_event_values(values, existing=item),
+                "source": "local",
+                "updated_at": _now_iso(),
+            }
+            item.clear()
+            item.update(updated)
+            write_json(_data_path(), payload)
+            return dict(item)
+    return None
 
 
 def delete_event(username: str, event_id: str) -> bool:

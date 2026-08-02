@@ -56,6 +56,7 @@
                 {% for day in week %}
                 {% set day_key = day.isoformat() %}
                 {% set day_events = events_by_date.get(day_key, []) %}
+                {% set day_tasks = tasks_by_date.get(day_key, []) %}
                 <article class="planner-day{% if day.month != month %} is-outside{% endif %}{% if day == today %} is-today{% endif %}" role="gridcell" data-calendar-date="{{ day_key }}">
                     <button class="planner-day-number" type="button" data-create-date="{{ day_key }}" aria-label="Add event on {{ day.strftime('%B %d, %Y') }}" title="Add event">
                         <span>{{ day.day }}</span>
@@ -67,6 +68,17 @@
                                 data-event="{{ item|tojson|forceescape }}"
                                 title="{{ item.title }}{% if item.end_date and item.end_date != item.date %} · {{ item.date }} to {{ item.end_date }}{% endif %}{% if item.location %} · {{ item.location }}{% endif %}">
                             {% if not item.all_day and item.display_start_time %}<time>{{ item.display_start_time }}</time>{% endif %}
+                            <span>{{ item.title }}</span>
+                        </button>
+                        {% endfor %}
+                        {% for item in day_tasks %}
+                        <button class="planner-calendar-task is-priority-{{ item.priority }}{% if item.completed %} is-complete{% endif %}"
+                                type="button"
+                                data-calendar-task-id="{{ item.id }}"
+                                title="{{ item.title }}{% if item.due_time %} · {{ item.due_time }}{% endif %}{% if item.completed %} · Completed{% endif %}"
+                                aria-label="Task: {{ item.title }}{% if item.due_time %} at {{ item.due_time }}{% endif %}{% if item.completed %}, completed{% endif %}">
+                            <i class="fa-solid {{ 'fa-check' if item.completed else 'fa-square-check' }}" aria-hidden="true"></i>
+                            {% if item.due_time %}<time>{{ item.due_time }}</time>{% endif %}
                             <span>{{ item.title }}</span>
                         </button>
                         {% endfor %}
@@ -89,7 +101,7 @@
         </div>
         <div class="planner-todo-list" data-todo-list>
             {% for item in todos %}
-            <article class="planner-todo-item{% if item.completed %} is-complete{% endif %}" data-todo-state="{{ 'done' if item.completed else 'open' }}">
+            <article id="todo-{{ item.id }}" class="planner-todo-item{% if item.completed %} is-complete{% endif %}" data-todo-id="{{ item.id }}" data-todo-state="{{ 'done' if item.completed else 'open' }}">
                 <form method="POST" action="{{ url_for('planner_toggle_todo', todo_id=item.id) }}">
                     <input type="hidden" name="return_month" value="{{ month_token }}">
                     <button class="planner-todo-check" type="submit" aria-label="{{ 'Mark task open' if item.completed else 'Complete task' }}" title="{{ 'Mark open' if item.completed else 'Complete' }}" data-tooltip="true">

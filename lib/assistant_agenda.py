@@ -173,7 +173,10 @@ def event_overlaps(item: dict[str, Any], first_day: date, exclusive_end: date) -
 
 
 def _normalized_event(item: dict[str, Any]) -> dict[str, Any]:
+    source = "published" if item.get("source") == "ics" else "local"
     return {
+        "event_id": str(item.get("id") or "") if source == "local" else "",
+        "editable": source == "local",
         "title": str(item.get("title") or "Untitled event"),
         "start_date": str(item.get("date") or item.get("start_date") or ""),
         "end_date": str(item.get("end_date") or item.get("date") or item.get("start_date") or ""),
@@ -182,7 +185,7 @@ def _normalized_event(item: dict[str, Any]) -> dict[str, Any]:
         "end_time": str(item.get("end_time") or ""),
         "location": str(item.get("location") or ""),
         "notes": str(item.get("notes") or "")[:1200],
-        "source": "published" if item.get("source") == "ics" else "local",
+        "source": source,
     }
 
 
@@ -212,7 +215,7 @@ def read_calendar_range(username: str, first_day: date, last_day: date, *, limit
         normalized = _normalized_event(item)
         key = (
             normalized["source"],
-            normalized["title"],
+            normalized["event_id"] or normalized["title"],
             normalized["start_date"],
             normalized["start_time"],
             normalized["end_date"],

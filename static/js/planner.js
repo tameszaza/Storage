@@ -124,6 +124,22 @@
         filterButtons.forEach((button) => button.addEventListener("click", () => applyFilter(button.dataset.todoFilter || "open")));
         applyFilter("open");
 
+        const calendarTaskButtons = Array.from(document.querySelectorAll("[data-calendar-task-id]"));
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        calendarTaskButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                const taskId = button.dataset.calendarTaskId || "";
+                const taskItem = todoItems.find((item) => item.dataset.todoId === taskId);
+                if (!taskItem) return;
+                if (taskItem.hidden) applyFilter("all");
+                taskItem.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+                taskItem.classList.remove("is-calendar-focus");
+                window.requestAnimationFrame(() => taskItem.classList.add("is-calendar-focus"));
+                window.setTimeout(() => taskItem.classList.remove("is-calendar-focus"), 1800);
+                taskItem.querySelector(".planner-todo-check")?.focus({ preventScroll: true });
+            });
+        });
+
         const syncForm = document.getElementById("calendarSyncForm");
         const syncButton = document.getElementById("calendarSyncButton");
         async function syncPublishedCalendar(event) {

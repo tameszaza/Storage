@@ -147,7 +147,9 @@ def _directory_hierarchy(directory: str, display_name: str) -> tuple[dict, dict]
             "name": node_name or "Root",
             "path": normalize_chart_path(relative),
             "size": direct_size + sum(child["size"] for child in children),
+            "direct_size": direct_size,
             "file_count": record["direct_file_count"] + sum(child.get("file_count", 0) for child in children),
+            "direct_file_count": record["direct_file_count"],
             "children": sorted(children, key=lambda child: child["size"], reverse=True),
             "kind": "folder",
         }
@@ -156,7 +158,9 @@ def _directory_hierarchy(directory: str, display_name: str) -> tuple[dict, dict]
         "name": display_name or "Root",
         "path": "",
         "size": 0,
+        "direct_size": 0,
         "file_count": 0,
+        "direct_file_count": 0,
         "children": [],
         "kind": "folder",
     })

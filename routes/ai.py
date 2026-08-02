@@ -12,6 +12,8 @@ from lib.ai_client import (
     ask_image,
     ask_text,
     build_ai_context,
+    calendar_write_requested,
+    compact_session_history,
     direct_command_catalog,
     initial_history,
     is_ai_readable_file,
@@ -336,7 +338,7 @@ def _store_direct_chat_turn(message: str, response: str) -> None:
     history = list(history)[-998:]
     history.append({"role": "user", "parts": message})
     history.append({"role": "model", "parts": response})
-    session["conversation_history"] = history
+    session["conversation_history"] = compact_session_history(history)
 
 
 @login_required
@@ -349,7 +351,7 @@ def chat():
     include_context = request.form.get("include_context", "1") == "1"
 
     if msg and not image:
-        if include_context:
+        if include_context and not calendar_write_requested(msg):
             temporal_response = direct_temporal_answer(session.get("username"), msg)
             if temporal_response:
                 _store_direct_chat_turn(msg, temporal_response)
@@ -394,7 +396,7 @@ def chat():
     except RuntimeError as exc:
         return jsonify({"response": str(exc)}), 503
 
-    session["conversation_history"] = history
+    session["conversation_history"] = compact_session_history(history)
     return jsonify({"response": response_text})
 
 

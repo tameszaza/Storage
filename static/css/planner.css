@@ -158,3 +158,87 @@ body[data-theme="dark"] .planner-event:hover { filter: brightness(1.18); }
         display: none;
     }
 }
+
+/* Due tasks inside calendar days */
+.planner-calendar-task {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    border: 1px solid var(--ts-border);
+    border-left: 3px solid var(--ts-border-strong);
+    border-radius: 5px;
+    color: var(--ts-text);
+    background: var(--ts-surface-soft);
+    font-size: .7rem;
+    line-height: 1.25;
+    text-align: left;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.planner-calendar-task:hover,
+.planner-calendar-task:focus-visible {
+    background: color-mix(in srgb, var(--ts-primary-soft), var(--ts-surface) 42%);
+    transform: translateX(1px);
+}
+.planner-calendar-task i {
+    flex: 0 0 auto;
+    color: var(--ts-muted);
+    font-size: .62rem;
+}
+.planner-calendar-task time {
+    flex: 0 0 auto;
+    color: var(--ts-muted);
+    font-size: .63rem;
+    font-variant-numeric: tabular-nums;
+}
+.planner-calendar-task span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 650;
+}
+.planner-calendar-task.is-priority-high { border-left-color: var(--ts-danger); }
+.planner-calendar-task.is-priority-medium { border-left-color: var(--ts-warning); }
+.planner-calendar-task.is-priority-low { border-left-color: var(--ts-success); }
+.planner-calendar-task.is-complete { opacity: .56; }
+.planner-calendar-task.is-complete span { text-decoration: line-through; }
+
+.planner-todo-item.is-calendar-focus {
+    background: var(--ts-primary-soft);
+    outline: 2px solid color-mix(in srgb, var(--ts-primary), transparent 45%);
+    outline-offset: -2px;
+}
+
+@media (max-width: 760px) {
+    .planner-calendar-task {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 9px;
+        padding: 0;
+        border: 2px solid var(--ts-border-strong);
+        border-radius: 2px;
+        background: transparent;
+    }
+    .planner-calendar-task.is-priority-high { border-color: var(--ts-danger); }
+    .planner-calendar-task.is-priority-medium { border-color: var(--ts-warning); }
+    .planner-calendar-task.is-priority-low { border-color: var(--ts-success); }
+    .planner-calendar-task.is-complete {
+        background: var(--ts-muted);
+        opacity: .55;
+    }
+    .planner-calendar-task i,
+    .planner-calendar-task time,
+    .planner-calendar-task span { display: none; }
+    .planner-calendar-task:hover,
+    .planner-calendar-task:focus-visible {
+        transform: scale(1.2);
+        background: var(--ts-primary-soft);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .planner-calendar-task { transition: none; }
+}

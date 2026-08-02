@@ -119,6 +119,39 @@ def _events_by_visible_date(
     return grouped
 
 
+def _tasks_by_visible_date(
+    todos: list[dict],
+    range_start: date,
+    range_end: date,
+) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    priority_order = {"high": 0, "medium": 1, "low": 2, "none": 3}
+    for item in todos:
+        raw_due_date = str(item.get("due_date") or "").strip()
+        if not raw_due_date:
+            continue
+        try:
+            due_date = date.fromisoformat(raw_due_date)
+        except ValueError:
+            continue
+        if not range_start <= due_date < range_end:
+            continue
+        display_item = dict(item)
+        display_item["display_date"] = due_date.isoformat()
+        grouped.setdefault(due_date.isoformat(), []).append(display_item)
+
+    for day_tasks in grouped.values():
+        day_tasks.sort(
+            key=lambda item: (
+                bool(item.get("completed")),
+                item.get("due_time") or "23:59",
+                priority_order.get(str(item.get("priority") or "none"), 3),
+                str(item.get("title") or "").casefold(),
+            )
+        )
+    return grouped
+
+
 @login_required
 def planner_page():
     username = session.get("username", "")
@@ -130,7 +163,7 @@ def planner_page():
     items = list_items(username)
     local_events = [
         item for item in items["events"]
-        if range_start.isoformat() <= item.get("date", "") < range_end.isoformat()
+        if _event_span(item, range_start, range_end) is not None
     ]
 
     published_events = []
@@ -153,6 +186,7 @@ def planner_page():
         )
     )
     events_by_date = _events_by_visible_date(events, range_start, range_end)
+    tasks_by_date = _tasks_by_visible_date(items["todos"], range_start, range_end)
 
     previous = _shift_month(year, month, -1)
     following = _shift_month(year, month, 1)
@@ -170,6 +204,7 @@ def planner_page():
         next_month=_month_token(*following),
         today=today,
         events_by_date=events_by_date,
+        tasks_by_date=tasks_by_date,
         todos=items["todos"],
         open_todos=open_todos,
         published_calendar=published_calendar,

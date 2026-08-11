@@ -18,35 +18,50 @@ A modular Flask private cloud storage dashboard with file upload, folder managem
 app.py
 lib/
   ai_client.py
+  audio_stream.py
+  camera_macro.py
+  camera_stream.py
   charts.py
   config.py
   extensions.py
   feedback_store.py
+  inworld_tts.py
   json_store.py
   request_logging.py
   security.py
   storage.py
   system_info.py
+  tts_stream.py
   users.py
 routes/
   admin.py
   ai.py
   auth.py
+  camera.py
   feedback.py
   files.py
   public.py
 src/
   tailwind.css
 static/
+  css/camera.css
   css/styles.css
   css/tailwind.css
   vendor/
   js/app.js
+  js/camera.js
   js/storage.js
   js/admin.js
   js/chat.js
 templates/
+  camera_server.html
+  view_cam.html
 ```
+
+Camera and remote voice code follows the same separation: `lib/` contains
+streaming, queue, and Google API services; `routes/camera.py` contains only
+HTTP handlers; and the phone/admin views and browser code stay in
+`templates/` and `static/`.
 
 ## Setup
 
@@ -62,6 +77,32 @@ Open:
 ```text
 http://localhost:5000
 ```
+
+### Phone camera streaming
+
+Open `http://localhost:5000/server` on the phone running Tamestorage, allow
+camera access, and press **Start camera**. The local preview stays hidden to
+reduce battery use. From **Admin → Live video**, use **Start camera**, **Stop
+camera**, **Change camera**, the quality preset, the independent FPS selector,
+and **Stream sound** to remotely control the phone. Change camera cycles through
+all available phone cameras. The phone browser must grant microphone permission
+before sound can be streamed. The page shows the actual upload FPS. Keep it
+open while viewing from another device. The browser uploads compressed JPEG and
+PCM audio chunks to the Flask process on port `5000`, so no second video/audio
+service or port `8081` is required.
+
+The remote **Open camera** button calls the local MacroDroid webhook
+`http://127.0.0.1:8080/web` by default. Configure the URL with
+`CAMERA_OPEN_WEBHOOK_URL` if the MacroDroid trigger uses a different path.
+
+The **Remote voice** field on **Admin → Live video** sends text to Inworld TTS
+using the `INWORLD_API_KEY` in `.env`. It uses the `Sarah` voice with the
+`inworld-tts-2` model by default. Press Enter or click **Play on server**. On the
+phone, tap **Enable remote voice** once (or start the camera) to satisfy the
+browser's audio-playback permission; the browser remembers that permission when
+possible. Voice clips stay queued on the server while the phone reconnects, and
+the phone retries failed downloads automatically without replaying an already
+acknowledged clip.
 
 ## Tailwind frontend
 
@@ -201,6 +242,7 @@ Configure a separate portal password before use:
 ```text
 AIRCON_PORTAL_PASSWORD=replace-with-a-separate-aircon-password
 AIRCON_SESSION_HOURS=24
+AIRCON_RATE_PER_HOUR=0.39
 ```
 
 The portal supports:
@@ -212,11 +254,13 @@ The portal supports:
 - Start, stop, and skip-current-phase actions.
 - Direct ON and OFF commands while no automatic schedule is running.
 - Live timeline progress and cost estimates at SGD 0.39 per ON hour.
+- Estimated ON cost, OFF-time savings, and active windows for the current weekly plan.
 - Persistent ON time, OFF time, completed cycles, spend, and savings totals stored in `ac_statistics.json`.
 - Totals survive normal server restarts and remain until **Reset totals** is pressed in the aircon portal.
 - Spend and savings values rounded up to the nearest SGD 0.01.
+- Admin-triggered restarts preserve the current AC state and resume the saved ON/OFF phase instead of sending an unnecessary OFF or starting a weekly cycle from ON.
 
-Settings remain stored in `ac_control.json` with owner-only file permissions. The schedule does not automatically resume after a server restart.
+Settings remain stored in `ac_control.json` with owner-only file permissions. A short-lived `ac_runtime.json` snapshot is used only to preserve the current state during an admin-triggered restart, then consumed on startup.
 
 ### MacroDroid setup
 

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Phone camera · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/camera.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card camera-page-header">
+    <header>
+        <p class="eyebrow">Phone camera</p>
+        <h1>Stream this phone</h1>
+        <p class="muted">The local preview is off to reduce battery use.</p>
+    </header>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Admin</a>
+</section>
+
+<section class="camera-capture-layout" data-camera-capture data-frame-url="{{ camera_frame_url }}" data-audio-frame-url="{{ audio_frame_url }}" data-control-url="{{ camera_control_url }}" data-tts-chunk-url="{{ tts_chunk_url }}" data-tts-sequence="{{ tts_sequence }}">
+    <article class="glass-card camera-control-card">
+        <video class="camera-pipeline" data-camera-preview autoplay muted playsinline aria-hidden="true" tabindex="-1"></video>
+        <div class="camera-sender-state">
+            <i class="fa-solid fa-battery-quarter" aria-hidden="true"></i>
+            <div>
+                <strong>Battery-saving mode</strong>
+                <span>Camera preview is disabled on this phone.</span>
+            </div>
+        </div>
+        <div class="camera-metrics" aria-label="Camera stream metrics">
+            <div class="camera-metric">
+                <span>Upload FPS</span>
+                <strong><span data-camera-fps>0.0</span> <small>fps</small></strong>
+            </div>
+            <div class="camera-metric">
+                <span>Camera</span>
+                <strong data-camera-facing>Rear</strong>
+            </div>
+            <div class="camera-metric">
+                <span>Quality</span>
+                <strong data-camera-quality>Balanced</strong>
+            </div>
+            <div class="camera-metric">
+                <span>Target FPS</span>
+                <strong data-camera-target-fps>10 fps</strong>
+            </div>
+        </div>
+        <div class="camera-controls">
+            <button class="btn btn-primary" type="button" data-camera-start><i class="fa-solid fa-video" aria-hidden="true"></i> Start camera</button>
+            <button class="btn btn-outline-secondary" type="button" data-camera-stop disabled><i class="fa-solid fa-stop" aria-hidden="true"></i> Stop</button>
+            <button class="btn btn-outline-secondary" type="button" data-camera-switch hidden><i class="fa-solid fa-camera-rotate" aria-hidden="true"></i> Change camera</button>
+        </div>
+        <p class="camera-status" data-camera-status role="status" aria-live="polite">Camera is off.</p>
+        <p class="camera-audio-status muted" data-camera-audio-state>Sound is off.</p>
+        <div class="camera-tts-unlock">
+            <button class="btn btn-outline-secondary" type="button" data-camera-tts-enable><i class="fa-solid fa-volume-high" aria-hidden="true"></i> Enable remote voice</button>
+            <span class="muted" data-camera-tts-state>Tap once to allow voice; this permission is remembered on this browser.</span>
+        </div>
+        <p class="camera-help muted">Use Change camera to switch between the rear and front cameras. The stream stops when this page is closed.</p>
+    </article>
+
+    <aside class="glass-card camera-instructions">
+        <p class="eyebrow">How it works</p>
+        <h2>Leave this page open</h2>
+        <ol>
+            <li>Allow camera access when the browser asks.</li>
+            <li>Tap <strong>Start camera</strong>.</li>
+            <li>Open <strong>Admin → Live video</strong> from another device.</li>
+        </ol>
+        <div class="camera-connection-state" data-camera-connection>
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <span>Waiting for camera permission.</span>
+        </div>
+    </aside>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/camera.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}

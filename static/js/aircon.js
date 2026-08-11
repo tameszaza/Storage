@@ -527,6 +527,9 @@
                 statistics = result.statistics;
                 statisticsFetchedAt = Date.now();
             }
+            if (result.weekly) {
+                window.dispatchEvent(new CustomEvent("aircon:weekly-updated", { detail: result }));
+            }
             renderStatus();
             showToast(result.message || successFallback, false);
         } catch (error) {

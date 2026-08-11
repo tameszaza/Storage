@@ -1,10 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Camera · Tamestorage{% endblock %}
+{% block title %}Live video · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/admin.css') }}?v={{ admin_asset_version }}" rel="stylesheet"><link href="{{ url_for('static', filename='css/camera.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="empty-state glass-card">
-    <i class="fa-solid fa-video"></i>
-    <h1>Camera view is not configured</h1>
-    <p class="muted">Add a video feed route before using this page.</p>
-    <a class="btn btn-outline-primary" href="{{ url_for('admin') }}">Back to admin</a>
+<section class="workspace-header glass-card">
+    <header>
+        <p class="eyebrow">Admin</p>
+        <h1>Live video</h1>
+        <p class="muted">Watch the camera currently shared from the phone.</p>
+    </header>
+    <div class="header-actions">
+        <a class="btn btn-outline-primary" href="{{ url_for('camera_server') }}"><i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i> Open phone camera</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back</a>
+    </div>
+</section>
+<section class="glass-card admin-video-shell camera-viewer" data-camera-viewer data-status-url="{{ camera_status_url }}" data-audio-url="{{ camera_audio_chunk_url }}" data-control-url="{{ camera_control_url }}" data-tts-url="{{ camera_tts_url }}" data-tts-max-chars="{{ tts_max_chars }}">
+    <div class="camera-viewer-toolbar">
+        <div>
+            <strong data-camera-viewer-title>Waiting for phone camera</strong>
+            <span class="camera-viewer-status" data-camera-viewer-status>Open the camera page on the phone, then press Start camera.</span>
+        </div>
+        <div class="camera-viewer-actions">
+            <div class="camera-remote-controls" data-camera-remote-controls>
+                <button class="btn btn-outline-secondary" type="button" data-camera-remote-switch><i class="fa-solid fa-camera-rotate" aria-hidden="true"></i> Change camera</button>
+                <label class="camera-quality-control">
+                    <span>Quality</span>
+                    <select data-camera-quality aria-label="Camera quality">
+                        <option value="low">Low · smaller</option>
+                        <option value="balanced" selected>Balanced</option>
+                        <option value="high">High · clearer</option>
+                    </select>
+                </label>
+                <label class="camera-quality-control">
+                    <span>FPS</span>
+                    <select data-camera-fps-select aria-label="Camera FPS">
+                        <option value="5">5 fps</option>
+                        <option value="10" selected>10 fps</option>
+                        <option value="15">15 fps</option>
+                        <option value="20">20 fps</option>
+                    </select>
+                </label>
+                <span class="camera-control-status" data-camera-control-status role="status" aria-live="polite"></span>
+            </div>
+            <span class="camera-viewer-dot" data-camera-viewer-dot aria-hidden="true"></span>
+        </div>
+    </div>
+    <div class="camera-remote-bar">
+        <button class="btn btn-outline-primary" type="button" data-camera-remote-open><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Open camera</button>
+        <button class="btn btn-primary" type="button" data-camera-remote-start><i class="fa-solid fa-play" aria-hidden="true"></i> Start camera</button>
+        <button class="btn btn-outline-secondary" type="button" data-camera-remote-stop disabled><i class="fa-solid fa-stop" aria-hidden="true"></i> Stop camera</button>
+        <button class="btn btn-outline-secondary" type="button" data-camera-audio-toggle><i class="fa-solid fa-microphone" aria-hidden="true"></i> <span data-camera-audio-label>Stream sound</span></button>
+        <span class="camera-control-status" data-camera-audio-status role="status" aria-live="polite">Sound is off.</span>
+    </div>
+    <form class="camera-tts-bar" data-camera-tts-form>
+        <label class="camera-tts-input" for="cameraTtsInput">
+            <span><i class="fa-solid fa-comment-dots" aria-hidden="true"></i> Remote voice</span>
+            <input id="cameraTtsInput" type="text" data-camera-tts-input maxlength="{{ tts_max_chars }}" autocomplete="off" placeholder="Type a message and press Enter">
+        </label>
+        <button class="btn btn-outline-primary" type="submit" data-camera-tts-submit><i class="fa-solid fa-volume-high" aria-hidden="true"></i> Play on server</button>
+        <span class="camera-control-status" data-camera-tts-status role="status" aria-live="polite">Enter sends the voice to the phone.</span>
+    </form>
+    <div class="camera-stream-wrap">
+        <img class="camera-stream-image" data-camera-stream src="{{ camera_stream_url }}" alt="Live stream from the phone camera">
+        <div class="camera-stream-placeholder" data-camera-viewer-placeholder>
+            <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i>
+            <strong>No phone camera is streaming</strong>
+            <span>Open the phone camera page to start sharing.</span>
+            <a class="btn btn-primary" href="{{ url_for('camera_server') }}">Open phone camera</a>
+        </div>
+    </div>
 </section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/camera.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}

@@ -517,3 +517,16 @@
     background: color-mix(in srgb, var(--danger-color, #dc2626) 12%, transparent);
     color: var(--danger-color, #dc2626);
 }
+
+.admin-video-shell {
+    min-height: 70vh;
+    padding: 0;
+    overflow: hidden;
+}
+
+.admin-video-frame {
+    display: block;
+    width: 100%;
+    min-height: 70vh;
+    border: 0;
+}

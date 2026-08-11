@@ -1,7 +1,7 @@
-Flask>=3.0.0
-Flask-Bcrypt>=1.0.1
-psutil>=5.9.0
-Pillow>=10.0.0
-matplotlib>=3.8.0
-google-genai>=1.0.0
-python-dateutil>=2.9.0
+Flask
+Flask-Bcrypt
+Pillow
+python-dateutil
+google-genai
+matplotlib
+psutil

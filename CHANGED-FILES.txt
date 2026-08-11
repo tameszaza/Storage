@@ -1,49 +1,43 @@
-Core and configuration:
+Startup lifecycle:
 - app.py
-- requirements.txt
-- package.json
-- .env.example
-- .gitignore
-- README.md
 
-New modules:
-- lib/ac_usage.py
-- lib/editor_service.py
-- routes/network_test.py
-
-Updated backend modules:
+Aircon backend:
 - lib/ac_control.py
+- lib/ac_history.py (new)
+- lib/phone_commands.py (new; shared 12-second phone command queue with cancellation)
+- lib/ac_weekly.py (new)
 - lib/config.py
-- lib/extensions.py
-- lib/search_index.py
-- routes/__init__.py
 - routes/aircon.py
-- routes/features.py
-- routes/files.py
 
-Updated templates:
-- templates/admin_panel.html
-- templates/advanced_search.html
+Aircon UI:
 - templates/aircon_portal.html
-- templates/chat.html
-- templates/editfile.html
-- templates/index.html
-- templates/network_test.html
-
-Page styles:
-- static/css/admin.css
 - static/css/aircon.css
-- static/css/chat-page.css
-- static/css/editor-page.css
-- static/css/files-page.css
-- static/css/network-test.css
-- static/css/search-page.css
+- static/js/aircon-weekly.js (new)
+- Admin restarts preserve the AC state and resume the saved ON/OFF phase.
+- Weekly automation shows an estimated current-plan cost and savings.
+- Pressing Stop now also disables weekly automation so it cannot restart the schedule.
 
-Page scripts:
-- static/js/aircon.js
-- static/js/app.js
-- static/js/chat.js
-- static/js/editor.js
-- static/js/network-test.js
-- static/js/search.js
-- static/js/storage.js
+Phone camera streaming:
+- lib/camera_stream.py (new)
+- routes/camera.py (new)
+- routes/admin.py
+- templates/admin_panel.html
+- templates/view_cam.html
+- templates/camera_server.html (new)
+- static/css/admin.css
+- static/css/camera.css (new)
+- static/js/camera.js (new)
+- lib/audio_stream.py (new)
+- lib/camera_macro.py (new)
+- lib/inworld_tts.py (new)
+- lib/tts_stream.py (new)
+- Remote camera start/stop/switching, independent quality/FPS controls, optional PCM sound, and FPS reporting
+- MacroDroid open-camera webhook control
+- Inworld remote voice playback on the phone
+- Inworld provider error details are surfaced for setup and permission failures
+
+Project setup:
+- requirements.txt
+- .env.example
+- APPLY-INSTRUCTIONS.txt
+- CHANGED-FILES.txt

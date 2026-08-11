@@ -23,3 +23,7 @@ uploads/Admin/ics_calendar.json
 uploads/Admin/ics_calendar_cache.json
 uploads/Admin/microsoft_calendar.json
 uploads/Admin/microsoft_calendar_cache.json
+ac_history.json
+ac_weekly.json
+ac_runtime.json
+server.log.*

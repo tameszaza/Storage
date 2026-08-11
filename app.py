@@ -2,6 +2,7 @@ import os
 
 from flask import Flask, session
 
+from lib.ac_control import get_ac_controller
 from lib.config import Config
 from lib.extensions import bcrypt
 from lib.request_logging import register_request_logging, setup_logging
@@ -55,9 +56,24 @@ def create_app(config_class=Config):
 app = create_app()
 
 
+def start_background_services():
+    """Start singleton services that must run even before the first HTTP request."""
+    get_ac_controller(app)
+
+
+if __name__ != "__main__":
+    start_background_services()
+
+
 if __name__ == "__main__":
     debug = os.environ.get("FLASK_DEBUG", "1").strip().lower() in {"1", "true", "yes", "on"}
     certificate = app.config.get("TLS_CERT_FILE")
     private_key = app.config.get("TLS_KEY_FILE")
     ssl_context = (certificate, private_key) if certificate and private_key else None
+
+    # The Werkzeug reloader imports this module in both a parent and child process.
+    # Start the scheduler only in the serving child so weekly actions are not duplicated.
+    if not debug or os.environ.get("WERKZEUG_RUN_MAIN", "").lower() == "true":
+        start_background_services()
+
     app.run(debug=debug, host="0.0.0.0", port=5000, ssl_context=ssl_context)

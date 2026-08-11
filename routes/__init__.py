@@ -1,4 +1,4 @@
-from routes import admin, ai, aircon, auth, features, feedback, files, network_test, planner, public, shares
+from routes import admin, ai, aircon, auth, camera, features, feedback, files, network_test, planner, public, shares
 
 
 def register_all_routes(app):
@@ -6,6 +6,7 @@ def register_all_routes(app):
     files.register_routes(app)
     features.register_routes(app)
     admin.register_routes(app)
+    camera.register_routes(app)
     network_test.register_routes(app)
     planner.register_routes(app)
     aircon.register_routes(app)

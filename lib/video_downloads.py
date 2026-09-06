@@ -10,6 +10,8 @@ import sqlite3
 import ssl
 import subprocess
 import time
+import re
+import unicodedata
 from urllib.parse import urlsplit, urljoin
 import uuid
 
@@ -21,21 +23,90 @@ RESERVE = 2 * 1024**3
 def connection():
     db = sqlite3.connect(DB, timeout=15)
     db.row_factory = sqlite3.Row
-    db.execute('CREATE TABLE IF NOT EXISTS downloads (id TEXT PRIMARY KEY, title TEXT, url TEXT, status TEXT, received INTEGER DEFAULT 0, total INTEGER DEFAULT 0, filename TEXT DEFAULT "", message TEXT DEFAULT "", created REAL)')
+    db.execute('CREATE TABLE IF NOT EXISTS downloads (id TEXT PRIMARY KEY, title TEXT, url TEXT, status TEXT, received INTEGER DEFAULT 0, total INTEGER DEFAULT 0, filename TEXT DEFAULT "", message TEXT DEFAULT "", created REAL, folder_name TEXT DEFAULT "")')
+    columns = {row[1] for row in db.execute('PRAGMA table_info(downloads)')}
+    if 'folder_name' not in columns:
+        db.execute('ALTER TABLE downloads ADD COLUMN folder_name TEXT DEFAULT ""')
     return db
+
+def _clean_name(value, fallback='Video'):
+    value = unicodedata.normalize('NFKC', str(value or ''))
+    value = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '-', value)
+    value = re.sub(r'\s+', ' ', value).strip(' .')
+    value = value[:90].rstrip(' .')
+    return value or fallback
+
+def _hdwatch_details(url):
+    parts = [p for p in urlsplit(str(url or '')).path.split('/') if p]
+    if len(parts) < 3 or parts[0].lower() != 'series':
+        return None
+    slug = re.sub(r'-\d+$', '', parts[1])
+    if not slug:
+        return None
+    series = _clean_name(slug.replace('-', ' ').title())
+    episode = _clean_name(parts[2], 'Episode')
+    return series, episode
+
+def media_labels(row):
+    """Return readable NAS folder and filename stem for a queued item."""
+    details = _hdwatch_details(row.get('url'))
+    if details:
+        series, episode = details
+        match = re.fullmatch(r'(\d+)[-x](\d+)', episode, re.I)
+        stem = f'S{int(match.group(1)):02d}E{int(match.group(2)):02d} - {episode}' if match else episode
+        return series, _clean_name(stem)
+    title = _clean_name(row.get('title'), 'Video')
+    return title, title
+
+def _assigned_folder_names(db):
+    return {str(r[0]) for r in db.execute("SELECT folder_name FROM downloads WHERE folder_name != ''")}
+
+def _ensure_folder_name(db, row, used=None):
+    current = str(row.get('folder_name') or '').strip()
+    if current:
+        return current
+    base, _ = media_labels(row)
+    # Episodes from the same HDWatch series intentionally share one folder.
+    details = _hdwatch_details(row.get('url'))
+    used = used if used is not None else _assigned_folder_names(db)
+    candidate = base
+    if not details:
+        number = 2
+        while candidate in used:
+            candidate = f'{base} ({number})'
+            number += 1
+    db.execute('UPDATE downloads SET folder_name=? WHERE id=?', (candidate, row['id']))
+    row['folder_name'] = candidate
+    used.add(candidate)
+    return candidate
 
 def items():
     with connection() as db:
-        return [dict(r) for r in db.execute('SELECT * FROM downloads ORDER BY created DESC')]
+        rows = [dict(r) for r in db.execute('SELECT * FROM downloads ORDER BY created DESC')]
+        used = _assigned_folder_names(db)
+        for row in rows:
+            _ensure_folder_name(db, row, used)
+        return rows
 
 def update(key, **fields):
     with connection() as db:
         db.execute('UPDATE downloads SET ' + ','.join(k+'=?' for k in fields) + ' WHERE id=?', [*fields.values(), key])
 
-def folder(key):
+def folder(key, row=None):
     if str(uuid.UUID(key)) != key:
         raise ValueError('Invalid download')
-    path = ROOT / key
+    if row is None:
+        with connection() as db:
+            found = db.execute('SELECT * FROM downloads WHERE id=?', (key,)).fetchone()
+            row = dict(found) if found else None
+    if row:
+        name = row.get('folder_name') or media_labels(row)[0]
+        path = ROOT / _clean_name(name)
+        legacy = ROOT / key
+        if legacy.exists() and not path.exists():
+            path = legacy
+    else:
+        path = ROOT / key
     if ROOT.is_symlink() or path.is_symlink() or ROOT.parent.is_symlink():
         raise ValueError('The Movies folder cannot be a symbolic link')
     return path
@@ -53,7 +124,10 @@ def enqueue(title, url):
         if db.execute("SELECT count(*) FROM downloads WHERE status IN ('queued','downloading')").fetchone()[0] >= 20:
             raise ValueError('The queue is full. Wait for a download to finish.')
         key = str(uuid.uuid4())
-        db.execute('INSERT INTO downloads (id,title,url,status,created) VALUES (?,?,?,?,?)', (key,title,url,'queued',time.time()))
+        row = {'id': key, 'title': title, 'url': url, 'folder_name': ''}
+        used = _assigned_folder_names(db)
+        folder_name = _ensure_folder_name(db, row, used)
+        db.execute('INSERT INTO downloads (id,title,url,status,created,folder_name) VALUES (?,?,?,?,?,?)', (key,title,url,'queued',time.time(),folder_name))
     return key
 
 def remove(key):
@@ -65,6 +139,69 @@ def deleting(key):
     with connection() as db:
         row = db.execute('SELECT status FROM downloads WHERE id=?', (key,)).fetchone()
         return not row or row[0] == 'deleting'
+
+def migrate_legacy_folders():
+    """Move UUID-named movie directories into readable NAS folders.
+
+    This is deliberately opt-in and is used once during deployment. Existing
+    download IDs remain unchanged, so links, queue actions and the database
+    continue to work after the move.
+    """
+    ROOT.mkdir(parents=True, exist_ok=True)
+    moved = []
+    for row in items():
+        legacy = ROOT / row['id']
+        if not legacy.is_dir() or legacy.is_symlink():
+            continue
+        target = ROOT / _clean_name(row.get('folder_name') or media_labels(row)[0])
+        target.mkdir(parents=True, exist_ok=True)
+        current_filename = row.get('filename') or ''
+        new_filename = current_filename
+        for source in sorted(legacy.iterdir()):
+            if not source.is_file():
+                continue
+            desired = source.name
+            if source.name == current_filename and row.get('status') == 'ready':
+                _, stem = media_labels(row)
+                desired = _clean_name(stem) + source.suffix.lower()
+            destination = target / desired
+            if destination.exists() and destination.resolve() != source.resolve():
+                stem, suffix = destination.stem, destination.suffix
+                number = 2
+                while destination.exists():
+                    destination = target / f'{stem} ({number}){suffix}'
+                    number += 1
+                desired = destination.name
+            shutil.move(str(source), str(destination))
+            if source.name == current_filename:
+                new_filename = desired
+            moved.append((row['id'], source.name, str(destination.relative_to(ROOT))))
+        try:
+            legacy.rmdir()
+        except OSError:
+            pass
+        if new_filename != current_filename:
+            update(row['id'], filename=new_filename)
+    return moved
+
+def remove_files(row):
+    """Delete only this queue item's files, preserving sibling episodes."""
+    path = folder(row['id'], row)
+    if not path.exists():
+        return
+    filename = str(row.get('filename') or '')
+    if filename:
+        candidate = path / filename
+        if candidate.is_file() and not candidate.is_symlink():
+            candidate.unlink()
+    for name in ('video.part', 'segments.ts', 'remux.mp4', 'stream.log'):
+        candidate = path / name
+        if candidate.is_file() and not candidate.is_symlink():
+            candidate.unlink()
+    try:
+        path.rmdir()
+    except OSError:
+        pass
 
 def public_response(url, headers=None):
     # Resolve and pin each connection to a public address, including redirects.
@@ -95,7 +232,7 @@ def public_response(url, headers=None):
 
 def download(row):
     key = row['id']
-    path = folder(key)
+    path = folder(key, row)
     path.mkdir(parents=True, exist_ok=True)
     partial = path / 'video.part'
     conn = None
@@ -156,7 +293,7 @@ def direct_download(row, partial):
 
 def finish(row, partial, received):
         key = row['id']
-        path = folder(key)
+        path = folder(key, row)
         probe = subprocess.run(['ffprobe','-v','error','-protocol_whitelist','file','-show_entries','stream=codec_type,height:format=format_name','-of','json',str(partial)], capture_output=True, timeout=30)
         metadata = json.loads(probe.stdout or '{}')
         formats = metadata.get('format',{}).get('format_name','')
@@ -168,7 +305,14 @@ def finish(row, partial, received):
         if not extension:
             raise ValueError('Use an MP4, MOV, WebM or MKV video file.')
         from werkzeug.utils import secure_filename
-        name = (secure_filename(row['title'])[:100] or 'Video') + extension
+        _, stem = media_labels(row)
+        name = (secure_filename(stem)[:100] or 'Video') + extension
+        if (path / name).exists() and path.joinpath(name).resolve() != partial.resolve():
+            stem = stem[:90]
+            number = 2
+            while (path / name).exists():
+                name = f'{secure_filename(stem)[:90]} ({number}){extension}'
+                number += 1
         with connection() as db:
             db.execute('BEGIN IMMEDIATE')
             if db.execute('SELECT status FROM downloads WHERE id=?',(key,)).fetchone()[0] == 'deleting':
@@ -185,9 +329,7 @@ def worker():
     while True:
         for row in items():
             if row['status'] == 'deleting':
-                path = folder(row['id'])
-                if path.exists():
-                    shutil.rmtree(path)
+                remove_files(row)
                 with connection() as db:
                     db.execute('DELETE FROM downloads WHERE id=?', (row['id'],))
         with connection() as db:

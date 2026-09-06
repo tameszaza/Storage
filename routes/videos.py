@@ -1,5 +1,5 @@
 import secrets
-from flask import abort, jsonify, render_template, request, session, send_from_directory
+from flask import abort, jsonify, render_template, request, session, send_from_directory, url_for
 from lib.security import admin_required
 from lib import video_downloads as videos
 
@@ -13,7 +13,12 @@ def register_routes(app):
     @app.get('/videos/status')
     @admin_required
     def videos_status():
-        result = [{k:v for k,v in row.items() if k != 'url'} for row in videos.items()]
+        result = []
+        for row in videos.items():
+            item = {k:v for k,v in row.items() if k != 'url'}
+            item['folder_url'] = url_for('index', path='Admin/Movies/' + str(row.get('folder_name') or ''))
+            item['folder_label'] = 'Admin / Movies / ' + str(row.get('folder_name') or 'Movies')
+            result.append(item)
         return jsonify(items=result)
 
     @app.post('/videos/action')

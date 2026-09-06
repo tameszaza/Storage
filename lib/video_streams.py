@@ -68,7 +68,7 @@ def stream_choices(url, headers):
 def save_stream(row,url,headers,partial,server):
     key=row['id']
     manifest=vod_manifest(url,headers)
-    path=jobs.folder(key)
+    path=jobs.folder(key, row)
     transport=path/'segments.ts'
     received=0
     missing=[]

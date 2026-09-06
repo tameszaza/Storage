@@ -9,15 +9,15 @@
     <input id="video-url" name="url" type="url" placeholder="Paste an HDWatch page or a direct video link" required maxlength="4096">
     <label for="video-title">Save as</label>
     <div class="video-submit"><input id="video-title" name="title" placeholder="Give your video a name" required maxlength="120"><button type="submit" class="btn btn-primary"><i class="fa-solid fa-arrow-down" aria-hidden="true"></i> Download</button></div>
-    <p class="video-hint">Prefer 1080p · Minimum 720p · Server 2 first. Missing parts are retried; small gaps are flagged. Encrypted streams aren’t supported.</p>
+    <button class="video-info" type="button" aria-label="Download quality and source information" title="Prefer 1080p. Minimum 720p. Server 2 first. Missing parts are retried; small gaps are flagged. Encrypted streams aren't supported." data-tooltip="true"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
   </form>
   <p id="video-feedback" role="status" hidden></p>
   <header class="video-library-heading"><h2>Your videos <span id="video-count">0</span></h2><span><i class="fa-regular fa-folder-open" aria-hidden="true"></i> Admin / Movies</span></header>
-  <p class="video-hint">Available through your existing NAS share. Excluded from backups. Delete removes files permanently.</p>
+  <button class="video-info video-library-info" type="button" aria-label="Video storage information" title="Stored in your NAS share. Excluded from backups. Delete removes files permanently." data-tooltip="true"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button>
   <section id="video-list" class="video-list" aria-label="Video downloads"></section>
   <div id="video-empty" class="video-empty" hidden><i class="fa-regular fa-circle-play" aria-hidden="true"></i><h2>Something worth saving?</h2><p>Paste a video link above to start your offline collection.</p></div>
   <dialog id="video-delete"><h2>Delete this video?</h2><p id="video-delete-title"></p><p>The video and any partial download will be permanently removed. There is no backup or trash copy.</p><form method="dialog"><button class="btn btn-outline-secondary" value="cancel">Keep video</button><button class="btn btn-danger" value="delete">Delete permanently</button></form></dialog>
-  <dialog id="video-player"><button id="video-player-close" class="btn btn-outline-secondary" aria-label="Close player">Close</button><video controls playsinline preload="metadata"></video><p class="video-hint">If your browser cannot play this format, save the file and open it in a compatible video app.</p></dialog>
+  <dialog id="video-player"><button id="video-player-close" class="btn btn-outline-secondary" aria-label="Close player">Close</button><video controls playsinline preload="metadata"></video><button class="video-info" type="button" aria-label="Playback compatibility information" title="If your browser cannot play this format, save the file and open it in a compatible video app." data-tooltip="true"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button></dialog>
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static',filename='js/videos.js') }}"></script>{% endblock %}

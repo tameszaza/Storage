@@ -132,6 +132,17 @@ def download_page(row,partial):
     with sync_playwright() as p:
         browser=p.chromium.launch(headless=True,args=['--disable-dev-shm-usage'])
         context=browser.new_context(service_workers='block',accept_downloads=False)
+        browser_closed=False
+        def close_browser():
+            nonlocal browser_closed
+            if browser_closed:
+                return
+            browser_closed=True
+            for resource in (context, browser):
+                try:
+                    resource.close()
+                except Exception:
+                    pass
         cache={}
         def guard(route):
             u=urlsplit(route.request.url)
@@ -208,6 +219,12 @@ def download_page(row,partial):
                                 continue
                             seen.add(identity)
                             try:
+                                # Once the manifest and request headers are
+                                # captured, segment downloading is handled by
+                                # Python. Closing the player here prevents a
+                                # hidden Chromium renderer from consuming CPU
+                                # while a long video is being saved.
+                                close_browser()
                                 return save_stream(row,url,headers,partial,server)
                             except Exception as exc:
                                 cancelled(key)
@@ -222,5 +239,4 @@ def download_page(row,partial):
                     page.remove_listener('response',observe)
             raise ValueError('No usable server. '+(' '.join(errors))[-250:])
         finally:
-            context.close()
-            browser.close()
+            close_browser()

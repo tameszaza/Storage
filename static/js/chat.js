@@ -127,7 +127,7 @@
                 id: newId(),
                 role: "assistant",
                 kind: "welcome",
-                text: "What do you need from your files?",
+                text: "How can I help?",
                 createdAt: Date.now(),
             }];
         }
@@ -218,8 +218,11 @@
         if (!container) return;
         const query = ($("chatSearchInput")?.value || "").trim().toLowerCase();
         container.innerHTML = "";
+        const hasConversation=state.messages.some(message=>message.kind!=='welcome');
+        document.querySelector('.chat-page-shell')?.classList.toggle('has-conversation',hasConversation);
 
         state.messages.forEach((message) => {
+            if (message.kind==='welcome' && hasConversation) return;
             const text = message.text || "";
             const isMatch = query && text.toLowerCase().includes(query);
             if (query && !isMatch) return;
@@ -270,6 +273,10 @@
             wrapper.appendChild(content);
             container.appendChild(wrapper);
         });
+        if (!container.children.length && query) {
+            const empty=document.createElement('p');
+            empty.className='empty-state';empty.textContent='No messages match your search.';container.appendChild(empty);
+        }
     }
 
     function addMessage(role, text, options = {}) {
@@ -420,11 +427,11 @@
         const scope = $("conversationScope");
         const composer = $("composerContext");
         const help = $("fileContextHelp");
-        if (scope) scope.textContent = path ? `Reading ${path}` : (toolsEnabled ? "Tools ready" : "Private tools off");
+        if (scope) scope.textContent = path ? `Reading ${path}` : (toolsEnabled ? "Files, calendar & tasks" : "Private context off");
         if (composer) {
             composer.innerHTML = path
                 ? `<i class="fa-regular fa-file-lines" aria-hidden="true"></i> ${escapeHtml(path.split("/").pop())}`
-                : `<i class="fa-solid ${toolsEnabled ? "fa-wand-magic-sparkles" : "fa-lock"}" aria-hidden="true"></i> ${toolsEnabled ? "Automatic" : "Private tools off"}`;
+                : `<i class="fa-solid ${toolsEnabled ? "fa-wand-magic-sparkles" : "fa-lock"}" aria-hidden="true"></i> ${toolsEnabled ? "Automatic" : "Private context off"}`;
             composer.title = path || (toolsEnabled ? "The assistant requests only the context it needs" : "Private tools disabled");
         }
         if (help) {
@@ -478,6 +485,8 @@
             button.addEventListener("click", () => {
                 const path = selectedContextPath();
                 if (button.classList.contains("requires-file") && !path) {
+                    const options = document.querySelector('.chat-options');
+                    if (options) options.open = true;
                     $("fileContextPath")?.focus();
                     $("fileContextHelp")?.classList.add("context-attention");
                     setTimeout(() => $("fileContextHelp")?.classList.remove("context-attention"), 1600);

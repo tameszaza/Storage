@@ -58,7 +58,7 @@
         {% elif item.kind == 'video' %}
             <video class="shared-large-preview" src="{{ url_for('shared_raw_root', token=share.token) }}" controls></video>
         {% elif item.kind == 'pdf' %}
-            <iframe class="shared-document-frame" src="{{ url_for('shared_raw_root', token=share.token) }}"></iframe>
+            <iframe class="shared-document-frame" title="Preview of {{ item.name }}" src="{{ url_for('shared_raw_root', token=share.token) }}"></iframe>
         {% elif item.kind == 'text' and item.content %}
             <pre class="shared-text-preview">{{ item.content }}</pre>
         {% else %}

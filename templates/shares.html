@@ -4,14 +4,14 @@
 <section class="workspace-header glass-card share-hero">
     <div>
         <p class="eyebrow">Sharing center</p>
-        <h1>Secure file sharing</h1>
+        <h1>Shared files</h1>
         <p class="muted">Create, copy, revoke, and audit every shared file or folder from one place.</p>
     </div>
-    <div class="stats-grid mini">
+    {% if owned_shares or received_shares or audit %}<div class="stats-grid mini">
         <div class="stat-card"><span>{{ owned_shares|length }}</span><p>Owned shares</p></div>
         <div class="stat-card"><span>{{ received_shares|length }}</span><p>Shared with me</p></div>
         <div class="stat-card"><span>{{ audit|length }}</span><p>Recent events</p></div>
-    </div>
+    </div>{% endif %}
 </section>
 
 {% if created_token %}
@@ -38,7 +38,7 @@
         <div class="section-heading">
             <div>
                 <p class="eyebrow">Owned by you</p>
-                <h2>Active sharing rules</h2>
+                <h2>Shared by you</h2>
             </div>
         </div>
 
@@ -84,12 +84,13 @@
             <div class="empty-state compact">
                 <i class="fa-solid fa-share-nodes"></i>
                 <h3>No shares yet</h3>
-                <p class="muted">Open Files, press the share icon on a file or folder, then create a secure link.</p>
+                <p class="muted">Choose a file or folder in My Files, then use Share to create a link.</p>
+                <a class="btn btn-outline-primary" href="{{ url_for('index') }}">Go to My Files</a>
             </div>
         {% endif %}
     </div>
 
-    <aside class="glass-card share-side-card">
+    <details class="glass-card share-side-card"><summary>Sharing permissions explained</summary>
         <p class="eyebrow">Permission presets</p>
         <div class="preset-list">
             {% for key, preset in permission_presets.items() %}
@@ -99,7 +100,7 @@
                 </div>
             {% endfor %}
         </div>
-    </aside>
+    </details>
 </section>
 
 <section class="share-dashboard-grid secondary">

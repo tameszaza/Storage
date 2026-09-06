@@ -12,7 +12,7 @@
 
 <section class="glass-card editor-card">
     <form method="POST">
-        <textarea class="code-editor" name="file_content" spellcheck="false">{{ content }}</textarea>
+        <textarea class="code-editor" name="file_content" aria-label="File content" spellcheck="false">{{ content }}</textarea>
         <div class="bottom-actions compact-actions">
             <button class="btn btn-primary" type="submit">Save changes</button>
             <a class="btn btn-outline-secondary" href="{{ url_for('shared_view', token=share.token) }}">Cancel</a>

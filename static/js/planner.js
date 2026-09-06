@@ -72,6 +72,32 @@
         const sourceTarget = detailElement?.querySelector("[data-event-source]");
         const deleteForm = detailElement?.querySelector("[data-event-delete-form]");
         const sourceLink = detailElement?.querySelector("[data-event-open-source]");
+        const editButton = detailElement?.querySelector("[data-event-edit-button]");
+        const editElement = document.getElementById("eventEditModal");
+        const editModal = editElement && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(editElement) : null;
+        const editForm = editElement?.querySelector("[data-event-edit-form]");
+        const editTitle = document.getElementById("eventEditTitleInput");
+        const editDate = document.getElementById("eventEditDate");
+        const editEndDate = document.getElementById("eventEditEndDate");
+        const editAllDay = document.getElementById("eventEditAllDay");
+        const editTimeFields = editElement?.querySelector("[data-event-edit-time-fields]");
+        const editStart = document.getElementById("eventEditStart");
+        const editEnd = document.getElementById("eventEditEnd");
+        const editLocation = document.getElementById("eventEditLocation");
+        const editNotes = document.getElementById("eventEditNotes");
+
+        function updateEditAllDay() {
+            const hidden = Boolean(editAllDay?.checked);
+            if (editTimeFields) editTimeFields.hidden = hidden;
+            if (editStart) editStart.required = !hidden;
+        }
+        editAllDay?.addEventListener("change", updateEditAllDay);
+        updateEditAllDay();
+        editElement?.addEventListener("shown.bs.modal", () => editTitle?.focus());
+        editButton?.addEventListener("click", () => {
+            detailModal?.hide();
+            editModal?.show();
+        });
 
         document.querySelectorAll("[data-event]").forEach((button) => {
             button.addEventListener("click", () => {
@@ -85,6 +111,20 @@
                 if (notesRow) notesRow.hidden = !item.notes;
 
                 const published = item.source === "ics";
+                if (editButton) editButton.hidden = published || !item.id;
+                if (editForm && !published && item.id) {
+                    const template = editForm.dataset.editTemplate || "";
+                    editForm.action = template.replace("__EVENT_ID__", encodeURIComponent(item.id));
+                    if (editTitle) editTitle.value = item.title || "";
+                    if (editDate) editDate.value = item.date || "";
+                    if (editEndDate) editEndDate.value = item.end_date || item.date || "";
+                    if (editAllDay) editAllDay.checked = Boolean(item.all_day);
+                    if (editStart) editStart.value = item.start_time || "";
+                    if (editEnd) editEnd.value = item.end_time || "";
+                    if (editLocation) editLocation.value = item.location || "";
+                    if (editNotes) editNotes.value = item.notes || "";
+                    updateEditAllDay();
+                }
                 if (sourceTarget) {
                     sourceTarget.textContent = published ? "Published calendar" : "";
                     sourceTarget.classList.toggle("is-visible", published);

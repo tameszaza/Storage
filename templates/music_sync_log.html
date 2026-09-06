@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ playlist.name }} logs · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header">
+    <div><p class="eyebrow">Playlist sync log</p><h1>{{ playlist.name }}</h1><p class="muted break-anywhere">{{ playlist.url }}</p></div>
+    <div class="header-actions"><a class="btn btn-outline-primary" href="{{ url_for('music_sync_page') }}"><i class="fa-solid fa-arrow-left"></i> Back</a><form action="{{ url_for('music_sync_now', playlist_id=playlist.id) }}" method="POST"><button class="btn btn-primary" type="submit">Quick sync</button></form></div>
+</section>
+<section class="glass-card"><pre class="code-preview" style="max-height: 65vh; overflow: auto; white-space: pre-wrap;">{{ log_text }}</pre></section>
+{% endblock %}

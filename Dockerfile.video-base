@@ -1,0 +1,7 @@
+FROM tamestorage:latest
+USER root
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN python -m pip install --no-cache-dir playwright==1.62.0 m3u8==6.0.0 \
+    && python -m playwright install --with-deps chromium --only-shell \
+    && chmod -R a+rX /opt/playwright
+USER 1000:1000

@@ -7,7 +7,6 @@
     <p class="muted">The page or file you requested does not exist, or you do not have access to it.</p>
     <div class="button-row center">
         <a class="btn btn-primary" href="{{ url_for('index') if session.get('logged_in') else url_for('login') }}">Go home</a>
-        {% if session.get('logged_in') %}<a class="btn btn-outline-primary" href="{{ url_for('chat_page') }}">Ask AI assistant</a>{% endif %}
     </div>
 </section>
 {% endblock %}

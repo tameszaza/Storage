@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Disk space · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/admin.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<section class="workspace-header glass-card compact-header disk-dashboard-header">
+    <div>
+        <p class="eyebrow">System storage</p>
+        <h1>Disk space</h1>
+        <p class="muted">Capacity and mount checks for the internal disk, primary NAS disk, and independent backup disk.</p>
+    </div>
+    <div class="header-actions">
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left"></i> Admin center</a>
+        <a class="btn btn-primary" href="{{ url_for('disk_dashboard') }}"><i class="fa-solid fa-rotate"></i> Run check</a>
+    </div>
+</section>
+
+{% if raid_disk and raid_disk.raid %}
+<section class="glass-card disk-card disk-card-{{ raid_disk.status }}" aria-live="polite">
+    <div class="disk-card-heading">
+        <div class="disk-title-wrap">
+            <span class="disk-icon"><i class="fa-solid {% if raid_busy %}fa-arrows-rotate fa-spin{% elif raid_disk.raid.degraded %}fa-triangle-exclamation{% else %}fa-circle-check{% endif %}"></i></span>
+            <div>
+                <p class="eyebrow">Live array status</p>
+                <h2>{% if raid_busy %}RAID5 reshape in progress{% elif raid_disk.raid.degraded %}RAID5 needs attention{% else %}RAID5 ready{% endif %}</h2>
+            </div>
+        </div>
+        <span class="disk-state-badge disk-state-{{ raid_disk.status }}">{{ raid_disk.raid.active }}/{{ raid_disk.raid.expected }} members</span>
+    </div>
+    {% if raid_busy %}
+    <div class="disk-capacity-row"><strong>{{ raid_disk.raid.progress if raid_disk.raid.progress is not none else 0 }}%</strong><span>{{ raid_disk.raid.action|title }}</span></div>
+    <div class="disk-capacity-track" role="progressbar" aria-label="RAID reshape progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ raid_disk.raid.progress if raid_disk.raid.progress is not none else 0 }}"><span class="disk-fill-warning" style="width: {{ raid_disk.raid.progress if raid_disk.raid.progress is not none else 0 }}%"></span></div>
+    <p class="disk-status-copy"><i class="fa-solid fa-clock"></i> This page refreshes automatically every 30 seconds. Capacity expands to approximately 1 TB after reshape finishes.</p>
+    {% elif not raid_disk.raid.degraded %}
+    <p class="disk-status-copy"><i class="fa-solid fa-circle-check"></i> Reshape is complete. All {{ raid_disk.raid.expected }} members are active and {{ format_bytes(raid_disk.total) }} is available to the filesystem.</p>
+    {% else %}
+    <p class="disk-status-copy"><i class="fa-solid fa-triangle-exclamation"></i> The array is degraded. Keep the internal recovery snapshot and inspect the member states below.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+<section class="disk-summary-grid" aria-label="Disk check summary">
+    <article class="glass-card disk-summary-card"><span>{{ report.available_count }}/{{ report.drive_count }}</span><p>Filesystems online</p></article>
+    <article class="glass-card disk-summary-card"><span>{{ report.highest_usage }}%</span><p>Highest usage</p></article>
+    <article class="glass-card disk-summary-card"><span class="disk-state-text disk-state-{{ report.overall_status }}">{{ report.overall_status|title }}</span><p>Overall status</p></article>
+    <article class="glass-card disk-summary-card"><span class="disk-check-time"><time data-local-time datetime="{{ report.checked_at }}">{{ report.checked_at }}</time></span><p>Last checked</p></article>
+</section>
+
+<section class="disk-card-grid">
+    {% for disk in report.disks %}
+    <article class="glass-card disk-card disk-card-{{ disk.status }}">
+        <div class="disk-card-heading">
+            <div class="disk-title-wrap">
+                <span class="disk-icon"><i class="fa-solid {% if disk.kind == 'system' %}fa-server{% else %}fa-hard-drive{% endif %}"></i></span>
+                <div><p class="eyebrow">{{ disk.role }}</p><h2>{{ disk.label }}</h2></div>
+            </div>
+            <span class="disk-state-badge disk-state-{{ disk.status }}">{{ disk.status|title }}</span>
+        </div>
+
+        {% if disk.available %}
+        <div class="disk-capacity-row"><strong>{{ format_bytes(disk.used) }} <span class="muted">of {{ format_bytes(disk.total) }} used</span></strong><span>{{ format_bytes(disk.free) }} free</span></div>
+        <div class="disk-capacity-track" role="progressbar" aria-label="{{ disk.label }} usage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ disk.percent }}"><span class="disk-fill-{{ disk.status }}" style="width: {{ [disk.percent, 100]|min }}%"></span></div>
+        {% else %}
+        <div class="disk-offline-message"><i class="fa-solid fa-triangle-exclamation"></i><p>{{ disk.status_message }}</p></div>
+        {% endif %}
+
+        <details class="disk-technical"><summary>Mount &amp; device details</summary><dl class="disk-details">
+            <div><dt>Server mount</dt><dd>{{ disk.display_path }}</dd></div>
+            <div><dt>Device</dt><dd>{{ disk.device }}</dd></div>
+            <div><dt>Filesystem</dt><dd>{{ disk.filesystem }}</dd></div>
+            {% if disk.raid %}
+            <div><dt>RAID level</dt><dd>{{ disk.raid.level }}</dd></div>
+            <div><dt>Members</dt><dd>{{ disk.raid.active }}/{{ disk.raid.expected }} active</dd></div>
+            <div><dt>Array state</dt><dd>{{ disk.raid.state|title }}</dd></div>
+            {% if disk.raid.action not in ['idle', 'frozen'] %}<div><dt>Background task</dt><dd>{{ disk.raid.action|title }}{% if disk.raid.progress is not none %} — {{ disk.raid.progress }}%{% endif %}</dd></div>{% endif %}
+            {% for member in disk.raid.members %}<div><dt>{{ member.name }}</dt><dd>{{ member.state|title }}</dd></div>{% endfor %}
+            {% endif %}
+        </dl></details>
+        {% if disk.available and disk.status != 'healthy' %}<p class="disk-status-copy"><i class="fa-solid fa-circle-info"></i> {{ disk.status_message }}</p>{% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% if raid_busy %}
+<script>window.setTimeout(function () { window.location.reload(); }, 30000);</script>
+{% endif %}
+{% endblock %}

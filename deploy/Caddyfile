@@ -1,0 +1,9 @@
+{
+    auto_https off
+}
+
+http://server, http://server.tailb7f57c.ts.net, http://100.124.30.94 {
+    bind 100.124.30.94
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:5000
+}

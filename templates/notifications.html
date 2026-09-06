@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Notifications · Tamestorage{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Alerts</p><h1>Notifications</h1></div><form method="POST"><button class="btn btn-outline-primary">Mark all read</button></form></section>
+<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Alerts</p><h1>Notifications</h1></div><form method="POST"><button class="btn btn-outline-primary" {% if not items %}disabled{% endif %}>Mark all read</button></form></section>
 <section class="feature-list">{% for item in items %}<article class="glass-card notification-card {% if not item.read %}unread{% endif %}"><p class="eyebrow">{{ item.level }} · {{ item.created_at }}</p><h2>{{ item.title }}</h2><p>{{ item.message }}</p></article>{% else %}<div class="empty-state glass-card"><i class="fa-regular fa-bell"></i><h2>No notifications</h2></div>{% endfor %}</section>
 {% endblock %}

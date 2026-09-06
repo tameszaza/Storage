@@ -2,7 +2,7 @@
 {% block title %}Account settings · Tamestorage{% endblock %}
 {% block content %}
 <section class="workspace-header">
-    <div><h1>Account</h1><p class="muted mt-2 mb-0">Manage your profile, storage overview, appearance, and password.</p></div>
+    <div><h1>Settings</h1><p class="muted mt-2 mb-0">Manage your profile, storage overview, appearance, and password.</p></div>
 </section>
 
 <div class="settings-layout">
@@ -22,9 +22,9 @@
         </section>
 
         <section id="storage" class="glass-card settings-card">
-            <div class="section-heading compact-heading"><div><p class="eyebrow">Storage</p><h2>Usage overview</h2></div><strong>{{ storage_percent }}%</strong></div>
-            <div class="storage-track"><span style="width: {{ storage_percent }}%"></span></div>
-            <p class="muted mt-2 mb-0">{{ used_label }} of {{ quota_label }}</p>
+            <div class="section-heading compact-heading"><div><p class="eyebrow">Storage</p><h2>Usage overview</h2></div>{% if quota_label != 'Unlimited' %}<strong>{{ storage_percent }}%</strong>{% endif %}</div>
+            {% if quota_label != 'Unlimited' %}<div class="storage-track"><span style="width: {{ storage_percent }}%"></span></div>{% endif %}
+            <p class="muted mt-2 mb-0">{{ used_label }} used{% if quota_label != 'Unlimited' %} of {{ quota_label }}{% else %} · No account quota{% endif %}</p>
             <div class="storage-summary-grid">
                 <div class="storage-summary-item"><strong>{{ used_label }}</strong><span>Space used</span></div>
                 <div class="storage-summary-item"><strong>{{ file_count }}</strong><span>Files</span></div>

@@ -17,7 +17,9 @@
                 if (disk) disk.textContent = data.disk_usage + "%";
                 if (uptime) uptime.textContent = data.uptime;
             })
-            .catch(() => {});
+            .catch(() => {
+                ['cpuUsage','memoryUsage','diskUsage'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent='Unavailable';el.title='Unable to reach system metrics. Retrying automatically.';}});
+            });
     }
 
     document.addEventListener("DOMContentLoaded", () => {

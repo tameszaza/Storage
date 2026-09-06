@@ -5,7 +5,7 @@
 <section class="workspace-header glass-card">
     <div>
         <p class="eyebrow">Admin center</p>
-        <h1>System control panel</h1>
+        <h1>Admin center</h1>
         <p class="muted">Manage accounts, inspect logs, and maintain the server.</p>
     </div>
     <div class="stats-grid mini admin-stats">
@@ -24,7 +24,7 @@
         </div>
         <div class="table-responsive modern-table-wrap">
             <table class="table modern-table responsive-cards-table align-middle">
-                <thead><tr><th>Username</th><th>Storage used</th><th>Quota</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Username</th><th>Storage used</th><th>Quota (GB)</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
@@ -52,28 +52,17 @@
         <p class="eyebrow">Server</p>
         <h2>Maintenance</h2>
         <div class="action-stack">
+            <a href="{{ url_for('disk_dashboard') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-hard-drive" aria-hidden="true"></i> Disk space check</a>
             <a href="{{ url_for('admin_logs') }}" class="btn btn-outline-primary w-100">View server logs</a>
             <a href="{{ url_for('view_transfer_logs') }}" class="btn btn-outline-primary w-100">View transfer logs</a>
             <a href="{{ url_for('backup_page') }}" class="btn btn-outline-primary w-100">Backup export</a>
             <a href="{{ url_for('activity_page') }}" class="btn btn-outline-primary w-100">Activity audit</a>
             <a href="{{ url_for('integrity_page') }}" class="btn btn-outline-primary w-100">Integrity scan</a>
             <a href="{{ url_for('network_test_page') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Network test</a>
-            <a href="{{ url_for('admin_video') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-video" aria-hidden="true"></i> Live video</a>
-            <a href="{{ url_for('view_feedback') }}" class="btn btn-outline-primary w-100">Read feedback {% if unread_count > 0 %}<span class="badge text-bg-danger ms-2">{{ unread_count }}</span>{% endif %}</a>
             <form action="{{ url_for('clear_charts') }}" method="POST" data-confirm="Clear all generated chart images?"><button class="btn btn-outline-danger w-100" type="submit">Clear charts</button></form>
         </div>
     </article>
 
-    <article id="server-control" class="glass-card admin-card danger-zone">
-        <p class="eyebrow">Server control</p>
-        <h2>Runtime commands</h2>
-        <p class="muted server-control-copy">Restart after updating code or templates without opening SSH. The page reconnects automatically.</p>
-        <div class="action-stack">
-            <form action="{{ url_for('restart_server') }}" method="POST" data-confirm="Restart Tamestorage now? The site will be unavailable briefly."><button class="btn btn-warning w-100" type="submit"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Restart server</button></form>
-            <form action="{{ url_for('git_pull') }}" method="POST" data-confirm="Run git pull on the server?"><button class="btn btn-outline-warning w-100" type="submit">Git pull</button></form>
-            <form action="{{ url_for('shutdown') }}" method="POST" data-confirm="Shut down this Flask server? You will need another way to start it again."><button class="btn btn-danger w-100" type="submit">Shutdown server</button></form>
-        </div>
-    </article>
 </section>
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}

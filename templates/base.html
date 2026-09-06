@@ -33,8 +33,9 @@
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     {% block link %}{% endblock %}
+    <link href="{{ url_for('static', filename='css/workspace.css') }}?v=20260906b" rel="stylesheet">
 </head>
-<body class="antialiased{% if session.get('logged_in') %} authenticated{% else %} public-page{% endif %}">
+<body data-page="{{ request.endpoint }}" class="antialiased{% if session.get('logged_in') %} authenticated{% else %} public-page{% endif %}">
 <script>
     document.body.dataset.theme = document.documentElement.dataset.theme || "light";
     document.body.dataset.themePreference = document.documentElement.dataset.themePreference || "light";
@@ -56,17 +57,19 @@
                 <a class="sidebar-link {% if request.endpoint == 'starred_files' %}active{% endif %}" href="{{ url_for('starred_files') }}"><i class="fa-regular fa-star"></i><span>Starred</span></a>
                 <a class="sidebar-link {% if request.endpoint == 'trash_page' %}active{% endif %}" href="{{ url_for('trash_page') }}"><i class="fa-regular fa-trash-can"></i><span>Trash</span></a>
                 <p class="sidebar-label sidebar-label-spaced">Tools</p>
+                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint and request.endpoint.startswith('videos_') %}active{% endif %}" href="{{ url_for('videos_page') }}"><i class="fa-solid fa-film"></i><span>Videos</span></a>{% endif %}
                 <a class="sidebar-link {% if request.endpoint == 'file_requests_page' %}active{% endif %}" href="{{ url_for('file_requests_page') }}"><i class="fa-regular fa-paper-plane"></i><span>File requests</span></a>
                 <a class="sidebar-link {% if request.endpoint and request.endpoint.startswith('planner_') %}active{% endif %}" href="{{ url_for('planner_page') }}"><i class="fa-regular fa-calendar-check"></i><span>Schedule &amp; tasks</span></a>
                 <a class="sidebar-link {% if request.endpoint == 'chat_page' %}active{% endif %}" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
+                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint and request.endpoint.startswith('music_sync') %}active{% endif %}" href="{{ url_for('music_sync_page') }}"><i class="fa-solid fa-music"></i><span>Music sync</span></a>{% endif %}
+                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'disk_dashboard' %}active{% endif %}" href="{{ url_for('disk_dashboard') }}"><i class="fa-solid fa-hard-drive"></i><span>Disk space</span></a>{% endif %}
                 {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-storage">
-                    <div class="sidebar-storage-head"><span>Storage</span><strong>{{ shell_storage_percent|default(0) }}%</strong></div>
-                    <div class="storage-track"><span style="width: {{ shell_storage_percent|default(0) }}%"></span></div>
-                    <small>{{ shell_storage_used|default('0 B') }} of {{ shell_storage_quota|default('Unlimited') }}</small>
-                    <a href="{{ url_for('settings_page') }}">Manage storage</a>
+                    <div class="sidebar-storage-head"><span>Stored files</span><strong>{{ shell_storage_used|default('0 B') }}</strong></div>
+                    {% if shell_storage_quota|default('Unlimited') != 'Unlimited' %}<div class="storage-track"><span style="width: {{ shell_storage_percent|default(0) }}%"></span></div><small>of {{ shell_storage_quota }}</small>{% endif %}
+                    <a href="{{ url_for('disk_dashboard') if session.get('username') == 'Admin' else url_for('settings_page') }}">{{ 'View disk capacity' if session.get('username') == 'Admin' else 'Account storage' }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
                 </div>
                 <a class="sidebar-profile" href="{{ url_for('settings_page') }}"><span class="avatar">{{ shell_initials|default('TS') }}</span><span><strong>{{ shell_username|default('Account') }}</strong></span><i class="fa-solid fa-chevron-right"></i></a>
             </div>
@@ -88,13 +91,13 @@
                     </div>
                     <a class="topbar-icon" href="{{ url_for('notifications_page') }}" aria-label="Notifications" title="Notifications" data-tooltip="true"><i class="fa-regular fa-bell" aria-hidden="true"></i></a>
                     <button id="themeToggle" class="topbar-icon" type="button" aria-label="Toggle light or dark theme" title="Toggle light or dark theme" data-tooltip="true"><i id="themeIcon" class="fa-regular fa-moon" aria-hidden="true"></i></button>
-                    <div class="dropdown account-menu"><button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="avatar small">{{ shell_initials|default('TS') }}</span><span class="account-trigger-copy"><strong>{{ shell_username|default('Account') }}</strong></span><i class="fa-solid fa-chevron-down"></i></button><div class="dropdown-menu dropdown-menu-end account-dropdown"><a class="dropdown-item" href="{{ url_for('settings_page') }}"><i class="fa-regular fa-user"></i> Account settings</a><a class="dropdown-item" href="{{ url_for('feedback') }}"><i class="fa-regular fa-message"></i> Send feedback</a><div class="dropdown-divider"></div><a class="dropdown-item danger-text" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</a></div></div>
+                    <div class="dropdown account-menu"><button class="account-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="avatar small">{{ shell_initials|default('TS') }}</span><span class="account-trigger-copy"><strong>{{ shell_username|default('Account') }}</strong></span><i class="fa-solid fa-chevron-down"></i></button><div class="dropdown-menu dropdown-menu-end account-dropdown"><a class="dropdown-item" href="{{ url_for('settings_page') }}"><i class="fa-regular fa-user"></i> Account settings</a><div class="dropdown-divider"></div><a class="dropdown-item danger-text" href="{{ url_for('logout') }}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Log out</a></div></div>
                 </div>
             </header>
             <main id="mainContent" class="app-content" tabindex="-1">
 {% else %}
     <div class="public-shell">
-        <header class="public-header"><a class="public-brand" href="{{ url_for('introduction') }}"><span class="sidebar-brand-mark"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Tamestorage</strong></a><nav class="public-nav" aria-label="Public navigation"><a href="{{ url_for('introduction') }}#features">Features</a><a href="{{ url_for('introduction') }}#security">Security</a><a href="{{ url_for('introduction') }}#workflow">How it works</a></nav><div class="public-actions"><a class="btn btn-outline-secondary" href="{{ url_for('login') }}">Log in</a><a class="btn btn-primary" href="{{ url_for('register') }}">Sign up</a><button id="themeToggle" class="topbar-icon" type="button" aria-label="Toggle light or dark theme" title="Toggle light or dark theme" data-tooltip="true"><i id="themeIcon" class="fa-regular fa-moon" aria-hidden="true"></i></button></div></header>
+        <header class="public-header"><a class="public-brand" href="{{ url_for('introduction') }}"><span class="sidebar-brand-mark"><i class="fa-solid fa-cloud-arrow-up"></i></span><strong>Tamestorage</strong></a><div class="public-actions">{% if request.endpoint != 'login' %}<a class="btn btn-primary" href="{{ url_for('login') }}">Log in</a>{% endif %}<button id="themeToggle" class="topbar-icon" type="button" aria-label="Toggle light or dark theme" title="Toggle light or dark theme" data-tooltip="true"><i id="themeIcon" class="fa-regular fa-moon" aria-hidden="true"></i></button></div></header>
         <main id="mainContent" class="public-content" tabindex="-1">
 {% endif %}
             {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
@@ -109,6 +112,7 @@
 
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=20260906b" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

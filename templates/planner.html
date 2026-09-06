@@ -5,7 +5,7 @@
 {% endblock %}
 {% block content %}
 <section class="workspace-header planner-page-header">
-    <div><h1>Schedule</h1></div>
+    <div><h1>Schedule &amp; tasks</h1></div>
     <div class="planner-header-actions">
         {% if session.get('username') == 'Admin' %}
         <div class="planner-sync-tip"
@@ -59,6 +59,7 @@
                 {% set day_tasks = tasks_by_date.get(day_key, []) %}
                 <article class="planner-day{% if day.month != month %} is-outside{% endif %}{% if day == today %} is-today{% endif %}" role="gridcell" data-calendar-date="{{ day_key }}">
                     <button class="planner-day-number" type="button" data-create-date="{{ day_key }}" aria-label="Add event on {{ day.strftime('%B %d, %Y') }}" title="Add event">
+                        <small class="planner-day-label">{{ day.strftime('%a') }}</small>
                         <span>{{ day.day }}</span>
                     </button>
                     <div class="planner-day-events">
@@ -72,12 +73,12 @@
                         </button>
                         {% endfor %}
                         {% for item in day_tasks %}
-                        <button class="planner-calendar-task is-priority-{{ item.priority }}{% if item.completed %} is-complete{% endif %}"
+                        <button class="planner-calendar-task is-priority-{{ item.priority }}{% if item.completed %} is-complete{% endif %}{% if item.canceled %} is-canceled{% endif %}"
                                 type="button"
                                 data-calendar-task-id="{{ item.id }}"
-                                title="{{ item.title }}{% if item.due_time %} · {{ item.due_time }}{% endif %}{% if item.completed %} · Completed{% endif %}"
-                                aria-label="Task: {{ item.title }}{% if item.due_time %} at {{ item.due_time }}{% endif %}{% if item.completed %}, completed{% endif %}">
-                            <i class="fa-solid {{ 'fa-check' if item.completed else 'fa-square-check' }}" aria-hidden="true"></i>
+                                title="{{ item.title }}{% if item.due_time %} · {{ item.due_time }}{% endif %}{% if item.canceled %} · Canceled{% elif item.completed %} · Completed{% endif %}"
+                                aria-label="Task: {{ item.title }}{% if item.due_time %} at {{ item.due_time }}{% endif %}{% if item.canceled %}, canceled{% elif item.completed %}, completed{% endif %}">
+                            <i class="fa-solid {{ 'fa-ban' if item.canceled else ('fa-check' if item.completed else 'fa-square-check') }}" aria-hidden="true"></i>
                             {% if item.due_time %}<time>{{ item.due_time }}</time>{% endif %}
                             <span>{{ item.title }}</span>
                         </button>
@@ -98,16 +99,21 @@
             <button class="planner-filter active" type="button" data-todo-filter="open" aria-pressed="true">Open</button>
             <button class="planner-filter" type="button" data-todo-filter="all" aria-pressed="false">All</button>
             <button class="planner-filter" type="button" data-todo-filter="done" aria-pressed="false">Done</button>
+            <button class="planner-filter" type="button" data-todo-filter="canceled" aria-pressed="false">Canceled{% if canceled_todos %}<span class="planner-filter-count">{{ canceled_todos }}</span>{% endif %}</button>
         </div>
         <div class="planner-todo-list" data-todo-list>
             {% for item in todos %}
-            <article id="todo-{{ item.id }}" class="planner-todo-item{% if item.completed %} is-complete{% endif %}" data-todo-id="{{ item.id }}" data-todo-state="{{ 'done' if item.completed else 'open' }}">
+            <article id="todo-{{ item.id }}" class="planner-todo-item{% if item.completed %} is-complete{% endif %}{% if item.canceled %} is-canceled{% endif %}" data-todo-id="{{ item.id }}" data-todo-state="{{ 'canceled' if item.canceled else ('done' if item.completed else 'open') }}">
+                {% if item.canceled %}
+                <span class="planner-todo-check is-canceled" aria-label="Canceled task" title="Canceled"><i class="fa-solid fa-ban" aria-hidden="true"></i></span>
+                {% else %}
                 <form method="POST" action="{{ url_for('planner_toggle_todo', todo_id=item.id) }}">
                     <input type="hidden" name="return_month" value="{{ month_token }}">
                     <button class="planner-todo-check" type="submit" aria-label="{{ 'Mark task open' if item.completed else 'Complete task' }}" title="{{ 'Mark open' if item.completed else 'Complete' }}" data-tooltip="true">
                         <i class="fa-solid fa-check" aria-hidden="true"></i>
                     </button>
                 </form>
+                {% endif %}
                 <div class="planner-todo-copy">
                     <strong>{{ item.title }}</strong>
                     {% if item.due_date or item.priority != 'none' %}
@@ -117,10 +123,16 @@
                     </span>
                     {% endif %}
                 </div>
-                <form method="POST" action="{{ url_for('planner_delete_todo', todo_id=item.id) }}" data-confirm="Delete this task?">
-                    <input type="hidden" name="return_month" value="{{ month_token }}">
-                    <button class="planner-row-action" type="submit" aria-label="Delete task" title="Delete" data-tooltip="true"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
-                </form>
+                <div class="planner-todo-actions">
+                    <form method="POST" action="{{ url_for('planner_cancel_todo', todo_id=item.id) }}">
+                        <input type="hidden" name="return_month" value="{{ month_token }}">
+                        <button class="planner-row-action planner-cancel-action" type="submit" aria-label="{{ 'Restore task' if item.canceled else 'Cancel task' }}" title="{{ 'Restore task' if item.canceled else 'Cancel task' }}" data-tooltip="true"><i class="fa-solid {{ 'fa-rotate-left' if item.canceled else 'fa-ban' }}" aria-hidden="true"></i></button>
+                    </form>
+                    <form method="POST" action="{{ url_for('planner_delete_todo', todo_id=item.id) }}" data-confirm="Delete this task?">
+                        <input type="hidden" name="return_month" value="{{ month_token }}">
+                        <button class="planner-row-action" type="submit" aria-label="Delete task" title="Delete" data-tooltip="true"><i class="fa-regular fa-trash-can" aria-hidden="true"></i></button>
+                    </form>
+                </div>
             </article>
             {% else %}
             <div class="planner-empty" data-todo-empty><i class="fa-regular fa-circle-check" aria-hidden="true"></i><span>No tasks</span></div>
@@ -140,7 +152,7 @@
                 <input id="eventTitle" class="form-control" name="title" maxlength="160" autocomplete="off" required>
                 <div class="planner-form-grid">
                     <label class="form-label" for="eventDate"><span>Date</span><input id="eventDate" class="form-control" type="date" name="date" value="{{ today.isoformat() }}" required></label>
-                    <label class="form-check form-switch planner-all-day" for="eventAllDay"><input id="eventAllDay" class="form-check-input" type="checkbox" name="all_day"><span class="form-check-label">All day</span></label>
+                    <label class="form-check form-switch planner-all-day" for="eventAllDay"><input type="hidden" name="all_day" value="0"><input id="eventAllDay" class="form-check-input" type="checkbox" name="all_day" value="1"><span class="form-check-label">All day</span></label>
                 </div>
                 <div class="planner-form-grid" data-event-time-fields>
                     <label class="form-label" for="eventStart"><span>Starts</span><input id="eventStart" class="form-control" type="time" name="start_time" value="09:00" required></label>
@@ -185,6 +197,7 @@
                 <p data-event-notes-row hidden><i class="fa-regular fa-note-sticky" aria-hidden="true"></i><span data-event-notes></span></p>
             </div>
             <div class="modal-footer">
+                <button class="btn btn-primary" type="button" data-event-edit-button hidden>Edit</button>
                 <form method="POST" data-event-delete-form data-delete-template="{{ url_for('planner_delete_event', event_id='__EVENT_ID__') }}">
                     <input type="hidden" name="return_month" value="{{ month_token }}">
                     <button class="btn btn-outline-danger" type="submit">Delete</button>
@@ -193,6 +206,31 @@
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="modal fade" id="eventEditModal" tabindex="-1" aria-labelledby="eventEditTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content planner-modal-form" method="POST" data-event-edit-form data-edit-template="{{ url_for('planner_update_event', event_id='__EVENT_ID__') }}">
+            <div class="modal-header"><h2 class="modal-title fs-5" id="eventEditTitle">Edit event</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <input type="hidden" name="return_month" value="{{ month_token }}">
+                <label class="form-label" for="eventEditTitleInput">Title</label>
+                <input id="eventEditTitleInput" class="form-control" name="title" maxlength="160" autocomplete="off" required>
+                <div class="planner-form-grid">
+                    <label class="form-label" for="eventEditDate"><span>Date</span><input id="eventEditDate" class="form-control" type="date" name="date" required></label>
+                    <label class="form-label" for="eventEditEndDate"><span>End date</span><input id="eventEditEndDate" class="form-control" type="date" name="end_date"></label>
+                </div>
+                <label class="form-check form-switch planner-all-day" for="eventEditAllDay"><input type="hidden" name="all_day" value="0"><input id="eventEditAllDay" class="form-check-input" type="checkbox" name="all_day" value="1"><span class="form-check-label">All day</span></label>
+                <div class="planner-form-grid" data-event-edit-time-fields>
+                    <label class="form-label" for="eventEditStart"><span>Starts</span><input id="eventEditStart" class="form-control" type="time" name="start_time"></label>
+                    <label class="form-label" for="eventEditEnd"><span>Ends</span><input id="eventEditEnd" class="form-control" type="time" name="end_time"></label>
+                </div>
+                <label class="form-label" for="eventEditLocation">Location</label><input id="eventEditLocation" class="form-control" name="location" maxlength="180">
+                <label class="form-label" for="eventEditNotes">Description</label><textarea id="eventEditNotes" class="form-control" name="notes" rows="4" maxlength="1000"></textarea>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" type="submit">Save changes</button></div>
+        </form>
     </div>
 </div>
 {% endblock %}

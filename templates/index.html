@@ -11,7 +11,7 @@
 
 <section class="workspace-header glass-card">
     <div>
-        <h1>My Files</h1>
+        <h1>{{ path.split('/')[-1] if path else 'My Files' }}</h1>
         <nav class="breadcrumb-line" aria-label="Current folder path">
             <a href="{{ url_for('index') }}" {% if not path %}aria-current="page"{% endif %}>Root</a>
             {% set crumbs = namespace(current='') %}
@@ -288,7 +288,6 @@
         <a href="{{ url_for('advanced_search') }}" class="btn btn-outline-primary"><i class="fa-solid fa-sliders"></i> Advanced search</a>
         <a href="{{ url_for('duplicates_page') }}" class="btn btn-outline-primary"><i class="fa-solid fa-clone"></i> Duplicates</a>
     </div>
-    <a href="{{ url_for('chat_page') }}" class="btn btn-primary"><i class="fa-solid fa-robot"></i> Chat with AI</a>
 </section>
 
 <div class="modal fade" id="newFolderModal" tabindex="-1" aria-labelledby="newFolderTitle" aria-hidden="true">

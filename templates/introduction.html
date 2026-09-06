@@ -1,72 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Tamestorage · Your personal cloud{% endblock %}
+{% block title %}Tamestorage{% endblock %}
 {% block content %}
-<section class="landing-hero">
-    <div class="landing-copy">
-        <p class="eyebrow">Private cloud storage</p>
-        <h1>All your files, <span>anywhere, anytime.</span></h1>
-        <p>Secure personal storage for photos, videos, documents, projects, and everything else, with sharing, previews, recovery tools, and private AI assistance built in.</p>
-        <div class="landing-actions">
-            <a class="btn btn-primary btn-lg" href="{{ url_for('register') }}">Get started for free</a>
-            <a class="btn btn-outline-secondary btn-lg" href="#workflow">See how it works</a>
-        </div>
-    </div>
-    <div class="landing-art" aria-label="Cloud storage illustration">
-        <div class="cloud-illustration">
-            <div class="cloud-core"><i class="fa-solid fa-arrow-up"></i></div>
-            <span class="float-file one"><i class="fa-regular fa-folder"></i></span>
-            <span class="float-file two"><i class="fa-regular fa-image"></i></span>
-            <span class="float-file three"><i class="fa-regular fa-file-lines"></i></span>
-            <span class="float-file four"><i class="fa-solid fa-music"></i></span>
-        </div>
-    </div>
-</section>
-
-<section class="landing-trust" aria-label="Tamestorage benefits">
-    <div class="trust-item"><i class="fa-solid fa-shield-halved"></i><span><strong>Secure and private</strong><small>Your server, your files</small></span></div>
-    <div class="trust-item"><i class="fa-solid fa-mobile-screen-button"></i><span><strong>Access anywhere</strong><small>Desktop, tablet, or phone</small></span></div>
-    <div class="trust-item"><i class="fa-solid fa-share-nodes"></i><span><strong>Share with ease</strong><small>Controlled links and requests</small></span></div>
-    <div class="trust-item"><i class="fa-solid fa-rotate"></i><span><strong>Smart recovery</strong><small>Trash and version history</small></span></div>
-</section>
-
-<section id="features" class="public-section">
-    <div class="public-section-heading">
-        <p class="eyebrow">Everything in one place</p>
-        <h2>A calmer way to manage your personal files.</h2>
-        <p>The interface keeps everyday actions simple while advanced tools remain close when you need them.</p>
-    </div>
-    <div class="feature-showcase">
-        <article><i class="fa-solid fa-cloud-arrow-up"></i><h3>Flexible upload</h3><p>Upload individual files, full folder trees, or drag items directly into the browser with live progress.</p></article>
-        <article><i class="fa-regular fa-eye"></i><h3>Rich previews</h3><p>Open images, video, audio, PDF, text, JSON, CSV, markdown, and code without downloading first.</p></article>
-        <article><i class="fa-solid fa-share-nodes"></i><h3>Controlled sharing</h3><p>Create expiring, password-protected, restricted, and download-limited links for files or folders.</p></article>
-        <article><i class="fa-solid fa-clock-rotate-left"></i><h3>Recovery tools</h3><p>Restore deleted files, inspect version history, detect duplicates, and audit important activity.</p></article>
-        <article><i class="fa-regular fa-paper-plane"></i><h3>File requests</h3><p>Collect uploads into a selected folder without revealing anything else inside your storage.</p></article>
-        <article><i class="fa-solid fa-wand-magic-sparkles"></i><h3>AI assistant</h3><p>Summarize safe text files, inspect screenshots, and get help organizing your personal cloud.</p></article>
-    </div>
-</section>
-
-<section id="security" class="public-section">
-    <div class="security-banner">
-        <div><p class="eyebrow">Designed for private hosting</p><h2>Your files stay in your control.</h2><p>Tamestorage runs on your own Flask server and keeps access rules, recovery, sharing, and auditing together.</p></div>
-        <div class="security-points">
-            <span><i class="fa-solid fa-check"></i> User-scoped folders</span>
-            <span><i class="fa-solid fa-check"></i> Password hashing</span>
-            <span><i class="fa-solid fa-check"></i> Path validation</span>
-            <span><i class="fa-solid fa-check"></i> Share audit records</span>
-        </div>
-    </div>
-</section>
-
-<section id="workflow" class="public-section">
-    <div class="public-section-heading">
-        <p class="eyebrow">Simple workflow</p>
-        <h2>From upload to sharing in four clear steps.</h2>
-    </div>
-    <div class="workflow-grid">
-        <article class="workflow-card"><strong>1</strong><h3>Add your files</h3><p>Choose files, select a folder, or drag content directly into your workspace.</p></article>
-        <article class="workflow-card"><strong>2</strong><h3>Preview and organize</h3><p>Browse visually, rename items, add tags, move folders, and inspect metadata.</p></article>
-        <article class="workflow-card"><strong>3</strong><h3>Share securely</h3><p>Choose exactly who can open, download, upload, edit, or manage shared content.</p></article>
-        <article class="workflow-card"><strong>4</strong><h3>Recover confidently</h3><p>Use trash, versions, duplicates, backups, and activity records when something changes.</p></article>
-    </div>
+<section class="workspace-welcome">
+  <span class="sidebar-brand-mark" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+  <h1>Your files and everyday tools.</h1>
+  <p class="muted">One workspace for your NAS files, media, schedule, and assistant.</p>
+  <a class="btn btn-primary" href="{{ url_for('index') if session.get('logged_in') else url_for('login') }}">Open workspace <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+  <dl class="workspace-guide">
+    <div><dt><i class="fa-regular fa-folder" aria-hidden="true"></i> Files</dt><dd>Upload, organize, preview, and share files from your browser.</dd></div>
+    <div><dt><i class="fa-solid fa-music" aria-hidden="true"></i> Media</dt><dd>Manage playlist sync and keep downloaded videos together.</dd></div>
+    <div><dt><i class="fa-regular fa-calendar" aria-hidden="true"></i> Planning</dt><dd>Keep events and tasks in one place, with an assistant when you need it.</dd></div>
+  </dl>
 </section>
 {% endblock %}

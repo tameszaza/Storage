@@ -1,0 +1,6 @@
+FROM tamestorage-video:browser-base
+USER root
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+COPY --chmod=755 lib/ /app/lib/
+COPY --chmod=755 video_worker.py /app/video_worker.py
+USER 1000:1000

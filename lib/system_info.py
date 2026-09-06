@@ -1,5 +1,7 @@
+import os
 import time
 import psutil
+from flask import current_app
 
 
 def format_uptime(seconds: int) -> str:
@@ -16,7 +18,7 @@ def format_uptime(seconds: int) -> str:
 def system_usage() -> dict:
     cpu_usage = psutil.cpu_percent(interval=0.2)
     memory_info = psutil.virtual_memory()
-    disk_info = psutil.disk_usage("/")
+    disk_info = psutil.disk_usage(os.path.abspath(current_app.config["UPLOAD_FOLDER"]))
     return {
         "cpu_usage": cpu_usage,
         "memory_usage": memory_info.percent,

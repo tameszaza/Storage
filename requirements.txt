@@ -5,3 +5,5 @@ python-dateutil
 google-genai
 matplotlib
 psutil
+gunicorn
+yt-dlp[default]

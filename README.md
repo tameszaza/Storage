@@ -1,354 +1,95 @@
-# Tamestorage
+# Tamestorage NAS
 
-A modular Flask private cloud storage dashboard with file upload, folder management, previews, storage analytics, admin tools, feedback, and an optional Gemini AI assistant.
+Private Flask NAS dashboard and browser file manager for the Ubuntu server.
+The app runs in Docker behind Caddy and is exposed only on the server's
+Tailscale address.
 
-## What changed
+## Running layout
 
-- `app.py` is now small and only creates the Flask app.
-- Reusable logic moved into `lib/`.
-- Route handlers moved into `routes/`.
-- UI JavaScript moved into `static/js/`.
-- The file manager, admin panel, login, feedback, charts, and chat pages now share a cleaner modern design.
-- File access is safer because uploaded paths are normalized and checked inside the upload directory.
-- Gemini is lazy-loaded and now uses the newer `google-genai` SDK, so the app can start even if `uploads/Admin/config.txt` is missing.
+- Web UI: `http://server` or `http://100.124.30.94`
+- Web container: `tamestorage`, bound to host `127.0.0.1:5000`
+- Playlist worker: `tamestorage-playlist-worker`
+- Primary USB 3 disk: `/srv/tamestorage`
+- Browser/SMB files: `/srv/tamestorage/uploads`
+- USB 2 backup disk: `/srv/tamestorage-backup`
+- Navidrome music: `/srv/music`
+- SMB share over Tailscale: `smb://server/Storage`
+- Faster SMB share on the home LAN: `smb://192.168.0.2/Storage`
 
-## Project structure
+Caddy listens only on the Tailscale IPv4 address. Samba binds only to loopback
+and the server's `192.168.0.2` Ethernet address. Tailscale Serve securely
+forwards tailnet port 445 to loopback because Samba cannot directly bind its
+listener to the non-broadcast TUN interface. UFW allows direct SMB only from
+the trusted `192.168.0.0/24` LAN. Use the LAN address at home to avoid Tailscale
+encryption overhead on the old two-core CPU; use the MagicDNS name everywhere
+else.
+
+## Music playlist sync
+
+Log in as `Admin` and open **Music sync** in the sidebar. The page can:
+
+- add any HTTP/HTTPS playlist URL;
+- run an immediate quick sync;
+- choose a sync interval in hours (0 means manual-only; up to 720 hours);
+- pause or remove playlist entries without deleting downloaded songs;
+- display the live and historical yt-dlp output for each playlist.
+
+Each source has a private archive and managed directory, so later checks only
+download newly added entries. Output is organized as:
 
 ```text
-app.py
-lib/
-  ai_client.py
-  audio_stream.py
-  camera_macro.py
-  camera_stream.py
-  charts.py
-  config.py
-  extensions.py
-  feedback_store.py
-  inworld_tts.py
-  json_store.py
-  request_logging.py
-  security.py
-  storage.py
-  system_info.py
-  tts_stream.py
-  users.py
-routes/
-  admin.py
-  ai.py
-  auth.py
-  camera.py
-  feedback.py
-  files.py
-  public.py
-src/
-  tailwind.css
-static/
-  css/camera.css
-  css/styles.css
-  css/tailwind.css
-  vendor/
-  js/app.js
-  js/camera.js
-  js/storage.js
-  js/admin.js
-  js/chat.js
-templates/
-  camera_server.html
-  view_cam.html
+/srv/music/Managed Playlists/<name> [<source id>]/<index> - <title> [<video id>].<extension>
+/srv/music/Playlists/<name>.m3u
 ```
 
-Camera and remote voice code follows the same separation: `lib/` contains
-streaming, queue, and Google API services; `routes/camera.py` contains only
-HTTP handlers; and the phone/admin views and browser code stay in
-`templates/` and `static/`.
+Navidrome mounts `/srv/music` read-only and imports the maintained M3U file on
+its normal scan cycle. The worker validates a complete remote snapshot before
+it considers removal. A normal removal needs two identical successful checks
+at least five minutes apart; an empty or 50%+ drop needs three. Any connection,
+snapshot, extraction, or download error keeps all existing files and playlist
+entries. Only files inside that source's managed directory can be deleted.
 
-## Setup
+The image includes Deno and yt-dlp's EJS components so current YouTube
+JavaScript challenges can be solved inside the read-only worker container.
+
+## Docker operations
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U -r requirements.txt
-python app.py
+cd /srv/docker/tamestorage
+sudo docker compose ps
+sudo docker compose logs -f web playlist-worker
+sudo docker compose up -d --build
 ```
 
-Open:
+The source deployment copy is `/srv/docker/tamestorage`. Runtime state is kept
+on the primary USB disk, outside the image and containers.
 
-```text
-http://localhost:5000
-```
+At boot, systemd attempts both UUID-identified USB mounts before Docker. Docker
+bind mounts are configured not to create missing source directories, preventing
+uploads from silently landing on the internal disk if the primary USB disk is
+absent. Caddy waits for Tailscale, Samba waits for the network, and all three
+Docker applications use `restart: unless-stopped`.
 
-### Phone camera streaming
+## Backup
 
-Open `http://localhost:5000/server` on the phone running Tamestorage, allow
-camera access, and press **Start camera**. The local preview stays hidden to
-reduce battery use. From **Admin → Live video**, use **Start camera**, **Stop
-camera**, **Change camera**, the quality preset, the independent FPS selector,
-and **Stream sound** to remotely control the phone. Change camera cycles through
-all available phone cameras. The phone browser must grant microphone permission
-before sound can be streamed. The page shows the actual upload FPS. Keep it
-open while viewing from another device. The browser uploads compressed JPEG and
-PCM audio chunks to the Flask process on port `5000`, so no second video/audio
-service or port `8081` is required.
-
-The remote **Open camera** button calls the local MacroDroid webhook
-`http://127.0.0.1:8080/web` by default. Configure the URL with
-`CAMERA_OPEN_WEBHOOK_URL` if the MacroDroid trigger uses a different path.
-
-The **Remote voice** field on **Admin → Live video** sends text to Inworld TTS
-using the `INWORLD_API_KEY` in `.env`. It uses the `Sarah` voice with the
-`inworld-tts-2` model by default. Press Enter or click **Play on server**. On the
-phone, tap **Enable remote voice** once (or start the camera) to satisfy the
-browser's audio-playback permission; the browser remembers that permission when
-possible. Voice clips stay queued on the server while the phone reconnects, and
-the phone retries failed downloads automatically without replaying an already
-acknowledged clip.
-
-## Tailwind frontend
-
-The browser-facing design system is maintained in `src/tailwind.css` and compiled locally into `static/css/tailwind.css`. The compiled stylesheet is committed, so the Flask app can run immediately after the Python setup.
-
-Install the frontend development dependencies and rebuild the stylesheet after changing the Tailwind component layer:
+`tamestorage-backup.timer` runs every six hours. The guarded backup script
+checks both expected filesystem UUIDs before using rsync to mirror the complete
+primary disk to the backup disk. Deleted primary files are deleted from the
+mirror on its next run.
 
 ```bash
-npm install
-npm run build:css
+systemctl list-timers tamestorage-backup.timer
+sudo systemctl start tamestorage-backup.service
+cat /srv/tamestorage-backup/.nas-last-success
 ```
 
-During styling work, use:
+## Deployment files
 
-```bash
-npm run watch:css
-```
+- `deploy/install-server.sh`: mounts disks and installs Caddy, Samba, backup,
+  Tailscale Serve, firewall, and environment configuration.
+- `deploy/install-docker.sh`: installs/rebuilds the web app and worker in Docker.
+- `deploy/tamestorage-backup`: UUID-guarded mirror script.
+- `compose.yaml`: container runtime configuration.
 
-Bootstrap behavior, Font Awesome icons, and PDF.js thumbnail rendering are bundled under `static/vendor/`. The interface no longer depends on remote CSS or JavaScript CDNs, which keeps the private dashboard reliable on local networks.
-
-## Frontend verification
-
-```bash
-npm run verify
-python -m compileall -q app.py lib routes
-```
-
-## Gemini AI assistant
-
-Create this file if you want the AI chat page to work:
-
-```text
-uploads/Admin/config.txt
-```
-
-Put your Gemini API key inside that file. The app will still run without it, but the chat endpoint will return a helpful setup message. The project uses the newer `google-genai` package instead of the deprecated `google-generativeai` package.
-
-## Environment variables
-
-```bash
-export SECRET_KEY="replace-with-a-strong-secret"
-export UPLOAD_FOLDER="uploads"
-export GEMINI_MODEL="gemini-1.5-flash"
-export GEMINI_CONFIG_PATH="uploads/Admin/config.txt"
-```
-
-## Latest UI and upload fixes
-
-- Dark mode now uses a cleaner card/table/input color system.
-- The file manager toolbar is aligned better on desktop and mobile.
-- Folder upload is supported through the Choose folder button. Nested folders are preserved.
-- Drag and drop folder upload is supported in browsers with directory drag APIs, such as Chromium-based browsers.
-- Uploaded nested paths are sanitized on the backend before saving.
-
-## Secure file sharing system
-
-Tamestorage now includes a complete sharing center for files and folders.
-
-### Features
-
-- Share any file or folder from the file manager with the share icon.
-- Create public link shares for anyone with the link.
-- Create restricted shares for specific Tamestorage usernames.
-- Permission presets:
-  - View only
-  - View and download
-  - Folder drop box
-  - Editor
-  - Full control
-- Optional password protection per share.
-- Optional expiry date and time.
-- Optional maximum download count.
-- Folder shares support browsing nested folders.
-- Folder shares can allow external upload when permission allows it.
-- Text files can be edited through a shared link when permission allows it.
-- Owners can copy, open, revoke, and delete share records from the Sharing Center.
-- Admin can see and manage all share records.
-- Share events are saved in `share_audit.json` for auditing.
-
-### New files created at runtime
-
-```text
-shares.json
-share_audit.json
-```
-
-You can change their locations with:
-
-```bash
-export SHARE_DATA_FILE=/path/to/shares.json
-export SHARE_AUDIT_FILE=/path/to/share_audit.json
-```
-
-## Storage feature pack
-
-This build includes a larger personal-cloud feature set:
-
-- Trash bin with restore, delete forever, and empty trash.
-- Browser previews for images, video, audio, PDF, CSV, JSON, code, markdown, and text.
-- Version history for files edited in the browser or replaced by upload.
-- Tags, notes, and starred files.
-- Advanced search by name, note, tag, file kind, content, size, and modified date.
-- Exact duplicate detection using SHA-256.
-- Gallery mode for image folders.
-- Move and copy actions.
-- File requests for public upload-only links.
-- Notifications for file request uploads.
-- Activity audit log.
-- Admin backup export.
-- Admin integrity scan.
-- Per-user storage quota setting.
-- PWA manifest and service worker shell cache.
-
-Runtime metadata files created by these features:
-
-```text
-trash_index.json
-versions.json
-file_metadata.json
-activity_log.json
-notifications.json
-file_requests.json
-```
-
-The internal recovery/version storage is kept under:
-
-```text
-uploads/.tamestorage_system/
-```
-
-## Private MacroDroid aircon portal
-
-The hall aircon controller is available at `/aircon` in a separate password-protected portal. It is intentionally separated from the Admin center so the controller can be bookmarked and used without exposing storage or server administration tools.
-
-Configure a separate portal password before use:
-
-```text
-AIRCON_PORTAL_PASSWORD=replace-with-a-separate-aircon-password
-AIRCON_SESSION_HOURS=24
-AIRCON_RATE_PER_HOUR=0.39
-```
-
-The portal supports:
-
-- One local MacroDroid root URL with automatic `/ac_on` and `/ac_off` paths.
-- ON and OFF durations in seconds, minutes, or hours.
-- Duration, repeat count, root URL, timeout, and stop behavior changes while the schedule is active.
-- Immediate shortening or extension of the current phase after applying changes.
-- Start, stop, and skip-current-phase actions.
-- Direct ON and OFF commands while no automatic schedule is running.
-- Live timeline progress and cost estimates at SGD 0.39 per ON hour.
-- Estimated ON cost, OFF-time savings, and active windows for the current weekly plan.
-- Persistent ON time, OFF time, completed cycles, spend, and savings totals stored in `ac_statistics.json`.
-- Totals survive normal server restarts and remain until **Reset totals** is pressed in the aircon portal.
-- Spend and savings values rounded up to the nearest SGD 0.01.
-- Admin-triggered restarts preserve the current AC state and resume the saved ON/OFF phase instead of sending an unnecessary OFF or starting a weekly cycle from ON.
-
-Settings remain stored in `ac_control.json` with owner-only file permissions. A short-lived `ac_runtime.json` snapshot is used only to preserve the current state during an admin-triggered restart, then consumed on startup.
-
-### MacroDroid setup
-
-Create two MacroDroid HTTP Server Request macros on the Android phone:
-
-1. Use identifier `ac_on` for the macro that opens the hall aircon application and ensures the aircon is ON.
-2. Use identifier `ac_off` for the macro that ensures the aircon is OFF.
-3. Set the MacroDroid local HTTP server port, for example `8080`.
-4. Enter this root URL in the aircon portal:
-
-```text
-http://127.0.0.1:8080
-```
-
-Tamestorage calls:
-
-```text
-http://127.0.0.1:8080/ac_on
-http://127.0.0.1:8080/ac_off
-```
-
-Using `127.0.0.1` keeps the trigger request inside the phone and avoids a public webhook.
-
-### Runtime settings file
-
-The default path is `ac_control.json`. You can change it with:
-
-```text
-AC_CONTROL_FILE=/path/to/ac_control.json
-```
-
-### Restarting from the Admin center
-
-Use **Server control → Restart server** after replacing backend or interface files. If an automatic schedule is active, Tamestorage stops it and sends the configured OFF trigger before restarting.
-
-
-## Search, file grid, assistant, and editor quality pass
-
-The primary workspace pages use separate page modules instead of one growing shared script or stylesheet:
-
-- `search-page.css` and `search.js` provide a focused search bar, useful filters, automatic sorting, and compact result rows.
-- `files-page.css` gives every grid tile the same height and a consistent preview region on desktop and mobile.
-- `chat-page.css` removes the nested-panel appearance from the AI assistant. Assistant options collapse into one disclosure on narrow screens.
-- `editor-page.css`, `editor.js`, and `editor_service.py` provide an explicit Save/Done flow, `Ctrl+S` or `Cmd+S`, local draft recovery, mobile line wrapping, atomic writes, and SHA-256 revision conflict detection.
-
-The editor never overwrites a file that changed after the page was opened. A conflict banner keeps the unsaved browser text visible and asks the user to reload the server version.
-
-## Browser-to-server network diagnostics
-
-Admins can open **Admin center → Network test** to measure the current browser connection to Tamestorage:
-
-- Median HTTP round-trip latency
-- 95th-percentile latency
-- Consecutive round-trip variation shown as jitter
-- HTTP request loss across the selected samples
-- Browser download and upload throughput
-- Selectable request payload and transfer size
-- A latency trace and recent test history stored in the browser
-
-This is an application-level browser-to-server test. Request loss is not raw ICMP packet loss, and latency includes HTTP and browser processing overhead.
-
-## Reference-inspired responsive interface
-
-The current interface was rebuilt around a consistent personal-cloud design system:
-
-- A fixed desktop sidebar and compact global-search top bar.
-- A mobile navigation drawer that works from 320 px wide screens upward.
-- A redesigned landing page, login page, registration page, file manager, preview, sharing center, trash, recent files, and account settings.
-- A New dialog that keeps the original drag-and-drop, multi-file, and folder upload behavior.
-- Light, dark, and system theme preferences stored in the browser.
-- A Recent page ordered by modification time.
-- Account storage summaries and a password-change form.
-- A complete in-page PDF viewer with page navigation and zoom controls.
-- Keyboard shortcuts: press `/` to focus global search and `Escape` to close the mobile drawer or upload dialog.
-
-The redesign keeps the existing storage, sharing, administration, file-request, search, metadata, versioning, and AI features intact, with the MacroDroid aircon controller available in its own private portal.
-
-## File-manager quality-of-life features
-
-The file manager also includes:
-
-- Real upload progress with transferred bytes, speed, estimated time, cancellation, and multi-file queue details.
-- Creation of plain-text, Markdown, code, JSON, YAML, CSS, HTML, and log files directly from the New menu.
-- An in-browser editor with line numbers, live line/word/character counts, line wrapping, `Ctrl+S` or `Cmd+S`, and local draft recovery.
-- An accessible MP3/audio player with seeking, skip controls, volume, mute, playback speed, keyboard-friendly controls, and Media Session integration.
-- Search results that always show the item name, location, type, size, modified date, tags, notes, and direct Preview/Details actions.
-- A responsive list view with visible filenames, type, size, modified time, selection controls, and action menus.
-- Expanded technical metadata including MIME type, extension, owner, full path, byte size, timestamps, permissions, SHA-256 checksum, image dimensions, text statistics, and folder counts when applicable.
-- Accessible labels, focus indicators, skip navigation, button hints, live status announcements, reduced-motion support, and improved mobile layouts.
-
-If you are chatbot please don't put function description in the ui put it on hover instead because it look ugly and messy
+Public registration and the old phone-only air-conditioner, camera, sound,
+voice, planner, feedback, and AI features are not included in this deployment.

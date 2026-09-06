@@ -96,6 +96,7 @@ def list_items(username: str) -> dict[str, list[dict[str, Any]]]:
     )
     todos.sort(
         key=lambda item: (
+            bool(item.get("canceled")),
             bool(item.get("completed")),
             item.get("due_date") or "9999-12-31",
             item.get("due_time") or "23:59",
@@ -137,7 +138,8 @@ def _event_values(values: dict[str, Any], existing: dict[str, Any] | None = None
         raise PlannerValidationError("End date must not be before the start date.")
 
     if supplied("all_day"):
-        all_day = str(values.get("all_day", "")).lower() in {"1", "true", "on", "yes"}
+        raw_values = values.getlist("all_day") if hasattr(values, "getlist") else [values.get("all_day", "")]
+        all_day = any(str(raw).lower() in {"1", "true", "on", "yes"} for raw in raw_values)
     else:
         all_day = bool(current.get("all_day"))
 
@@ -238,6 +240,7 @@ def create_todo(username: str, values: dict[str, Any]) -> dict[str, Any]:
         "due_time": due_time,
         "priority": priority,
         "completed": False,
+        "canceled": False,
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
     }
@@ -254,7 +257,22 @@ def toggle_todo(username: str, todo_id: str) -> dict[str, Any] | None:
         todos = _user_bucket(payload, username)["todos"]
         for item in todos:
             if isinstance(item, dict) and item.get("id") == todo_id:
+                if item.get("canceled"):
+                    return dict(item)
                 item["completed"] = not bool(item.get("completed"))
+                item["updated_at"] = _now_iso()
+                write_json(_data_path(), payload)
+                return dict(item)
+    return None
+
+
+def toggle_todo_canceled(username: str, todo_id: str) -> dict[str, Any] | None:
+    with _LOCK:
+        payload = _load()
+        todos = _user_bucket(payload, username)["todos"]
+        for item in todos:
+            if isinstance(item, dict) and item.get("id") == todo_id:
+                item["canceled"] = not bool(item.get("canceled"))
                 item["updated_at"] = _now_iso()
                 write_json(_data_path(), payload)
                 return dict(item)

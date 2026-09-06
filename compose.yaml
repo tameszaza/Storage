@@ -1,0 +1,121 @@
+services:
+  video-worker:
+    image: tamestorage-video:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.video
+    container_name: tamestorage-video-worker
+    restart: unless-stopped
+    env_file:
+      - /etc/tamestorage.env
+    command: ["python", "video_worker.py"]
+    volumes:
+      - type: bind
+        source: /srv/tamestorage/uploads/Admin/Movies
+        target: /srv/tamestorage/uploads/Admin/Movies
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/tamestorage/.tamestorage_state
+        target: /srv/tamestorage/.tamestorage_state
+        bind:
+          create_host_path: false
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true
+  web:
+    image: tamestorage:latest
+    build:
+      context: .
+    container_name: tamestorage
+    restart: unless-stopped
+    env_file:
+      - /etc/tamestorage.env
+    environment:
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      PLAYLIST_RUNTIME_DIR: /srv/tamestorage/.tamestorage_state/playlist_runtime
+      PLAYLIST_DELETE_CONFIRM_SECONDS: "300"
+      PLAYLIST_SNAPSHOT_TIMEOUT_SECONDS: "900"
+      NAVIDROME_DB_PATH: /srv/navidrome-data/navidrome.db
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - type: bind
+        source: /srv/tamestorage/uploads
+        target: /srv/tamestorage/uploads
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/tamestorage/.tamestorage_state
+        target: /srv/tamestorage/.tamestorage_state
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/music
+        target: /srv/music
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/system-disk-check
+        target: /srv/system-disk-check
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/tamestorage-backup
+        target: /srv/tamestorage-backup
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/docker/navidrome/data
+        target: /srv/navidrome-data
+        read_only: true
+        bind:
+          create_host_path: false
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+  playlist-worker:
+    image: tamestorage:latest
+    container_name: tamestorage-playlist-worker
+    restart: unless-stopped
+    env_file:
+      - /etc/tamestorage.env
+    environment:
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      PLAYLIST_RUNTIME_DIR: /srv/tamestorage/.tamestorage_state/playlist_runtime
+      PLAYLIST_DELETE_CONFIRM_SECONDS: "300"
+      PLAYLIST_SNAPSHOT_TIMEOUT_SECONDS: "900"
+    command: ["python", "playlist_worker.py"]
+    volumes:
+      - type: bind
+        source: /srv/tamestorage/.tamestorage_state
+        target: /srv/tamestorage/.tamestorage_state
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/music
+        target: /srv/music
+        bind:
+          create_host_path: false
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true

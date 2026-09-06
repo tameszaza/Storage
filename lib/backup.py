@@ -9,7 +9,7 @@ from lib.storage import upload_root
 
 METADATA_FILES = [
     "users.json", "shares.json", "share_audit.json", "trash_index.json", "versions.json",
-    "file_metadata.json", "activity_log.json", "notifications.json", "file_requests.json", "feedback.json",
+    "file_metadata.json", "activity_log.json", "notifications.json", "file_requests.json",
 ]
 
 

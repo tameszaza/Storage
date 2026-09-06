@@ -4,7 +4,7 @@
 <section class="auth-layout">
     <form method="POST" class="auth-card">
         <p class="eyebrow">Welcome back</p>
-        <h2>Log in to your account</h2>
+        <h1>Log in</h1>
         <p class="auth-intro">Access your files, shares, recent activity, and private tools.</p>
         {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
         <label class="form-label" for="username">Username</label>
@@ -14,7 +14,6 @@
         <button class="btn btn-primary btn-lg w-100 mt-4" type="submit">Log in</button>
         <div class="auth-divider">or</div>
         <a class="btn btn-outline-secondary w-100" href="{{ url_for('introduction') }}"><i class="fa-solid fa-circle-info me-2"></i>Explore Tamestorage</a>
-        <p class="auth-alt">Do not have an account? <a href="{{ url_for('register') }}">Sign up</a></p>
     </form>
     <div class="auth-visual">
         <div class="auth-visual-content"><i class="fa-solid fa-cloud-arrow-up"></i><h2>Your files in safe hands.</h2><p>Stay focused on what matters while Tamestorage keeps your personal workspace organized and available.</p></div>

@@ -25,6 +25,8 @@ from lib.planner import (
     list_items,
     month_grid,
     toggle_todo,
+    toggle_todo_canceled,
+    update_event,
 )
 from lib.security import admin_required, login_required
 
@@ -191,7 +193,8 @@ def planner_page():
     previous = _shift_month(year, month, -1)
     following = _shift_month(year, month, 1)
     today = date.fromisoformat(calendar_clock()["today"])
-    open_todos = sum(1 for item in items["todos"] if not item.get("completed"))
+    open_todos = sum(1 for item in items["todos"] if not item.get("completed") and not item.get("canceled"))
+    canceled_todos = sum(1 for item in items["todos"] if item.get("canceled"))
 
     return render_template(
         "planner.html",
@@ -207,6 +210,7 @@ def planner_page():
         tasks_by_date=tasks_by_date,
         todos=items["todos"],
         open_todos=open_todos,
+        canceled_todos=canceled_todos,
         published_calendar=published_calendar,
         planner_asset_version=_asset_version(),
     )
@@ -222,6 +226,22 @@ def planner_create_event():
     else:
         flash("Event added.", "success")
         log_activity("planner.event.create", item.get("title", ""))
+    return redirect(_return_to_month())
+
+
+@login_required
+def planner_update_event(event_id: str):
+    username = session.get("username", "")
+    try:
+        item = update_event(username, event_id, request.form)
+    except PlannerValidationError as exc:
+        flash(str(exc), "warning")
+    else:
+        if item is None:
+            flash("Event not found.", "warning")
+        else:
+            flash("Event updated.", "success")
+            log_activity("planner.event.update", event_id, details={"title": item.get("title", "")})
     return redirect(_return_to_month())
 
 
@@ -255,8 +275,27 @@ def planner_toggle_todo(todo_id: str):
     item = toggle_todo(username, todo_id)
     if item is None:
         flash("Task not found.", "warning")
+    elif item.get("canceled"):
+        flash("Restore the canceled task before completing it.", "warning")
     else:
         log_activity("planner.todo.toggle", todo_id, details={"completed": item.get("completed")})
+    return redirect(_return_to_month())
+
+
+@login_required
+def planner_cancel_todo(todo_id: str):
+    username = session.get("username", "")
+    item = toggle_todo_canceled(username, todo_id)
+    if item is None:
+        flash("Task not found.", "warning")
+    else:
+        canceled = bool(item.get("canceled"))
+        flash("Task canceled." if canceled else "Task restored.", "success")
+        log_activity(
+            "planner.todo.cancel" if canceled else "planner.todo.restore",
+            todo_id,
+            details={"canceled": canceled},
+        )
     return redirect(_return_to_month())
 
 
@@ -296,8 +335,10 @@ def planner_calendar_sync():
 def register_routes(app):
     app.add_url_rule("/planner", "planner_page", planner_page)
     app.add_url_rule("/planner/events", "planner_create_event", planner_create_event, methods=["POST"])
+    app.add_url_rule("/planner/events/<event_id>/update", "planner_update_event", planner_update_event, methods=["POST"])
     app.add_url_rule("/planner/events/<event_id>/delete", "planner_delete_event", planner_delete_event, methods=["POST"])
     app.add_url_rule("/planner/todos", "planner_create_todo", planner_create_todo, methods=["POST"])
     app.add_url_rule("/planner/todos/<todo_id>/toggle", "planner_toggle_todo", planner_toggle_todo, methods=["POST"])
+    app.add_url_rule("/planner/todos/<todo_id>/cancel", "planner_cancel_todo", planner_cancel_todo, methods=["POST"])
     app.add_url_rule("/planner/todos/<todo_id>/delete", "planner_delete_todo", planner_delete_todo, methods=["POST"])
     app.add_url_rule("/planner/calendar/sync", "planner_calendar_sync", planner_calendar_sync, methods=["POST"])

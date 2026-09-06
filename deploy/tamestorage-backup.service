@@ -1,0 +1,11 @@
+[Unit]
+Description=Mirror Tamestorage primary USB disk to backup USB disk
+After=local-fs.target
+RequiresMountsFor=/srv/tamestorage /srv/tamestorage-backup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tamestorage-backup
+Nice=19
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Tamestorage disk mirror every six hours
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=6h
+RandomizedDelaySec=5min
+Persistent=true
+Unit=tamestorage-backup.service
+
+[Install]
+WantedBy=timers.target

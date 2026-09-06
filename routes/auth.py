@@ -1,46 +1,9 @@
 import logging
-import re
 
 from flask import redirect, render_template, request, session, url_for
 
 from lib.extensions import bcrypt
-from lib.users import ensure_user_folder, load_users, save_users
-
-USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{1,47}$")
-
-
-def register():
-    if session.get("logged_in"):
-        return redirect(url_for("index"))
-
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        if not username or not password:
-            return render_template("register.html", error="Please enter a username and password."), 400
-        if not USERNAME_PATTERN.fullmatch(username):
-            return render_template(
-                "register.html",
-                error="Use 2 to 48 letters, numbers, dots, underscores, or hyphens. Start with a letter or number.",
-            ), 400
-        if len(password) < 8:
-            return render_template("register.html", error="Password must be at least 8 characters."), 400
-
-        users = load_users()
-        if username in users:
-            return render_template("register.html", error="Username already exists."), 400
-
-        hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-        users[username] = {"password": hashed_password, "suspended": False}
-        save_users(users)
-        ensure_user_folder(username)
-        session.clear()
-        session["logged_in"] = True
-        session["username"] = username
-        session.permanent = True
-        logging.info("New user registered and logged in: %s", username)
-        return redirect(url_for("user_folder", username=username))
-    return render_template("register.html")
+from lib.users import load_users
 
 
 def login():
@@ -76,6 +39,5 @@ def logout():
 
 
 def register_routes(app):
-    app.add_url_rule("/register", "register", register, methods=["GET", "POST"])
     app.add_url_rule("/", "login", login, methods=["GET", "POST"])
     app.add_url_rule("/logout", "logout", logout)

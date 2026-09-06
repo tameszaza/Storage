@@ -97,6 +97,45 @@
         }
     }
 
+    function streamCount(bytes) {
+        // Four streams are enough to keep a gigabit LAN busy without creating
+        // a large connection storm on the server.
+        return Math.min(4, Math.max(2, Math.ceil(bytes / (16 * 1024 * 1024))));
+    }
+
+    function splitBytes(bytes, count) {
+        const base = Math.floor(bytes / count);
+        const remainder = bytes % count;
+        return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
+    }
+
+    async function streamDownload(url, bytes) {
+        const count = streamCount(bytes);
+        const controller = new AbortController();
+        activeController = controller;
+        const timer = window.setTimeout(() => controller.abort(), 30000);
+        const started = performance.now();
+        try {
+            const sizes = splitBytes(bytes, count);
+            await Promise.all(sizes.map(async (size, index) => {
+                const response = await fetch(`${url}?size=${size}&stream=${index}&n=${Date.now()}`, {
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+                const reader = response.body.getReader();
+                while (true) {
+                    const { done } = await reader.read();
+                    if (done) break;
+                }
+            }));
+            return (bytes * 8) / ((performance.now() - started) / 1000) / 1_000_000;
+        } finally {
+            window.clearTimeout(timer);
+            activeController = null;
+        }
+    }
+
     async function runPings(count, packetSize) {
         const samples = [];
         let failures = 0;
@@ -116,29 +155,36 @@
     }
 
     async function runDownload(bytes) {
-        setStage("Measuring download", formatBytes(bytes), 55);
-        await timedFetch(`${page.dataset.downloadUrl}?size=262144&w=${Date.now()}`, {}, 8000);
-        const result = await timedFetch(`${page.dataset.downloadUrl}?size=${bytes}&n=${Date.now()}`, {}, 30000);
-        return (result.bytes * 8) / (result.durationMs / 1000) / 1_000_000;
+        const streams = streamCount(bytes);
+        setStage("Measuring download", `${formatBytes(bytes)} · ${streams} streams`, 55);
+        await timedFetch(`${page.dataset.downloadUrl}?size=1048576&w=${Date.now()}`, {}, 8000);
+        return streamDownload(page.dataset.downloadUrl, bytes);
     }
 
     async function runUpload(bytes) {
-        setStage("Measuring upload", formatBytes(bytes), 78);
-        const payload = new Uint8Array(bytes);
+        const streams = streamCount(bytes);
+        setStage("Measuring upload", `${formatBytes(bytes)} · ${streams} streams`, 78);
+        const sizes = splitBytes(bytes, streams);
+        // Blob bodies can be reused by parallel fetches and avoid constructing
+        // a separate full-size typed array for every request.
+        const payload = new Blob([new Uint8Array(sizes[0])], { type: "application/octet-stream" });
         const started = performance.now();
         const controller = new AbortController();
         activeController = controller;
         const timer = window.setTimeout(() => controller.abort(), 30000);
         try {
-            const response = await fetch(page.dataset.uploadUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/octet-stream", Accept: "application/json" },
-                body: payload,
-                cache: "no-store",
-                signal: controller.signal,
-            });
-            const data = await response.json();
-            if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            await Promise.all(sizes.map(async (size, index) => {
+                const streamPayload = index === 0 ? payload : new Blob([new Uint8Array(size)], { type: "application/octet-stream" });
+                const response = await fetch(`${page.dataset.uploadUrl}?stream=${index}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/octet-stream", Accept: "application/json" },
+                    body: streamPayload,
+                    cache: "no-store",
+                    signal: controller.signal,
+                });
+                const data = await response.json();
+                if (!response.ok || !data.ok) throw new Error(data.error || `HTTP ${response.status}`);
+            }));
             const durationMs = performance.now() - started;
             return (bytes * 8) / (durationMs / 1000) / 1_000_000;
         } finally {

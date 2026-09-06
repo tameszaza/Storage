@@ -8,7 +8,9 @@ from flask import Response, current_app, jsonify, render_template, request
 from lib.security import admin_required
 
 MAX_PING_PAYLOAD = 64 * 1024
-MAX_TRANSFER_BYTES = 25 * 1024 * 1024
+# The browser splits a test across a small number of requests. Keeping this
+# per-request cap bounded prevents one client from holding excessive memory.
+MAX_TRANSFER_BYTES = 32 * 1024 * 1024
 
 
 def _asset_version() -> int:
@@ -48,7 +50,9 @@ def network_test_ping():
 @admin_required
 def network_test_download():
     size = _bounded_int(request.args.get("size"), 5 * 1024 * 1024, 1, MAX_TRANSFER_BYTES)
-    chunk = b"\0" * (256 * 1024)
+    # A larger reusable chunk reduces Python generator overhead while keeping
+    # the response bounded and incompressible enough for a throughput test.
+    chunk = b"\0" * (1024 * 1024)
 
     def generate():
         remaining = size
@@ -60,6 +64,7 @@ def network_test_download():
     response = Response(generate(), mimetype="application/octet-stream")
     response.headers["Content-Length"] = str(size)
     response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["X-Accel-Buffering"] = "no"
     response.headers["X-Transfer-Bytes"] = str(size)
     return response
 
@@ -73,7 +78,7 @@ def network_test_upload():
     started = time.perf_counter()
     received = 0
     while True:
-        chunk = request.stream.read(256 * 1024)
+        chunk = request.stream.read(1024 * 1024)
         if not chunk:
             break
         received += len(chunk)

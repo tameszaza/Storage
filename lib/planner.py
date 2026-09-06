@@ -251,6 +251,29 @@ def create_todo(username: str, values: dict[str, Any]) -> dict[str, Any]:
     return dict(item)
 
 
+def update_todo(username: str, todo_id: str, values: dict[str, Any]) -> dict[str, Any] | None:
+    """Apply explicit task fields and status atomically, including clearing due dates."""
+    with _LOCK:
+        payload = _load()
+        for item in _user_bucket(payload, username)["todos"]:
+            if not isinstance(item, dict) or item.get("id") != todo_id:
+                continue
+            updated = {**item, **values}
+            updated["title"] = _clean_text(updated.get("title"), maximum=220, required=True)
+            updated["due_date"] = _date_value(updated.get("due_date"))
+            updated["due_time"] = _time_value(updated.get("due_time"))
+            if updated["due_time"] and not updated["due_date"]:
+                raise PlannerValidationError("Choose a due date before adding a time.")
+            if updated.get("priority") not in _VALID_PRIORITIES:
+                raise PlannerValidationError("Invalid priority.")
+            for field in ("title", "due_date", "due_time", "priority", "completed", "canceled"):
+                item[field] = updated.get(field, False)
+            item["updated_at"] = _now_iso()
+            write_json(_data_path(), payload)
+            return dict(item)
+    return None
+
+
 def toggle_todo(username: str, todo_id: str) -> dict[str, Any] | None:
     with _LOCK:
         payload = _load()

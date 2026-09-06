@@ -4,7 +4,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from flask import jsonify, render_template, request, session, url_for
+from flask import current_app, g, jsonify, render_template, request, session, url_for
 
 from lib.activity import log_activity
 from lib.assistant_agenda import direct_temporal_answer
@@ -343,6 +343,10 @@ def _store_direct_chat_turn(message: str, response: str) -> None:
 
 @login_required
 def chat():
+    # Browser requests must originate from this application now that chat can write.
+    origin = request.headers.get("Origin")
+    if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+        return jsonify({"response": "Please send this request from the assistant page."}), 403
     history = session.get("conversation_history") or initial_history(session.get("username"))
     msg = request.form.get("msg", "").strip()
     image = request.files.get("image")
@@ -351,13 +355,7 @@ def chat():
     include_context = request.form.get("include_context", "1") == "1"
 
     if msg and not image:
-        if include_context and not calendar_write_requested(msg):
-            temporal_response = direct_temporal_answer(session.get("username"), msg)
-            if temporal_response:
-                _store_direct_chat_turn(msg, temporal_response)
-                return jsonify({"response": temporal_response})
-
-        command_result = handle_file_command(msg)
+        command_result = handle_file_command(msg) if include_context else None
         if command_result and command_result.get("handled"):
             return jsonify(command_result)
 
@@ -394,10 +392,15 @@ def chat():
         else:
             return jsonify({"response": "No valid input provided."}), 400
     except RuntimeError as exc:
-        return jsonify({"response": str(exc)}), 503
+        actions = getattr(g, "assistant_actions", [])
+        return jsonify({"response": "The assistant could not finish its reply. See completed actions below." if actions else str(exc), "actions": actions}), 200 if actions else 503
+    except Exception:
+        current_app.logger.exception("Assistant request failed")
+        actions = getattr(g, "assistant_actions", [])
+        return jsonify({"response": "The assistant could not finish its reply. See completed actions below." if actions else "The assistant service is temporarily unavailable. Please try again.", "actions": actions}), 200 if actions else 503
 
     session["conversation_history"] = compact_session_history(history)
-    return jsonify({"response": response_text})
+    return jsonify({"response": response_text, "actions": getattr(g, "assistant_actions", [])})
 
 
 def register_routes(app):

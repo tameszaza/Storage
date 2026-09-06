@@ -7,3 +7,5 @@ matplotlib
 psutil
 gunicorn
 yt-dlp[default]
+pypdf>=6,<7
+python-docx>=1.2,<2

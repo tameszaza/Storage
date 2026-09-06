@@ -368,9 +368,12 @@
             const response = await fetch($("chatForm").action, { method: "POST", body: formData });
             const data = await response.json();
             if (!response.ok) throw new Error(data.response || "Request failed");
-            updateMessage(thinking.id, data.response || "No response.", {
-                actionUrl: data.action_url || "",
-                actionLabel: data.action_label || "",
+            const receipts = Array.isArray(data.actions) ? data.actions : [];
+            const lastAction = receipts.at(-1);
+            const receiptText = receipts.length ? "\n\n" + receipts.map(a => "✓ " + a.action.replaceAll(".", " · ") + ": " + a.title).join("\n") : "";
+            updateMessage(thinking.id, (data.response || "No response.") + receiptText, {
+                actionUrl: data.action_url || lastAction?.url || "",
+                actionLabel: data.action_label || (lastAction ? "View changes" : ""),
             });
         } catch (error) {
             updateMessage(thinking.id, error.message || "Request failed. Please check the server and try again.");

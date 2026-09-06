@@ -171,6 +171,7 @@
                         </form>
                     {% else %}
                         <a class="dropdown-item" data-menu-action="preview" href="{{ preview_url }}"><i class="fa-solid fa-eye"></i><span>Preview</span></a>
+                        {% if file.kind in ['text', 'pdf'] or file.name.lower().endswith('.docx') %}<a class="dropdown-item" href="{{ url_for('chat_page', file=item_path, summarize='1') }}"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span>Summarize</span></a>{% endif %}
                         <a class="dropdown-item" data-menu-action="download" href="{% if path %}{{ url_for('download_file', path=path, filename=file.name) }}{% else %}{{ url_for('download_file', filename=file.name) }}{% endif %}"><i class="fa-solid fa-download"></i><span>Download</span></a>
                         {% if file.kind == 'text' %}<a class="dropdown-item" href="{% if path %}{{ url_for('edit_file', path=path, filename=file.name) }}{% else %}{{ url_for('edit_file', filename=file.name) }}{% endif %}"><i class="fa-solid fa-code"></i><span>Edit text</span></a>{% endif %}
                         <button class="dropdown-item js-share" data-menu-action="share" type="button" data-path="{{ item_path }}" data-name="{{ file.name }}" data-kind="file"><i class="fa-solid fa-share-nodes"></i><span>Share file</span></button>

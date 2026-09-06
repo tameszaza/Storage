@@ -4,3 +4,13 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.chat-options').forEach(details=>{document.addEventListener('keydown',e=>{if(e.key==='Escape'&&details.open){details.open=false;details.querySelector('summary').focus();}});document.addEventListener('click',e=>{if(!details.contains(e.target)&&!e.target.closest('.requires-file'))details.open=false;});});
   document.querySelectorAll('form.quota-form input').forEach(input=>{input.setAttribute('aria-label','Storage quota in GB; leave empty for unlimited');input.inputMode='decimal';});
 });
+document.addEventListener('DOMContentLoaded', () => {
+    if (new URLSearchParams(location.search).get('summarize') !== '1') return;
+    const context = document.getElementById('fileContextPath');
+    const input = document.getElementById('chatInput');
+    if (context?.value && input) {
+        input.value = `Read and summarize ${context.value}. Cite PDF pages when applicable and tell me if any content could not be read.`;
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+        input.focus();
+    }
+});

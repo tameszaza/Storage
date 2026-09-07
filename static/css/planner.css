@@ -168,10 +168,20 @@ body[data-theme="dark"] .planner-event:hover { filter: brightness(1.18); }
 }
 
 /* Multi-day calendar spans */
+.planner-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 .planner-event.is-multi-day {
     position: relative;
     border-radius: 3px;
 }
+.planner-event.is-all-day.is-multi-day { min-height: 25px; padding-block: 5px; background: color-mix(in srgb, var(--ts-primary), transparent 84%); }
+.planner-event.is-all-day.is-span-start { border-radius: 7px 2px 2px 7px; }
+.planner-event.is-all-day.is-span-middle { border-radius: 2px; }
+.planner-event.is-all-day.is-span-end { border-radius: 2px 7px 7px 2px; }
+.planner-event.is-all-day.is-span-middle .planner-event-title,
+.planner-event.is-all-day.is-span-end .planner-event-title { opacity: 0; }
+.planner-event.is-all-day.is-span-middle::after,
+.planner-event.is-all-day.is-span-end::after { content: ""; display: block; width: 100%; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ts-primary), transparent 18%); }
+.planner-event.is-all-day.is-span-start::after { content: ""; width: 8px; height: 8px; flex: 0 0 8px; margin-left: auto; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); opacity: .65; }
 .planner-event.is-span-start {
     border-radius: 5px 2px 2px 5px;
 }

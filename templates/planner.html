@@ -64,12 +64,12 @@
                     </button>
                     <div class="planner-day-events">
                         {% for item in day_events %}
-                        <button class="planner-event{% if item.source == 'ics' %} is-published{% endif %}{% if item.span_position != 'single' %} is-multi-day is-span-{{ item.span_position }}{% endif %}"
+                        <button class="planner-event{% if item.source == 'ics' %} is-published{% endif %}{% if item.all_day %} is-all-day{% endif %}{% if item.span_position != 'single' %} is-multi-day is-span-{{ item.span_position }}{% endif %}"
                                 type="button"
                                 data-event="{{ item|tojson|forceescape }}"
                                 title="{{ item.title }}{% if item.end_date and item.end_date != item.date %} · {{ item.date }} to {{ item.end_date }}{% endif %}{% if item.location %} · {{ item.location }}{% endif %}">
                             {% if not item.all_day and item.display_start_time %}<time>{{ item.display_start_time }}</time>{% endif %}
-                            <span>{{ item.title }}</span>
+                            <span class="planner-event-title">{% if item.span_position in ('single', 'start') %}{{ item.title }}{% else %}<span class="planner-visually-hidden">{{ item.title }} continues</span>{% endif %}</span>
                         </button>
                         {% endfor %}
                         {% for item in day_tasks %}

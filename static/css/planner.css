@@ -298,3 +298,31 @@ body[data-theme="dark"] .planner-event:hover { filter: brightness(1.18); }
 @media (prefers-reduced-motion: reduce) {
     .planner-calendar-task { transition: none; }
 }
+.planner-calendar-grid { display: block; }
+.planner-week { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; margin-bottom: 1px; }
+.planner-week > .planner-day { grid-row: 1; }
+.planner-week > .planner-day:nth-of-type(1) { grid-column: 1; }
+.planner-week > .planner-day:nth-of-type(2) { grid-column: 2; }
+.planner-week > .planner-day:nth-of-type(3) { grid-column: 3; }
+.planner-week > .planner-day:nth-of-type(4) { grid-column: 4; }
+.planner-week > .planner-day:nth-of-type(5) { grid-column: 5; }
+.planner-week > .planner-day:nth-of-type(6) { grid-column: 6; }
+.planner-week > .planner-day:nth-of-type(7) { grid-column: 7; }
+.planner-week .planner-day-events { padding-top: calc(var(--span-lanes) * 28px); }
+body .planner-week-span { grid-row: 1; align-self: start; z-index: 1; margin: calc(39px + var(--span-lane) * 28px) 7px 0; height: 24px; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 9px; border: 0; border-left: 3px solid var(--ts-primary); border-radius: 5px; background: color-mix(in srgb, var(--ts-primary) 18%, var(--ts-surface)); color: var(--ts-text); font-size: .75rem; text-align: left; }
+.planner-week-span > span:nth-last-child(1) { margin-right: auto; }
+.planner-week-span > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planner-week-span.continues-before { border-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.planner-week-span.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.planner-week-span:focus-visible { outline: 2px solid var(--ts-primary); outline-offset: 2px; }
+.planner-week .planner-event.is-all-day.is-multi-day { display: none; }
+@media (max-width: 760px) {
+    .planner-calendar-grid { display: block; }
+    .planner-week { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+    .planner-week > .planner-day { grid-row: auto; grid-column: auto !important; }
+    body .planner-week-span { display: none; }
+    .planner-week .planner-day-events { padding-top: 0; }
+    .planner-week .planner-event.is-all-day.is-multi-day { display: flex; }
+    .planner-week .planner-event.is-all-day .planner-event-title { opacity: 1; }
+    .planner-week .planner-event.is-all-day::after { display: none; }
+}

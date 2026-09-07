@@ -53,6 +53,15 @@
         </div>
         <div class="planner-calendar-grid" role="grid" aria-label="{{ month_label }} calendar">
             {% for week in weeks %}
+                {% set spans = week_spans[loop.index0] %}
+                <div class="planner-week" role="row" style="--span-lanes: {{ spans.lanes }}">
+                {% for segment in spans.segments %}
+                <button type="button" class="planner-week-span{% if segment.item.source == 'ics' %} is-published{% endif %}{% if segment.before %} continues-before{% endif %}{% if segment.after %} continues-after{% endif %}"
+                        style="grid-column: {{ segment.column }} / span {{ segment.width }}; --span-lane: {{ segment.lane }}"
+                        data-event="{{ segment.item|tojson|forceescape }}" title="{{ segment.item.title }} · {{ segment.item.date }} to {{ segment.item.end_date }}">
+                    {% if segment.before %}<span aria-label="Continued">‹</span>{% endif %}<span>{{ segment.item.title }}</span>{% if segment.after %}<span aria-label="Continues">›</span>{% endif %}
+                </button>
+                {% endfor %}
                 {% for day in week %}
                 {% set day_key = day.isoformat() %}
                 {% set day_events = events_by_date.get(day_key, []) %}
@@ -69,7 +78,7 @@
                                 data-event="{{ item|tojson|forceescape }}"
                                 title="{{ item.title }}{% if item.end_date and item.end_date != item.date %} · {{ item.date }} to {{ item.end_date }}{% endif %}{% if item.location %} · {{ item.location }}{% endif %}">
                             {% if not item.all_day and item.display_start_time %}<time>{{ item.display_start_time }}</time>{% endif %}
-                            <span class="planner-event-title">{% if item.span_position in ('single', 'start') %}{{ item.title }}{% else %}<span class="planner-visually-hidden">{{ item.title }} continues</span>{% endif %}</span>
+                            <span class="planner-event-title">{{ item.title }}</span>
                         </button>
                         {% endfor %}
                         {% for item in day_tasks %}
@@ -86,6 +95,7 @@
                     </div>
                 </article>
                 {% endfor %}
+                </div>
             {% endfor %}
         </div>
     </section>

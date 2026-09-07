@@ -121,6 +121,25 @@ def _events_by_visible_date(
     return grouped
 
 
+def _week_spans(events, week):
+    segments, lanes = [], []
+    for item in events:
+        if not item.get('all_day') or item.get('end_date', item.get('date')) == item.get('date'):
+            continue
+        span = _event_span(item, week[0], week[-1] + timedelta(days=1))
+        if not span:
+            continue
+        start, end = (span[0] - week[0]).days, (span[1] - week[0]).days
+        lane = next((i for i, occupied in enumerate(lanes) if not occupied.intersection(range(start, end + 1))), len(lanes))
+        if lane == len(lanes):
+            lanes.append(set())
+        lanes[lane].update(range(start, end + 1))
+        segments.append(dict(item=item, column=start + 1, width=end - start + 1, lane=lane,
+                             before=item['date'] < week[0].isoformat(),
+                             after=item['end_date'] > week[-1].isoformat()))
+    return dict(segments=segments, lanes=len(lanes))
+
+
 def _tasks_by_visible_date(
     todos: list[dict],
     range_start: date,
@@ -199,6 +218,7 @@ def planner_page():
     return render_template(
         "planner.html",
         weeks=weeks,
+        week_spans=[_week_spans(events, week) for week in weeks],
         year=year,
         month=month,
         month_token=_month_token(year, month),

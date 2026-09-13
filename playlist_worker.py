@@ -29,6 +29,7 @@ from lib.playlists import (
     remove_record,
 )
 from lib.lyrics import sync_playlist_lyrics
+from lib.artwork import AUDIO_SUFFIXES, normalize_embedded_cover
 
 
 def _yt_dlp_base() -> list[str]:
@@ -144,6 +145,30 @@ def _download(item: dict, archive: Path, managed_dir: Path, report: Path) -> tup
     return process.wait(), unavailable_ids, other_errors
 
 
+def _normalize_new_covers(report: Path, managed_dir: Path) -> dict[str, int]:
+    """Square only files reported by this download, keeping sync fast."""
+    outcomes: dict[str, int] = {}
+    try:
+        lines = report.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return outcomes
+    root = managed_dir.resolve()
+    for line in lines:
+        _, separator, raw_path = line.partition("\t")
+        if not separator:
+            continue
+        path = Path(raw_path.strip()).resolve()
+        if not path.is_relative_to(root) or path.suffix.lower() not in AUDIO_SUFFIXES:
+            continue
+        try:
+            outcome = normalize_embedded_cover(path)
+        except Exception as exc:
+            outcome = "error"
+            append_log(report.parent.name, f"Cover artwork kept for {path.name}: {exc}")
+        outcomes[outcome] = outcomes.get(outcome, 0) + 1
+    return outcomes
+
+
 def sync_playlist(item: dict) -> None:
     playlist_id = item["id"]
     music_folder = Path(app.config["MUSIC_FOLDER"]).resolve()
@@ -180,6 +205,9 @@ def sync_playlist(item: dict) -> None:
         recorded = record_download_report(report, manifest, managed_dir)
         if recorded:
             append_log(playlist_id, f"Recorded {recorded} newly downloaded managed file(s).")
+        cover_outcomes = _normalize_new_covers(report, managed_dir)
+        if cover_outcomes.get("updated"):
+            append_log(playlist_id, f"Squared embedded artwork for {cover_outcomes['updated']} new song(s).")
     except Exception as exc:
         append_log(playlist_id, f"Sync failed to start: {exc}")
         complete_sync(playlist_id, False, str(exc), {"pending_removals": 0})

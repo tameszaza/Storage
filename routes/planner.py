@@ -9,6 +9,7 @@ from flask import current_app, flash, jsonify, redirect, render_template, reques
 
 from lib.activity import log_activity
 from lib.assistant_agenda import calendar_clock
+from lib.caldav_sync import CalendarSyncError, delete_remote_event, status as caldav_status, sync_user_events, upsert_event
 from lib.ics_calendar import (
     PublishedCalendarError,
     cache_needs_refresh,
@@ -21,6 +22,7 @@ from lib.planner import (
     create_event,
     create_todo,
     delete_event,
+    get_event,
     delete_todo,
     list_items,
     month_grid,
@@ -176,6 +178,15 @@ def _tasks_by_visible_date(
 @login_required
 def planner_page():
     username = session.get("username", "")
+    calendar_sync = caldav_status()
+    calendar_sync["online"] = False
+    if username == "Admin" and calendar_sync["configured"]:
+        try:
+            sync_user_events(username)
+            calendar_sync["online"] = True
+        except CalendarSyncError:
+            # The saved planner copy remains usable while the calendar is offline.
+            pass
     year, month = _month_value(request.args.get("month"))
     weeks = month_grid(year, month)
     range_start = weeks[0][0]
@@ -232,6 +243,7 @@ def planner_page():
         open_todos=open_todos,
         canceled_todos=canceled_todos,
         published_calendar=published_calendar,
+        calendar_sync=calendar_sync,
         planner_asset_version=_asset_version(),
     )
 
@@ -244,7 +256,11 @@ def planner_create_event():
     except PlannerValidationError as exc:
         flash(str(exc), "warning")
     else:
-        flash("Event added.", "success")
+        try:
+            upsert_event(username, item)
+            flash("Event added.", "success")
+        except CalendarSyncError:
+            flash("Event added locally; calendar sync will retry automatically.", "warning")
         log_activity("planner.event.create", item.get("title", ""))
     return redirect(_return_to_month())
 
@@ -260,7 +276,11 @@ def planner_update_event(event_id: str):
         if item is None:
             flash("Event not found.", "warning")
         else:
-            flash("Event updated.", "success")
+            try:
+                upsert_event(username, item)
+                flash("Event updated.", "success")
+            except CalendarSyncError:
+                flash("Event updated locally; calendar sync will retry automatically.", "warning")
             log_activity("planner.event.update", event_id, details={"title": item.get("title", "")})
     return redirect(_return_to_month())
 
@@ -268,7 +288,16 @@ def planner_update_event(event_id: str):
 @login_required
 def planner_delete_event(event_id: str):
     username = session.get("username", "")
-    if delete_event(username, event_id):
+    item = get_event(username, event_id)
+    if item is None:
+        flash("Event not found.", "warning")
+    else:
+        try:
+            delete_remote_event(username, item)
+        except CalendarSyncError:
+            flash("Calendar is unavailable, so the event was kept to avoid a sync conflict.", "warning")
+            return redirect(_return_to_month())
+    if item and delete_event(username, event_id):
         flash("Event deleted.", "success")
         log_activity("planner.event.delete", event_id)
     else:

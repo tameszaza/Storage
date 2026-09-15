@@ -1,0 +1,22 @@
+[server]
+hosts = 0.0.0.0:5232
+max_connections = 12
+timeout = 30
+
+[auth]
+type = htpasswd
+htpasswd_filename = /etc/radicale/users
+htpasswd_encryption = sha512
+htpasswd_cache = True
+
+[rights]
+type = owner_only
+
+[storage]
+filesystem_folder = /var/lib/radicale/collections
+
+[web]
+type = none
+
+[logging]
+level = warning

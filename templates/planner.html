@@ -7,6 +7,11 @@
 <section class="workspace-header planner-page-header">
     <div><h1>Schedule &amp; tasks</h1></div>
     <div class="planner-header-actions">
+        {% if session.get('username') == 'Admin' and calendar_sync.configured %}
+        <span class="planner-calendar-state {{ 'is-online' if calendar_sync.online else 'is-offline' }}" title="{{ 'Two-way CalDAV sync is active' if calendar_sync.online else 'Calendar sync is temporarily unavailable; saved events are safe and will retry' }}" data-tooltip="true" aria-label="Calendar sync {{ 'active' if calendar_sync.online else 'offline' }}">
+            <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
+        </span>
+        {% endif %}
         {% if session.get('username') == 'Admin' %}
         <div class="planner-sync-tip"
              title="{% if published_calendar.configured %}Refresh published calendar{% if published_calendar.last_sync %} · Last refreshed {{ published_calendar.last_sync }}{% endif %}{% else %}Add the feed to {{ published_calendar.path }}{% endif %}"

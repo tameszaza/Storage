@@ -107,6 +107,32 @@ def list_items(username: str) -> dict[str, list[dict[str, Any]]]:
     return {"events": events, "todos": todos}
 
 
+def get_event(username: str, event_id: str) -> dict[str, Any] | None:
+    """Return an event snapshot for integrations that need its remote identity."""
+    return next((item for item in list_items(username)["events"] if item.get("id") == str(event_id)), None)
+
+
+def update_event_metadata(username: str, event_id: str, metadata: dict[str, Any]) -> dict[str, Any] | None:
+    """Atomically attach sync-only metadata without re-validating event fields."""
+    with _LOCK:
+        payload = _load()
+        for item in _user_bucket(payload, username)["events"]:
+            if isinstance(item, dict) and item.get("id") == event_id:
+                item.update(metadata)
+                item["updated_at"] = _now_iso()
+                write_json(_data_path(), payload)
+                return dict(item)
+    return None
+
+
+def replace_events(username: str, events: list[dict[str, Any]]) -> None:
+    """Replace only the event collection; tasks remain local to Tames."""
+    with _LOCK:
+        payload = _load()
+        _user_bucket(payload, username)["events"] = [dict(item) for item in events if isinstance(item, dict)]
+        write_json(_data_path(), payload)
+
+
 def _event_values(values: dict[str, Any], existing: dict[str, Any] | None = None) -> dict[str, Any]:
     current = existing or {}
 
@@ -197,7 +223,7 @@ def update_event(username: str, event_id: str, values: dict[str, Any]) -> dict[s
         for item in events:
             if not isinstance(item, dict) or item.get("id") != event_id:
                 continue
-            if item.get("source", "local") != "local":
+            if item.get("source") == "ics":
                 raise PlannerValidationError("Published calendar events are read-only.")
             updated = {
                 **item,

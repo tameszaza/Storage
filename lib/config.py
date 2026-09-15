@@ -46,6 +46,10 @@ class Config:
     GEMINI_CONFIG_PATH = os.environ.get("GEMINI_CONFIG_PATH", os.path.join("uploads", "Admin", "config.txt"))
     APP_TIMEZONE = os.environ.get("APP_TIMEZONE", "Asia/Singapore")
     PLANNER_DATA_FILE = os.environ.get("PLANNER_DATA_FILE", "planner.json")
+    CALDAV_INTERNAL_URL = os.environ.get("CALDAV_INTERNAL_URL", "")
+    CALDAV_PUBLIC_URL = os.environ.get("CALDAV_PUBLIC_URL", "")
+    CALDAV_USERNAME = os.environ.get("CALDAV_USERNAME", "")
+    CALDAV_PASSWORD = os.environ.get("CALDAV_PASSWORD", "")
     ICS_CALENDAR_CONFIG_PATH = os.environ.get(
         "ICS_CALENDAR_CONFIG_PATH", os.path.join("uploads", "Admin", "ics_calendar.json")
     )

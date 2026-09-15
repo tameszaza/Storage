@@ -119,3 +119,52 @@ services:
       - no-new-privileges:true
     healthcheck:
       disable: true
+
+  radicale:
+    image: ghcr.io/kozea/radicale:stable
+    container_name: tamestorage-calendar
+    restart: unless-stopped
+    ports:
+      - "100.124.30.94:5232:5232"
+    volumes:
+      - type: bind
+        source: /srv/tamestorage/.tamestorage_state/radicale/config
+        target: /etc/radicale
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/tamestorage/.tamestorage_state/radicale/data
+        target: /var/lib/radicale
+        bind:
+          create_host_path: false
+    security_opt:
+      - no-new-privileges:true
+
+  calendar-worker:
+    image: tamestorage:latest
+    container_name: tamestorage-calendar-worker
+    restart: unless-stopped
+    env_file:
+      - /etc/tamestorage.env
+    environment:
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/.cache
+      MPLCONFIGDIR: /tmp/matplotlib
+    command: ["python", "calendar_worker.py"]
+    depends_on:
+      - radicale
+    volumes:
+      - type: bind
+        source: /srv/tamestorage/.tamestorage_state
+        target: /srv/tamestorage/.tamestorage_state
+        bind:
+          create_host_path: false
+    user: "1000:1000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      disable: true

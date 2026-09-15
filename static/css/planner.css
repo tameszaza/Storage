@@ -1,5 +1,8 @@
 .planner-page-header { align-items: center; }
 .planner-header-actions, .planner-month-navigation, .planner-todo-title { display: flex; align-items: center; gap: 8px; }
+.planner-calendar-state { display: inline-grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--ts-border); border-radius: 9px; color: var(--ts-muted); }
+.planner-calendar-state.is-online { color: var(--ts-success); background: color-mix(in srgb, var(--ts-success) 10%, var(--ts-surface)); }
+.planner-calendar-state.is-offline { color: var(--ts-warning); background: color-mix(in srgb, var(--ts-warning) 10%, var(--ts-surface)); }
 .planner-header-actions form { margin: 0; }
 .planner-sync-tip { display: inline-flex; }
 .planner-icon-button {

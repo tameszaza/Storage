@@ -5,13 +5,17 @@ import logging
 import os
 import time
 
-from app import app
+from flask import Flask
+
+from lib.config import Config
 from lib.caldav_sync import CalendarSyncError, sync_user_events
 
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 LOGGER = logging.getLogger(__name__)
 INTERVAL = max(30, int(os.environ.get("CALDAV_SYNC_INTERVAL_SECONDS", "120")))
+app = Flask("tamestorage-calendar-worker")
+app.config.from_object(Config)
 
 
 def main() -> None:

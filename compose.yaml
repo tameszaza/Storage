@@ -125,7 +125,7 @@ services:
     container_name: tamestorage-calendar
     restart: unless-stopped
     ports:
-      - "100.124.30.94:5232:5232"
+      - "127.0.0.1:5232:5232"
     volumes:
       - type: bind
         source: /srv/tamestorage/.tamestorage_state/radicale/config

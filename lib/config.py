@@ -35,6 +35,10 @@ _load_local_env()
 
 
 class Config:
+    # Browser-cache packaged CSS/JS/fonts briefly; dynamic HTML remains uncached.
+    SEND_FILE_MAX_AGE_DEFAULT = 300
+    SERVER_LOG_MAX_BYTES = int(os.environ.get("SERVER_LOG_MAX_BYTES", 10 * 1024 * 1024))
+    SERVER_LOG_BACKUP_COUNT = int(os.environ.get("SERVER_LOG_BACKUP_COUNT", 5))
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key")
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "uploads")
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024 * 1024))
@@ -50,6 +54,11 @@ class Config:
     CALDAV_PUBLIC_URL = os.environ.get("CALDAV_PUBLIC_URL", "")
     CALDAV_USERNAME = os.environ.get("CALDAV_USERNAME", "")
     CALDAV_PASSWORD = os.environ.get("CALDAV_PASSWORD", "")
+    CALDAV_SYNC_INTERVAL_SECONDS = max(30, int(os.environ.get("CALDAV_SYNC_INTERVAL_SECONDS", "120")))
+    CALDAV_STATUS_FILE = os.environ.get(
+        "CALDAV_STATUS_FILE",
+        os.path.join(os.path.dirname(PLANNER_DATA_FILE), "caldav-status.json"),
+    )
     ICS_CALENDAR_CONFIG_PATH = os.environ.get(
         "ICS_CALENDAR_CONFIG_PATH", os.path.join("uploads", "Admin", "ics_calendar.json")
     )
@@ -67,6 +76,22 @@ class Config:
     PLAYLISTS_FILE = os.environ.get("PLAYLISTS_FILE", "playlists.json")
     PLAYLIST_LOG_DIR = os.environ.get("PLAYLIST_LOG_DIR", "playlist_logs")
     PLAYLIST_RUNTIME_DIR = os.environ.get("PLAYLIST_RUNTIME_DIR", "playlist_runtime")
+    DUPLICATE_SCAN_DIR = os.environ.get(
+        "DUPLICATE_SCAN_DIR",
+        os.path.join(os.path.dirname(PLAYLIST_RUNTIME_DIR), "duplicate_scans"),
+    )
+    SHELL_USAGE_CACHE_DIR = os.environ.get(
+        "SHELL_USAGE_CACHE_DIR",
+        os.path.join(os.path.dirname(PLAYLIST_RUNTIME_DIR), "shell_usage"),
+    )
+    SEARCH_INDEX_CACHE_DIR = os.environ.get(
+        "SEARCH_INDEX_CACHE_DIR",
+        os.path.join(os.path.dirname(PLAYLIST_RUNTIME_DIR), "search_index"),
+    )
+    CALENDAR_IMPORT_DIR = os.environ.get(
+        "CALENDAR_IMPORT_DIR",
+        os.path.join(os.path.dirname(PLAYLIST_RUNTIME_DIR), "calendar_imports"),
+    )
     MUSIC_FOLDER = os.environ.get("MUSIC_FOLDER", "/srv/music")
     NAVIDROME_URL = os.environ.get("NAVIDROME_URL", "http://172.17.0.1:4533").rstrip("/")
     NAVIDROME_USERNAME = os.environ.get("NAVIDROME_USERNAME", "")
@@ -90,6 +115,9 @@ class Config:
     DISK_CHECK_SYSTEM_PATH = os.environ.get("DISK_CHECK_SYSTEM_PATH", "/srv/system-disk-check")
     DISK_CHECK_PRIMARY_PATH = os.environ.get("DISK_CHECK_PRIMARY_PATH", "/srv/tamestorage/uploads")
     DISK_CHECK_BACKUP_PATH = os.environ.get("DISK_CHECK_BACKUP_PATH", "/srv/tamestorage-backup")
+    TAILSCALE_CONTROL_SOCKET = os.environ.get(
+        "TAILSCALE_CONTROL_SOCKET", "/run/tamestorage-control/control.sock"
+    )
     DEFAULT_USER_QUOTA_BYTES = int(os.environ.get("DEFAULT_USER_QUOTA_BYTES", 5 * 1024 * 1024 * 1024))
     TLS_CERT_FILE = os.environ.get("TLS_CERT_FILE", "")
     TLS_KEY_FILE = os.environ.get("TLS_KEY_FILE", "")

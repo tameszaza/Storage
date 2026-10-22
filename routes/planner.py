@@ -9,7 +9,7 @@ from flask import current_app, flash, jsonify, redirect, render_template, reques
 
 from lib.activity import log_activity
 from lib.assistant_agenda import calendar_clock
-from lib.caldav_sync import CalendarSyncError, delete_remote_event, status as caldav_status, sync_user_events, upsert_event
+from lib.caldav_sync import CalendarSyncError, delete_remote_event, status as caldav_status, sync_health, upsert_event
 from lib.ics_calendar import (
     PublishedCalendarError,
     cache_needs_refresh,
@@ -179,14 +179,7 @@ def _tasks_by_visible_date(
 def planner_page():
     username = session.get("username", "")
     calendar_sync = caldav_status()
-    calendar_sync["online"] = False
-    if username == "Admin" and calendar_sync["configured"]:
-        try:
-            sync_user_events(username)
-            calendar_sync["online"] = True
-        except CalendarSyncError:
-            # The saved planner copy remains usable while the calendar is offline.
-            pass
+    calendar_sync["online"] = bool(username == "Admin" and calendar_sync["configured"] and sync_health()["online"])
     year, month = _month_value(request.args.get("month"))
     weeks = month_grid(year, month)
     range_start = weeks[0][0]

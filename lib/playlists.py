@@ -71,6 +71,14 @@ def log_dir() -> Path:
     return path
 
 
+def _read_records_file(path: Path) -> list[dict]:
+    try:
+        records = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+    except (OSError, json.JSONDecodeError):
+        records = []
+    return records if isinstance(records, list) else []
+
+
 @contextmanager
 def _locked_records():
     path = playlists_file()
@@ -79,13 +87,11 @@ def _locked_records():
     with lock_path.open("a+", encoding="utf-8") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         try:
-            try:
-                records = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
-            except (OSError, json.JSONDecodeError):
-                records = []
-            if not isinstance(records, list):
-                records = []
+            records = _read_records_file(path)
+            original = json.dumps(records, sort_keys=True, ensure_ascii=False)
             yield records
+            if json.dumps(records, sort_keys=True, ensure_ascii=False) == original:
+                return
             fd, temporary = tempfile.mkstemp(prefix=".playlists-", suffix=".json", dir=path.parent)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as output:
@@ -112,8 +118,14 @@ def validate_url(value: str) -> str:
 
 
 def list_playlists() -> list[dict]:
-    with _locked_records() as records:
-        result = [dict(item) for item in records]
+    path = playlists_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_suffix(path.suffix + ".lock").open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_SH)
+        try:
+            result = [dict(item) for item in _read_records_file(path)]
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
     return sorted(result, key=lambda item: item.get("created_at", ""), reverse=True)
 
 

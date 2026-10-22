@@ -18,6 +18,7 @@
                 : preference;
             var root = document.documentElement;
             root.dataset.theme = resolved;
+            root.dataset.bsTheme = resolved;
             root.dataset.themePreference = preference;
             root.style.colorScheme = resolved;
             root.style.backgroundColor = resolved === "dark" ? "#0b1120" : "#f8fafc";
@@ -28,12 +29,13 @@
     <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/polish.css') }}" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/reference-ui.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/polish.css') }}?v=20260924c" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/reference-ui.css') }}?v=20260924b" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
     {% block link %}{% endblock %}
-    <link href="{{ url_for('static', filename='css/workspace.css') }}?v=20260906b" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/workspace.css') }}?v=20261012dark" rel="stylesheet">
+    {% block page_style %}{% endblock %}
 </head>
 <body data-page="{{ request.endpoint }}" class="antialiased{% if session.get('logged_in') %} authenticated{% else %} public-page{% endif %}">
 <script>
@@ -63,7 +65,7 @@
                 <a class="sidebar-link {% if request.endpoint == 'chat_page' %}active{% endif %}" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
                 {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint and request.endpoint.startswith('music_sync') %}active{% endif %}" href="{{ url_for('music_sync_page') }}"><i class="fa-solid fa-music"></i><span>Music sync</span></a>{% endif %}
                 {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'disk_dashboard' %}active{% endif %}" href="{{ url_for('disk_dashboard') }}"><i class="fa-solid fa-hard-drive"></i><span>Disk space</span></a>{% endif %}
-                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'admin' %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
+                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint in ('admin','admin_activity','goodnotes_import_review') or (request.endpoint or '').startswith('transcription_') %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-storage">
@@ -111,7 +113,7 @@
 {% endif %}
 
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=20261012dark"></script>
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=20260906b" defer></script>
 {% block scripts %}{% endblock %}
 </body>

@@ -28,4 +28,4 @@ USER 1000:1000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/', timeout=3)" || exit 1
 
-CMD ["gunicorn", "--no-control-socket", "--workers", "2", "--threads", "4", "--timeout", "3600", "--access-logfile", "-", "--error-logfile", "-", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "--no-control-socket", "--preload", "--workers", "2", "--threads", "4", "--timeout", "3600", "--access-logfile", "-", "--error-logfile", "-", "--bind", "0.0.0.0:5000", "app:app"]

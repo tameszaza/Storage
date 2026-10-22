@@ -1,15 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Tamestorage{% endblock %}
+{% block title %}About · Tamestorage{% endblock %}
+{% block page_style %}<link href="{{ url_for('static', filename='css/public.css') }}?v=20260924d" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="workspace-welcome">
-  <span class="sidebar-brand-mark" aria-hidden="true"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-  <h1>Your files and everyday tools.</h1>
-  <p class="muted">One workspace for your NAS files, media, schedule, and assistant.</p>
-  <a class="btn btn-primary" href="{{ url_for('index') if session.get('logged_in') else url_for('login') }}">Open workspace <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
-  <dl class="workspace-guide">
-    <div><dt><i class="fa-regular fa-folder" aria-hidden="true"></i> Files</dt><dd>Upload, organize, preview, and share files from your browser.</dd></div>
-    <div><dt><i class="fa-solid fa-music" aria-hidden="true"></i> Media</dt><dd>Manage playlist sync and keep downloaded videos together.</dd></div>
-    <div><dt><i class="fa-regular fa-calendar" aria-hidden="true"></i> Planning</dt><dd>Keep events and tasks in one place, with an assistant when you need it.</dd></div>
-  </dl>
+<section class="public-about" aria-labelledby="about-title">
+  <div class="public-about-hero">
+    <span class="public-kicker">Tamestorage</span>
+    <h1 id="about-title">Your digital life,<br><span>in one place.</span></h1>
+    <p>Files, media and plans on your own server. Available wherever you are.</p>
+    <div class="public-about-actions">
+      <a class="btn btn-primary" href="{{ url_for('index') if session.get('logged_in') else url_for('login') }}">{{ 'Open workspace' if session.get('logged_in') else 'Log in' }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+      <a class="public-text-link" href="https://server.tailb7f57c.ts.net:9443/" target="_blank" rel="noopener">Obsidian vault <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+      <a class="public-text-link" href="#what-you-can-do">Explore features <i class="fa-solid fa-arrow-down" aria-hidden="true"></i></a>
+    </div>
+    <div class="public-orbit" aria-hidden="true"><span class="orbit-center"><i class="fa-solid fa-cloud-arrow-up"></i></span><span class="orbit-item orbit-files"><i class="fa-regular fa-folder-open"></i></span><span class="orbit-item orbit-media"><i class="fa-solid fa-play"></i></span><span class="orbit-item orbit-plan"><i class="fa-regular fa-calendar-check"></i></span></div>
+  </div>
+  <div id="what-you-can-do" class="public-feature-list">
+    <article><span><i class="fa-regular fa-folder-open" aria-hidden="true"></i></span><h2>Keep files close</h2><p>Organize, preview and share from your NAS.</p></article>
+    <article><span><i class="fa-solid fa-play" aria-hidden="true"></i></span><h2>Enjoy your media</h2><p>Music and videos ready across your devices.</p></article>
+    <article><span><i class="fa-regular fa-calendar-check" aria-hidden="true"></i></span><h2>Stay on top of plans</h2><p>Calendar, tasks and an assistant in one workspace.</p></article>
+  </div>
 </section>
 {% endblock %}

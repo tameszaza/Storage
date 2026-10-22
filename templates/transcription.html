@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Transcription · Tamestorage{% endblock %}
+{% block page_style %}<link rel="stylesheet" href="{{ url_for('static',filename='css/transcription.css') }}?v=20261016b">{% endblock %}
+{% block content %}
+<section class="transcription-page" id="transcriptionApp" data-jobs-url="{{ url_for('transcription_jobs') }}" data-root="{{ url_for('transcription_page') }}" data-csrf="{{ csrf }}">
+  <header class="page-heading">
+    <h1>Transcription</h1>
+    <nav class="page-actions" aria-label="Transcription folders">
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('index',path='temp/Transcription') }}" title="Uploads here transcribe automatically"><i class="fa-regular fa-folder-open" aria-hidden="true"></i> Inbox</a>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('index',path='Admin/Transcripts') }}"><i class="fa-regular fa-file-lines" aria-hidden="true"></i> Results</a>
+      <a class="btn btn-sm transcription-icon" href="{{ url_for('admin') }}" aria-label="Back to Admin" title="Admin"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></a>
+    </nav>
+  </header>
+  <form id="transcriptionForm" class="transcription-upload">
+    <input id="recording" type="file" class="visually-hidden" accept="audio/*,video/*,.m4a,.mkv,.opus,.flac" required aria-label="Choose a recording">
+    <label for="recording" id="recordingDrop" class="recording-drop" tabindex="0" role="button" title="Up to 5 GB · 24 hours">
+      <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>
+      <strong id="recordingName">Drop a recording</strong>
+      <span id="recordingHint">or choose a file</span>
+    </label>
+    <div class="transcription-upload-bar">
+      <details id="transcriptionOptions" class="transcription-options">
+        <summary><i class="fa-solid fa-sliders" aria-hidden="true"></i> Options</summary>
+        <div class="transcription-options-panel">
+          <label for="recordingTitle">Title</label><input id="recordingTitle" class="form-control" maxlength="160" placeholder="Filename">
+          <label for="recordingLanguage">Language</label><select id="recordingLanguage" class="form-select"><option value="en">English</option><option value="auto">Automatic</option></select>
+          <label for="recordingVocabulary">Names &amp; terms</label><textarea id="recordingVocabulary" class="form-control" rows="2" maxlength="1500" placeholder="Spelling hints"></textarea>
+          <label class="transcription-check"><input id="reconcile" type="checkbox" checked> AI cross-check</label>
+          <label class="transcription-check" title="Estimated voice clusters, not verified identities"><input id="speakerLabels" type="checkbox" checked> Speaker labels</label>
+        </div>
+      </details>
+      <span class="transcription-defaults" id="recordingDefaults">English · Speakers</span>
+      <button id="startTranscription" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Transcribe</button>
+    </div>
+    <p id="uploadStatus" class="transcription-feedback" role="status" aria-live="polite" hidden></p>
+    <progress id="uploadProgress" max="100" value="0" hidden aria-label="Upload progress"></progress>
+  </form>
+  <div class="transcription-list-heading"><h2>Recordings <span id="transcriptionCount">0</span></h2><button id="refreshTranscriptions" class="btn transcription-icon" type="button" aria-label="Refresh recordings" title="Refresh"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button></div>
+  <p id="jobError" class="text-danger" role="alert" hidden></p>
+  <div id="transcriptionJobs" class="transcription-jobs" aria-live="polite"></div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static',filename='js/transcription.js') }}?v=20261016b" defer></script>{% endblock %}

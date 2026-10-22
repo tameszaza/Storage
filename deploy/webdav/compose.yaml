@@ -1,0 +1,26 @@
+services:
+  webdav:
+    image: httpd@sha256:a30cd4cd57f3f3c3be9b2d16384d2488839996bb14c67df2b51f1ecbb3e584a1
+    container_name: tamestorage-webdav
+    restart: unless-stopped
+    user: "1000:1000"
+    init: true
+    read_only: true
+    mem_limit: 128m
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - /srv/tamestorage/uploads/Goodnotes:/data
+      - ./htpasswd:/config/htpasswd:ro
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - /srv/tamestorage/.tamestorage_state/webdav:/state
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

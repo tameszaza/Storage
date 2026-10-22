@@ -1,38 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Admin · Tamestorage{% endblock %}
-{% block link %}<link href="{{ url_for('static', filename='css/admin.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/admin.css') }}?v={{ admin_asset_version }}" rel="stylesheet"><link href="{{ url_for('static',filename='css/services.css') }}?v={{ admin_asset_version }}" rel="stylesheet">{% endblock %}
 {% block content %}
 <section class="workspace-header glass-card">
-    <div>
-        <p class="eyebrow">Admin center</p>
+    <div class="admin-titlebar">
         <h1>Admin center</h1>
-        <p class="muted">Manage accounts, inspect logs, and maintain the server.</p>
+        <div class="d-flex gap-2"><a class="btn btn-outline-secondary" href="{{ url_for('admin_activity') }}"><i class="fa-solid fa-wave-square" aria-hidden="true"></i> Activity</a><a class="btn btn-outline-secondary" href="{{ url_for('server_settings') }}"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Settings</a></div>
     </div>
     <div class="stats-grid mini admin-stats">
-        <div class="stat-card"><span id="cpuUsage">...</span><p>CPU</p></div>
-        <div class="stat-card"><span id="memoryUsage">...</span><p>Memory</p></div>
-        <div class="stat-card"><span id="diskUsage">...</span><p>Disk</p></div>
+        <div class="stat-card"><span id="cpuUsage">{{ system_usage.cpu_usage }}%</span><p>CPU</p></div>
+        <div class="stat-card"><span id="memoryUsage">{{ system_usage.memory_usage }}%</span><p>Memory</p></div>
+        <div class="stat-card"><span id="diskUsage">{{ system_usage.disk_usage }}%</span><p>Disk</p></div>
         <div class="stat-card"><span id="uptime">{{ uptime }}</span><p>Uptime</p></div>
     </div>
 </section>
+
+{% include "_goodnotes_warning.html" %}
+{% include "_services.html" %}
 
 <section class="admin-grid">
     <article class="glass-card admin-card admin-full-span">
         <div class="section-heading">
             <div><p class="eyebrow">Accounts</p><h2>User accounts</h2></div>
-            <span class="badge text-bg-primary">{{ users|length }} users</span>
+            <span class="badge text-bg-primary">{{ users|length }} {{ 'user' if users|length == 1 else 'users' }}</span>
         </div>
         <div class="table-responsive modern-table-wrap">
             <table class="table modern-table responsive-cards-table align-middle">
-                <thead><tr><th>Username</th><th>Storage used</th><th>Quota (GB)</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Username</th><th>Storage used</th><th>Quota (GB)</th><th>Status</th>{% if users|length > 1 %}<th>Actions</th>{% endif %}</tr></thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
                         <td data-label="Username"><strong>{{ user }}</strong></td>
                         <td data-label="Storage used">{{ format_bytes(user_storage[user]) if user in user_storage else '0 B' }}</td>
-                        <td data-label="Quota"><form class="quota-form" action="{{ url_for('set_user_quota', username=user) }}" method="POST"><input class="form-control form-control-sm" name="quota_gb" value="{{ ((users[user].get('quota_bytes') or 0) / 1024 / 1024 / 1024)|round(2) if users[user].get('quota_bytes') else '' }}" placeholder="Unlimited"><button class="btn btn-sm btn-outline-primary">Save</button></form></td>
-                        <td data-label="Status">{% if users[user].get('suspended') %}<span class="badge text-bg-warning">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}</td>
-                        <td class="table-actions" data-label="Actions">
+                        <td data-label="Quota">{% if user == 'Admin' %}<span class="muted">Unlimited</span>{% else %}<form class="quota-form" action="{{ url_for('set_user_quota', username=user) }}" method="POST"><input class="form-control form-control-sm" name="quota_gb" value="{{ ((users[user].get('quota_bytes') or 0) / 1024 / 1024 / 1024)|round(2) if users[user].get('quota_bytes') else '' }}" placeholder="Unlimited"><button class="btn btn-sm btn-outline-primary">Save</button></form>{% endif %}</td>
+                        <td data-label="Status">{% if user == 'Admin' %}<span class="badge text-bg-primary">Owner</span>{% elif users[user].get('suspended') %}<span class="badge text-bg-warning">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}</td>
+                        {% if users|length > 1 %}<td class="table-actions{% if user == 'Admin' %} owner-actions{% endif %}" data-label="Actions">
+                            {% if user != 'Admin' %}
                             {% if not users[user].get('suspended') %}
                                 <form action="{{ url_for('suspend_user', username=user) }}" method="POST"><button class="btn btn-sm btn-outline-warning" type="submit">Suspend</button></form>
                             {% else %}
@@ -40,7 +43,8 @@
                             {% endif %}
                             <form action="{{ url_for('reset_user', username=user) }}" method="POST" data-confirm="Remove only the login record for {{ user }}?"><button class="btn btn-sm btn-outline-secondary" type="submit">Reset login</button></form>
                             <form action="{{ url_for('remove_user', username=user) }}" method="POST" data-confirm="Remove {{ user }} and delete their storage folder?"><button class="btn btn-sm btn-outline-danger" type="submit">Remove</button></form>
-                        </td>
+                            {% endif %}
+                        </td>{% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -52,12 +56,22 @@
         <p class="eyebrow">Server</p>
         <h2>Maintenance</h2>
         <div class="action-stack">
+            <div class="exit-node-control" data-exit-node-control data-url="{{ url_for('exit_node_api') }}">
+                <span class="exit-node-icon" aria-hidden="true"><i class="fa-solid fa-route"></i></span>
+                <span class="exit-node-copy"><strong>VPN exit node</strong><small data-exit-node-status>Checking…</small></span>
+                <label class="control-switch" title="Allow tailnet devices to route internet traffic through this server">
+                    <input type="checkbox" data-exit-node-toggle disabled>
+                    <span aria-hidden="true"></span>
+                    <span class="visually-hidden">Advertise VPN exit node</span>
+                </label>
+            </div>
+            <a href="{{ url_for('transcription_page') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-microphone" aria-hidden="true"></i> Transcribe a recording</a>
+            <a href="https://server.tailb7f57c.ts.net:9443/" target="_blank" rel="noopener" class="btn btn-outline-primary w-100"><i class="fa-solid fa-book-open" aria-hidden="true"></i> Obsidian vault</a>
             <a href="{{ url_for('disk_dashboard') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-hard-drive" aria-hidden="true"></i> Disk space check</a>
             <a href="{{ url_for('admin_logs') }}" class="btn btn-outline-primary w-100">View server logs</a>
             <a href="{{ url_for('view_transfer_logs') }}" class="btn btn-outline-primary w-100">View transfer logs</a>
             <a href="{{ url_for('backup_page') }}" class="btn btn-outline-primary w-100">Backup export</a>
             <a href="{{ url_for('activity_page') }}" class="btn btn-outline-primary w-100">Activity audit</a>
-            <a href="{{ url_for('integrity_page') }}" class="btn btn-outline-primary w-100">Integrity scan</a>
             <a href="{{ url_for('network_test_page') }}" class="btn btn-outline-primary w-100"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Network test</a>
             <form action="{{ url_for('clear_charts') }}" method="POST" data-confirm="Clear all generated chart images?"><button class="btn btn-outline-danger w-100" type="submit">Clear charts</button></form>
         </div>
@@ -65,4 +79,4 @@
 
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/admin.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static',filename='js/services.js') }}?v={{ admin_asset_version }}" defer></script><script src="{{ url_for('static', filename='js/admin.js') }}?v={{ admin_asset_version }}"></script>{% endblock %}

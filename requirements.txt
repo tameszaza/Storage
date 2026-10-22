@@ -9,3 +9,4 @@ gunicorn
 yt-dlp[default]
 pypdf>=6,<7
 python-docx>=1.2,<2
+pillow-heif==1.8.1

@@ -7,7 +7,9 @@ the Python standard library so the always-on sync worker stays very light.
 from __future__ import annotations
 
 import base64
+import json
 import logging
+import os
 import re
 import secrets
 import time
@@ -16,6 +18,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, time as clock_time, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -127,6 +130,37 @@ def _event_ics(item: dict[str, Any], uid: str, zone: ZoneInfo) -> bytes:
     return "\r\n".join(_fold(line) for line in lines).encode("utf-8")
 
 
+def _task_uid(task_id: str) -> str:
+    return f"tames-task-{task_id}"
+
+
+def _task_ics(item: dict[str, Any], zone: ZoneInfo) -> bytes:
+    """Publish an active task as a transparent calendar deadline, not a booking."""
+    due = date.fromisoformat(str(item["due_date"]))
+    due_time = str(item.get("due_time") or "")
+    task_id = str(item["id"])
+    priority = str(item.get("priority") or "none")
+    event = {
+        "id": task_id, "title": f"Task: {item.get('title') or 'Untitled task'}",
+        "date": due.isoformat(), "all_day": not due_time,
+        "start_time": due_time,
+        "notes": "Task deadline from Tames. Manage this task in Schedule & tasks."
+                 + (f"\nPriority: {priority.capitalize()}." if priority != "none" else ""),
+    }
+    lines = _event_ics(event, _task_uid(task_id), zone).decode("utf-8").split("\r\n")
+    if due_time:
+        # A deadline is instantaneous. UTC avoids requiring a VTIMEZONE component.
+        starts = datetime.combine(due, clock_time.fromisoformat(due_time), tzinfo=zone)
+        lines = [f"DTSTART:{starts.astimezone(timezone.utc):%Y%m%dT%H%M%SZ}"
+                 if line.startswith("DTSTART;") else line
+                 for line in lines if not line.startswith("DTEND")]
+    index = lines.index("END:VEVENT")
+    lines[index:index] = ["TRANSP:TRANSPARENT", "CATEGORIES:Tasks",
+                          f"PRIORITY:{ {'high': 1, 'medium': 5, 'low': 9}.get(priority, 0) }",
+                          _fold(f"X-TAMESTORAGE-TASK-ID:{_escape(task_id)}")]
+    return "\r\n".join(lines).encode("utf-8")
+
+
 def _unfold(content: str) -> list[str]:
     return re.sub(r"\r?\n[ \t]", "", content).replace("\r\n", "\n").split("\n")
 
@@ -175,7 +209,7 @@ def _remote_event(content: str, href: str, etag: str, zone: ZoneInfo) -> dict[st
             end_date, end_time = start_date, ""
     except (ValueError, TypeError):
         return None
-    return {
+    item = {
         "caldav_uid": _unescape(props["UID"][1]).strip(),
         "caldav_href": href,
         "caldav_etag": etag,
@@ -190,6 +224,93 @@ def _remote_event(content: str, href: str, etag: str, zone: ZoneInfo) -> dict[st
         "source": "caldav",
         "updated_at": _now(),
     }
+    task_id = _unescape(props.get("X-TAMESTORAGE-TASK-ID", ("", ""))[1]).strip()
+    if (re.fullmatch(r"[A-Za-z0-9_-]{1,128}", task_id)
+            and item["caldav_uid"] == _task_uid(task_id)):
+        item["caldav_task_id"] = task_id
+        # Compare actual content, not a stored hash that clients could leave stale.
+        item["caldav_task_signature"] = (
+            _unescape(props["SUMMARY"][1]), start_date, start_time, all_day,
+            end_date, end_time, _unescape(props.get("DESCRIPTION", ("", ""))[1]),
+            props.get("TRANSP", ("", ""))[1].upper(),
+            props.get("PRIORITY", ("", ""))[1],
+        )
+    legacy_id = _unescape(props.get("X-TAMESTORAGE-TODO-ID", ("", ""))[1]).strip()
+    if (re.fullmatch(r"[A-Za-z0-9_-]{1,128}", legacy_id)
+            and re.fullmatch(r"tames-task-[A-Za-z0-9_-]+", item["caldav_uid"])):
+        item["caldav_legacy_todo_id"] = legacy_id
+    return item
+
+
+def _task_resource(url: str, uid: str, remote: dict[str, Any] | None) -> str:
+    resource = url + urllib.parse.quote(uid, safe="@._-") + ".ics"
+    if remote and remote.get("caldav_href"):
+        resource = urllib.parse.urljoin(url, str(remote["caldav_href"]))
+        # Never forward calendar credentials outside the configured collection.
+        if not resource.startswith(url) or urllib.parse.urlparse(resource).query:
+            raise CalendarSyncError("Task deadline has an invalid calendar resource.")
+    return resource
+
+
+def _sync_due_tasks(username: str, remote: dict[str, dict[str, Any]]) -> tuple[dict[str, dict[str, Any]], dict[str, int]]:
+    """Reconcile web-owned deadlines without importing them as duplicate events.
+
+    Web task state is authoritative. The existing worker retries missing writes
+    and removals; no extra timer, local metadata or deletion queue is needed.
+    """
+    url, auth_user, password, zone = _settings()
+    todos = list_items(username)["todos"]
+    desired: dict[str, bytes] = {}
+    for item in todos:
+        if not item.get("due_date") or item.get("completed") or item.get("canceled"):
+            continue
+        task_id = str(item.get("id") or "")
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", task_id):
+            raise CalendarSyncError("Task deadline has an invalid identity.")
+        try:
+            desired[_task_uid(task_id)] = _task_ics(item, zone)
+        except (ValueError, TypeError) as exc:
+            raise CalendarSyncError("Task deadline has an invalid date or time.") from exc
+    managed = {uid: item for uid, item in remote.items() if item.get("caldav_task_id")}
+    # A previous bridge assigned random task UIDs and the event-only importer
+    # cached them as ordinary events. Retire only resources whose marker AND
+    # saved task identity agree; a UID prefix alone never establishes ownership.
+    legacy_identities = {str(item["caldav_uid"]): str(item["id"])
+                         for item in todos if item.get("caldav_uid")}
+    legacy = {uid: item for uid, item in remote.items()
+              if item.get("caldav_legacy_todo_id")
+              and item["caldav_legacy_todo_id"] == legacy_identities.get(uid)}
+    pushed = removed = 0
+    for uid, content in desired.items():
+        previous = remote.get(uid)
+        if previous and uid not in managed and uid not in legacy:
+            raise CalendarSyncError("Task deadline conflicts with an unmanaged calendar event.")
+        expected = _remote_event(content.decode("utf-8"), "", "", zone)
+        if previous and previous.get("caldav_task_signature") == expected["caldav_task_signature"]:
+            continue
+        headers = {"Content-Type": "text/calendar; charset=utf-8"}
+        if previous:
+            if previous.get("caldav_etag"):
+                headers["If-Match"] = previous["caldav_etag"]
+        else:
+            headers["If-None-Match"] = "*"
+        status, _, _ = _request("PUT", _task_resource(url, uid, previous), auth_user, password,
+                                body=content, headers=headers)
+        if status not in {200, 201, 204}:
+            raise CalendarSyncError(f"Task calendar update failed (HTTP {status}).")
+        pushed += 1
+    owned = {**managed, **legacy}
+    for uid, item in owned.items():
+        if uid in desired:
+            continue
+        headers = {"If-Match": item["caldav_etag"]} if item.get("caldav_etag") else {}
+        status, _, _ = _request("DELETE", _task_resource(url, uid, item), auth_user, password,
+                                headers=headers)
+        if status not in {200, 204, 404}:
+            raise CalendarSyncError(f"Task calendar deletion failed (HTTP {status}).")
+        removed += 1
+    return ({uid: item for uid, item in remote.items() if uid not in owned},
+            {"tasks_pushed": pushed, "tasks_removed": removed})
 
 
 def _remote_events() -> dict[str, dict[str, Any]]:
@@ -249,6 +370,7 @@ def sync_user_events(username: str = "Admin") -> dict[str, int]:
         return {"pushed": 0, "pulled": 0, "removed": 0}
     ensure_calendar()
     remote = _remote_events()
+    remote, task_result = _sync_due_tasks(username, remote)
     events = list_items(username)["events"]
     fresh: set[str] = set()
     pushed = 0
@@ -274,7 +396,7 @@ def sync_user_events(username: str = "Admin") -> dict[str, int]:
         if uid in fresh:
             merged.append(item)
     replace_events(username, merged)
-    return {"pushed": pushed, "pulled": pulled, "removed": len(local_by_uid) - len(fresh)}
+    return {"pushed": pushed, "pulled": pulled, "removed": len(local_by_uid) - len(fresh), **task_result}
 
 
 def status() -> dict[str, str | bool]:
@@ -283,3 +405,39 @@ def status() -> dict[str, str | bool]:
         return {"configured": bool(public_url and current_app.config.get("CALDAV_USERNAME")), "url": public_url}
     except RuntimeError:
         return {"configured": False, "url": ""}
+
+
+def record_sync_health(success: bool) -> None:
+    """Publish a worker heartbeat without exposing calendar credentials or events."""
+    path = Path(str(current_app.config["CALDAV_STATUS_FILE"]))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    now = time.time()
+    previous = sync_health()
+    payload = {
+        "checked_at": now,
+        "success": bool(success),
+        "last_success_at": now if success else previous.get("last_success_at", 0),
+    }
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        temporary.write_text(json.dumps(payload), encoding="utf-8")
+        os.replace(temporary, path)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def sync_health() -> dict[str, float | bool]:
+    """Return the latest worker state; stale or unreadable state is offline."""
+    try:
+        path = Path(str(current_app.config["CALDAV_STATUS_FILE"]))
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        checked_at = float(payload.get("checked_at") or 0)
+        last_success_at = float(payload.get("last_success_at") or 0)
+        interval = max(30, int(current_app.config.get("CALDAV_SYNC_INTERVAL_SECONDS", 120)))
+        online = bool(payload.get("success")) and 0 <= time.time() - checked_at <= max(300, interval * 3)
+        return {"online": online, "checked_at": checked_at, "last_success_at": last_success_at}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {"online": False, "checked_at": 0, "last_success_at": 0}

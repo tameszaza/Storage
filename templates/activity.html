@@ -1,6 +1,45 @@
 {% extends "base.html" %}
 {% block title %}Activity · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/activity.css') }}?v=20260924b" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Audit log</p><h1>Activity</h1><p class="muted">Recent file, sharing, and admin activity.</p></div></section>
-<section class="glass-card table-card"><div class="table-responsive"><table class="table responsive-cards-table align-middle"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>IP</th></tr></thead><tbody>{% for e in entries %}<tr><td data-label="Time">{{ e.time }}</td><td data-label="User">{{ e.user }}</td><td data-label="Action"><span class="mini-badge">{{ e.action }}</span></td><td data-label="Target">{{ e.target }}</td><td data-label="IP">{{ e.ip }}</td></tr>{% else %}<tr><td colspan="5" class="table-empty-row text-center muted py-5">No activity yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="workspace-header">
+    <div><h1>Activity</h1><p class="muted mt-2 mb-0">Recent file, sharing, and admin actions.</p></div>
+</section>
+<nav class="activity-filter" aria-label="Activity view">
+    <a href="{{ url_for('activity_page') }}" {% if not show_all %}aria-current="page"{% endif %}>Highlights</a>
+    <a href="{{ url_for('activity_page', view='all') }}" {% if show_all %}aria-current="page"{% endif %}>All activity</a>
+</nav>
+
+<section class="activity-feed" aria-label="Recent activity">
+    {% for e in entries %}
+    <details class="activity-entry">
+        <summary class="activity-entry-summary">
+            <span class="activity-entry-mark" aria-hidden="true"><i class="fa-regular fa-clock"></i></span>
+            <span class="activity-entry-content">
+                <strong>{{ e.display_action }}</strong>
+                {% if e.display_target %}<span class="activity-entry-target">{{ e.display_target }}</span>{% endif %}
+            </span>
+            <span class="activity-entry-when"><time datetime="{{ e.time }}">{{ e.display_time }}</time><small>{{ e.user }}</small></span>
+            <i class="fa-solid fa-chevron-down activity-entry-chevron" aria-hidden="true"></i>
+        </summary>
+        <dl class="activity-entry-details">
+            <div><dt>Action</dt><dd>{{ e.action }}</dd></div>
+            <div><dt>Status</dt><dd>{{ e.status }}</dd></div>
+            {% if e.ip %}<div><dt>IP</dt><dd>{{ e.ip }}</dd></div>{% endif %}
+            {% if e.user_agent %}<div><dt>Client</dt><dd>{{ e.user_agent }}</dd></div>{% endif %}
+            {% if e.details %}<div><dt>Data</dt><dd><pre>{{ e.details | tojson(indent=2) }}</pre></dd></div>{% endif %}
+        </dl>
+    </details>
+    {% else %}
+    <p class="activity-empty">{% if show_all %}No activity on this page.{% else %}No other activity yet. <a href="{{ url_for('activity_page', view='all') }}">View calendar syncs</a>{% endif %}</p>
+    {% endfor %}
+</section>
+
+<nav class="activity-pagination" aria-label="Activity pages">
+    <span>Page {{ page }}</span>
+    <div>
+        {% if page > 1 %}<a class="btn btn-outline-secondary" href="{{ url_for('activity_page', page=page - 1, view='all' if show_all else None) }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Newer</a>{% endif %}
+        {% if has_next %}<a class="btn btn-outline-secondary" href="{{ url_for('activity_page', page=page + 1, view='all' if show_all else None) }}">Older <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+    </div>
+</nav>
 {% endblock %}

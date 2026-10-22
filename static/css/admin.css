@@ -11,8 +11,72 @@
     margin: -2px 0 14px;
 }
 
+.exit-node-control {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 11px;
+    align-items: center;
+    padding: 4px 0 15px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-color, rgba(148, 163, 184, 0.24));
+}
+.exit-node-icon {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: var(--primary-color, #2563eb);
+    background: color-mix(in srgb, var(--primary-color, #2563eb) 11%, transparent);
+    place-items: center;
+}
+.exit-node-copy { display: grid; line-height: 1.2; }
+.exit-node-copy strong { font-size: .9rem; }
+.exit-node-copy small { margin-top: 4px; color: var(--muted-text, #64748b); }
+.control-switch { position: relative; width: 42px; height: 24px; cursor: pointer; }
+.control-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.control-switch > span:first-of-type {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    background: #94a3b8;
+    transition: background .18s ease;
+}
+.control-switch > span:first-of-type::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .28);
+    transition: transform .18s ease;
+}
+.control-switch input:checked + span { background: var(--success-color, #16a34a); }
+.control-switch input:checked + span::after { transform: translateX(18px); }
+.control-switch input:disabled + span { cursor: wait; opacity: .55; }
+.control-switch input:focus-visible + span {
+    outline: 3px solid color-mix(in srgb, var(--primary-color, #2563eb) 30%, transparent);
+    outline-offset: 2px;
+}
+
 
 @media (max-width: 640px) {
+    .admin-card .responsive-cards-table tbody td.owner-actions {
+        display: none !important;
+    }
+
+    body[data-page="admin"] #mainContent .admin-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 16px 12px !important;
+    }
+
+    body[data-page="admin"] #mainContent .admin-stats .stat-card:last-child {
+        grid-column: auto;
+    }
+
     .admin-card .responsive-cards-table tbody td > * {
         min-width: 0 !important;
         max-width: 100% !important;
@@ -786,3 +850,39 @@
     .disk-card-heading { align-items: flex-start; }
     .disk-metrics { grid-template-columns: 1fr; }
 }
+.disk-analysis{margin-top:16px;border-top:1px solid var(--ts-border,#e4e7ec)}
+.disk-analysis>summary{cursor:pointer;padding:14px 0;min-height:48px;font-weight:650;list-style:none}
+.disk-analysis>summary::-webkit-details-marker{display:none}
+.disk-analysis>summary:before{content:"▸";display:inline-block;margin-right:9px;font-size:12px;transition:transform .15s ease}
+.disk-analysis[open]>summary:before{transform:rotate(90deg)}
+.disk-analysis>summary span{font-size:13px;font-weight:400;color:var(--ts-muted,#64748b);margin-left:8px}
+.disk-analysis-content{padding:16px 0 22px}
+.disk-analysis-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.disk-analysis-path{display:flex;flex-wrap:wrap;gap:4px;align-items:center;min-height:36px;margin:9px 0 4px}
+.disk-analysis-path button{border:0;background:none;color:var(--ts-primary,#265bd7);padding:4px 6px;font-size:13px;border-radius:5px}
+.disk-analysis-path button:hover,.disk-analysis-path button:focus-visible{background:var(--ts-primary-soft,#edf2ff)}
+.disk-analysis-path button:last-child{color:var(--ts-text,#202631);font-weight:700}
+.disk-analysis-path span{color:var(--ts-muted,#64748b)}
+.disk-analysis-status{font-size:12px;margin:0 0 16px;min-height:18px}
+.disk-analysis-layout{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:clamp(20px,4vw,48px);align-items:center}
+.disk-analysis-ring{position:relative;max-width:240px;width:100%;aspect-ratio:1;margin:auto}
+.disk-analysis-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.disk-analysis-ring-label{position:absolute;inset:26%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.disk-analysis-ring-label strong{font-size:22px;font-variant-numeric:tabular-nums}.disk-analysis-ring-label small{font-size:12px;color:var(--ts-muted,#64748b)}
+.disk-analysis-list{min-width:0}
+.disk-analysis-row{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;padding:11px 4px;border:0;border-bottom:1px solid var(--ts-border,#e4e7ec);background:none;color:var(--ts-text,#202631);text-align:left;font-size:14px}
+button.disk-analysis-row{cursor:pointer}button.disk-analysis-row:hover,button.disk-analysis-row:focus-visible{background:var(--ts-surface-soft,#f5f6f8)}
+.disk-analysis-row .swatch{width:10px;height:10px;border-radius:50%}.disk-analysis-row .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.disk-analysis-row .size{white-space:nowrap;font-weight:650;font-variant-numeric:tabular-nums}.disk-analysis-row .size small{margin-left:7px;color:var(--ts-muted,#64748b);font-weight:400}
+.disk-analysis-row .name i{font-size:10px;margin-left:8px;color:var(--ts-muted,#64748b)}
+.disk-analysis-more>summary{cursor:pointer;list-style:none;padding:12px 4px;color:var(--ts-primary,#265bd7);font-size:13px;font-weight:650}
+.disk-analysis-more>summary::-webkit-details-marker{display:none}
+.disk-analysis-more>summary:before{content:"▸";display:inline-block;margin-right:8px;transition:transform .15s ease}
+.disk-analysis-more[open]>summary:before{transform:rotate(90deg)}
+.disk-analysis-more>summary:hover,.disk-analysis-more>summary:focus-visible{background:var(--ts-surface-soft,#f5f6f8)}
+.disk-analysis .disk-details{border-top:1px solid var(--ts-border,#e4e7ec);padding-top:16px}
+@media(max-width:680px){.disk-analysis-layout{grid-template-columns:1fr;gap:16px}.disk-analysis-ring{max-width:210px}.disk-analysis>summary span{display:none}.disk-analysis-row{gap:8px}.disk-analysis-row .size small{display:none}}
+
+/* Keep the page action aligned with its heading at every viewport. */
+body[data-page="admin"] .admin-titlebar{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-width:0}
+body[data-page="admin"] .admin-titlebar h1{margin:0}
+body[data-page="admin"] .admin-titlebar>.btn{flex-shrink:0;white-space:nowrap;margin-left:auto}

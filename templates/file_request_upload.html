@@ -15,6 +15,7 @@
     <section class="glass-card request-submit-card">
         {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
         {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
+        {% if warning %}<div class="alert alert-warning">{{ warning }}</div>{% endif %}
 
         <form id="requestUploadForm" method="POST" enctype="multipart/form-data">
             {% if item.password %}
@@ -31,7 +32,7 @@
                     <p class="muted">Or choose files or a folder below.</p>
                 </div>
 
-                <input id="requestFileInput" name="file" type="file" multiple hidden>
+                <input id="requestFileInput" name="file" type="file" multiple {% if item.allowed_ext %}accept="{% for ext in item.allowed_ext %}.{{ ext }}{% if not loop.last %},{% endif %}{% endfor %}"{% endif %} hidden>
                 <input id="requestFolderInput" name="file" type="file" multiple webkitdirectory directory hidden>
 
                 <div class="request-picker-actions">
@@ -42,7 +43,7 @@
             </div>
 
             <div class="request-submit-footer">
-                <div class="request-help muted"><i class="fa-solid fa-shield-halved"></i> Files go directly to the request owner.</div>
+                <div class="request-help muted"><i class="fa-solid fa-shield-halved"></i> Files go directly to the request owner.{% if item.allowed_ext %} {{ item.allowed_ext|join(', ')|upper }} only.{% endif %}{% if item.max_size_mb %} Up to {{ item.max_size_mb }} MB each.{% endif %}</div>
                 <button id="requestUploadButton" class="btn btn-primary" type="submit" disabled><i class="fa-solid fa-upload"></i> Upload selected files</button>
             </div>
         </form>

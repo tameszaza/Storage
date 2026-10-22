@@ -13,3 +13,10 @@ CHANGED-FILES.txt
 note.txt
 admin.py
 config.py
+
+# Runtime configuration stays outside images
+.git
+*.env
+!.env.example
+*.key
+*.pem

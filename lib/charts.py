@@ -3,12 +3,25 @@ import os
 import uuid
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.colors as mcolors
-import matplotlib.patheffects as path_effects
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Wedge
+from threading import Lock
+
+_plot_lock = Lock()
+plt = mcolors = path_effects = Circle = Wedge = None
+
+def _load_plotting():
+    """Load the plotting runtime only when a chart is actually requested."""
+    global plt, mcolors, path_effects, Circle, Wedge
+    with _plot_lock:
+        if plt is not None:
+            return
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.colors as colors
+        import matplotlib.patheffects as effects
+        import matplotlib.pyplot as plotting
+        from matplotlib.patches import Circle as circle, Wedge as wedge
+        mcolors, path_effects, Circle, Wedge = colors, effects, circle, wedge
+        plt = plotting
 
 from lib.storage import format_bytes, safe_upload_path
 
@@ -73,6 +86,7 @@ def chart_rows(data: dict, is_file_type: bool = False) -> tuple[list[str], list[
 
 
 def generate_pie_chart(data: dict, is_file_type: bool = False) -> tuple[str, list[tuple]]:
+    _load_plotting()
     labels, sizes, info = chart_rows(data, is_file_type)
     fig, ax = plt.subplots(figsize=(9, 9))
     wedges, texts, autotexts = ax.pie(
@@ -170,6 +184,63 @@ def _directory_hierarchy(directory: str, display_name: str) -> tuple[dict, dict]
 def build_storage_analysis(directory: str, display_name: str) -> tuple[dict, dict]:
     """Return the folder hierarchy and file-type totals for interactive charts."""
     return _directory_hierarchy(directory, display_name)
+
+
+def build_indexed_storage_analysis(
+    inventory: list[dict], base_path: str, display_name: str,
+) -> tuple[dict, dict]:
+    """Build the same chart data from the shared inventory without another disk walk."""
+    prefix = normalize_chart_path(base_path).strip("/")
+    root = {
+        "name": display_name or "Root", "path": "", "size": 0,
+        "direct_size": 0, "file_count": 0, "direct_file_count": 0,
+        "children": [], "kind": "folder",
+    }
+    nodes = {"": root}
+    file_type_data: dict[str, int] = {}
+
+    def folder(relative: str) -> dict:
+        if relative in nodes:
+            return nodes[relative]
+        parent = folder(relative.rpartition("/")[0])
+        node = {
+            "name": relative.rpartition("/")[2], "path": relative,
+            "size": 0, "direct_size": 0, "file_count": 0,
+            "direct_file_count": 0, "children": [], "kind": "folder",
+        }
+        nodes[relative] = node
+        parent["children"].append(node)
+        return node
+
+    for item in inventory:
+        path = normalize_chart_path(str(item.get("path") or "")).strip("/")
+        if prefix:
+            if not path.startswith(prefix + "/"):
+                continue
+            relative = path[len(prefix) + 1:]
+        else:
+            relative = path
+        if not relative:
+            continue
+        if item.get("is_dir"):
+            folder(relative)
+            continue
+        size = max(0, int(item.get("size") or 0))
+        parent = folder(relative.rpartition("/")[0])
+        parent["direct_size"] += size
+        parent["direct_file_count"] += 1
+        extension = os.path.splitext(relative)[1].lower() or "No extension"
+        file_type_data[extension] = file_type_data.get(extension, 0) + size
+
+    for relative in sorted(nodes, key=lambda value: value.count("/") + bool(value), reverse=True):
+        node = nodes[relative]
+        node["children"] = sorted(
+            (child for child in node["children"] if child["size"] > 0),
+            key=lambda child: child["size"], reverse=True,
+        )
+        node["size"] = node["direct_size"] + sum(child["size"] for child in node["children"])
+        node["file_count"] = node["direct_file_count"] + sum(child["file_count"] for child in node["children"])
+    return root, file_type_data
 
 
 def normalize_chart_path(path: str) -> str:
@@ -316,6 +387,7 @@ def _draw_sunburst_children(
 
 
 def generate_directory_sunburst(directory: str, display_name: str) -> tuple[str, list[tuple], dict]:
+    _load_plotting()
     root, file_type_data = _directory_hierarchy(directory, display_name)
     total_size = root.get("size", 0)
     max_depth = min(SUNBURST_MAX_RINGS, max(1, _tree_depth(root)))

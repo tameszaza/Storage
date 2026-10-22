@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Activity · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/activity-console.css') }}?v={{ activity_version }}" rel="stylesheet">{% endblock %}
+{% block content %}
+<div id="activityConsole" data-url="{{ url_for('admin_activity_snapshot') }}">
+    <header class="activity-header">
+        <div><a class="activity-back" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Admin center</a><h1>Activity <span id="activityConnection" class="activity-live" role="status">Connecting</span></h1></div>
+        <div class="activity-controls"><span id="activityUpdated" class="activity-updated"></span><button id="activityPause" class="btn btn-outline-secondary" type="button" aria-pressed="false"><i class="fa-solid fa-pause" aria-hidden="true"></i> <span>Pause</span></button><button id="activityRefresh" class="btn btn-outline-secondary" type="button" aria-label="Refresh activity" title="Refresh"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button></div>
+    </header>
+    <div id="activityMessage" class="activity-message" role="status" aria-live="polite"></div>
+    <section id="activityHosts" class="activity-hosts" aria-label="Hosts"></section>
+    <div class="activity-filters"><input id="activitySearch" class="form-control" type="search" placeholder="Find a task or file…" aria-label="Find a task or file"><select id="activityHost" class="form-select" aria-label="Host"><option value="all">Both hosts</option><option value="Server">Server</option><option value="Cyborg">Cyborg</option></select><select id="activityState" class="form-select" aria-label="Task status"><option value="active">Active / alerts</option><option value="all">All tasks</option><option value="running">Running</option><option value="waiting">Queued / paused</option><option value="failed">Needs attention</option><option value="idle">Idle / available</option></select></div>
+    <section class="activity-panel" aria-labelledby="activityTasksTitle"><header class="activity-section-heading"><h2 id="activityTasksTitle">Tasks</h2><span id="activityTaskCount"></span></header><div id="activityTasks"><p class="activity-empty">Loading activity…</p></div><p id="activityEmpty" class="activity-empty" hidden>No matching tasks.</p></section>
+    <details id="activityFeed" class="activity-panel activity-feed" open><summary><span>Recent activity</span><span id="activityEventCount"></span></summary><ol id="activityEvents" aria-label="Recent worker events"></ol><p class="activity-note">Worker reports, not a complete audit log.</p></details>
+    <p class="activity-note">Read only · updates every 5 seconds while visible · Server tasks controls stay in NTU VPN.</p>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/activity-console.js') }}?v={{ activity_version }}" defer></script>{% endblock %}

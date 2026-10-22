@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ ! -f /etc/tamestorage-operations.conf ]] || source /etc/tamestorage-operations.conf
+retention_minutes=$(( ${TEMP_RETENTION_HOURS:-24} * 60 ))
+recording_seconds=$(( ${RECORDING_RETENTION_HOURS:-24} * 3600 ))
+
+temp_dir=/srv/tamestorage/uploads/temp
+goodnotes_inbox="$temp_dir/Goodnotes-cleanup"
+transcription_inbox="$temp_dir/Transcription"
+
+mountpoint -q /srv/tamestorage || {
+    echo "Tamestorage is not mounted; refusing cleanup" >&2
+    exit 1
+}
+
+[[ -d "$temp_dir" ]] || exit 0
+
+# The Goodnotes inbox is persistent workflow infrastructure, not disposable temp.
+# Its watcher removes each validated ZIP after successful reconciliation/publication.
+# Exclude its contents too: expiry must not race an upload or pending sync job.
+
+# ctime reflects when an item arrived or was last changed on this filesystem.
+# This avoids immediately deleting an old document that was copied here today.
+find "$temp_dir" -depth -mindepth 1 ! -path "$goodnotes_inbox" ! -path "$goodnotes_inbox/*" ! -path "$transcription_inbox" ! -path "$transcription_inbox/*" \
+    \( -type f -o -type l \) -cmin +"$retention_minutes" -delete
+
+# Remove expired empty directories after their contents have expired.
+find "$temp_dir" -depth -mindepth 1 ! -path "$goodnotes_inbox" ! -path "$goodnotes_inbox/*" ! -path "$transcription_inbox" ! -path "$transcription_inbox/*" -type d -empty -cmin +"$retention_minutes" -delete
+
+# Only verified completed recordings expire; queued/active/retryable inputs stay protected.
+TAMES_RECORDING_RETENTION_SECONDS="$recording_seconds" /usr/bin/python3 /usr/local/libexec/tamestorage-transcription-cleanup.py

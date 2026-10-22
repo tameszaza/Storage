@@ -1,12 +1,8 @@
 from flask import render_template
-from lib.storage import format_bytes, get_total_storage_bytes
-from lib.users import count_user_folders
 
 
 def introduction():
-    user_count = count_user_folders()
-    total_storage = format_bytes(get_total_storage_bytes())
-    return render_template("introduction.html", user_count=user_count, total_storage=total_storage)
+    return render_template("introduction.html")
 
 
 def page_not_found(error):

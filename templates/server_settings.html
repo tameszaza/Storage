@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Server settings · Tamestorage{% endblock %}
+{% block link %}<link rel="stylesheet" href="{{ url_for('static',filename='css/server-settings.css') }}?v=1">{% endblock %}
+{% block content %}
+<section id="serverSettings" class="settings-shell" data-csrf="{{ settings_csrf }}">
+ <header class="settings-title"><div><a class="settings-back" href="{{ url_for('admin') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Admin</a><h1>Server settings</h1></div><button class="btn btn-outline-secondary" type="button" id="settingsRefresh" title="Refresh" aria-label="Refresh settings"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button></header>
+ <div class="settings-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><input id="settingsSearch" type="search" placeholder="Find a setting…" aria-label="Find a setting" autocomplete="off"><label class="settings-advanced"><input id="settingsAdvanced" type="checkbox"> Advanced</label></div>
+ <div class="settings-notice" id="settingsNotice" role="status" aria-live="polite"></div>
+ <div id="settingsPending" class="settings-pending" hidden><span id="settingsPendingText"></span><button id="settingsApplyPending" type="button" class="btn btn-sm btn-outline-primary">Apply saved</button></div>
+ <div class="server-settings-layout"><nav id="settingsNav" class="server-settings-nav" aria-label="Settings categories"></nav><div id="settingsGroups" class="settings-groups"><p class="muted">Loading settings…</p></div></div>
+ <footer class="settings-savebar"><span id="settingsChanged">No changes</span><div><button id="settingsDiscard" type="button" class="btn btn-outline-secondary" disabled>Discard</button><button id="settingsReview" type="button" class="btn btn-primary" disabled>Review changes</button></div></footer>
+ <dialog id="settingsDialog" aria-labelledby="settingsDialogTitle"><header><h2 id="settingsDialogTitle">Review changes</h2><button id="settingsDialogClose" type="button" class="btn btn-outline-secondary" aria-label="Close review">✕</button></header><div id="settingsDialogBody"></div><footer id="settingsDialogFooter"></footer></dialog>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static',filename='js/server-settings.js') }}?v=1" defer></script>{% endblock %}

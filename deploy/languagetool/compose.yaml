@@ -1,0 +1,24 @@
+name: languagetool
+services:
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: languagetool
+    restart: unless-stopped
+    init: true
+    mem_limit: 1536m
+    mem_reservation: 768m
+    memswap_limit: 1536m
+    environment:
+      Java_Xms: "128m"
+      Java_Xmx: "1024m"
+      JAVA_TOOL_OPTIONS: "-XX:+ExitOnOutOfMemoryError"
+      langtool_maxCheckThreads: "2"
+      langtool_maxTextCheckerThreads: "2"
+      langtool_cacheSize: "256"
+      langtool_cacheTTLSeconds: "300"
+      langtool_pipelineCaching: "true"
+      langtool_maxPipelinePoolSize: "2"
+      langtool_pipelineExpireTimeInSeconds: "300"
+      langtool_pipelinePrewarming: "false"
+    ports:
+      - "127.0.0.1:8010:8010"

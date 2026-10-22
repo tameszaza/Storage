@@ -168,10 +168,12 @@ def file_kind(name: str, is_dir: bool) -> str:
     return "file"
 
 
-def build_file_item(base_path: str, name: str, relative_root: str = "") -> dict:
+def build_file_item(
+    base_path: str, name: str, relative_root: str = "", directory_size: int | None = None,
+) -> dict:
     file_path = os.path.join(base_path, name)
     is_dir = os.path.isdir(file_path)
-    size = get_folder_size(file_path) if is_dir else os.path.getsize(file_path)
+    size = (directory_size if directory_size is not None else get_folder_size(file_path)) if is_dir else os.path.getsize(file_path)
     relative_path = normalize_relative_path(os.path.join(relative_root, name))
     extension = "" if is_dir else Path(name).suffix.lower()
     return {
@@ -196,6 +198,25 @@ def list_directory(relative_path: str, search_query: str | None = None) -> list[
     if not os.path.exists(current_path):
         return files
 
+    indexed_folder_sizes: dict[str, int] | None = None
+
+    def make_item(root: str, name: str, relative_root: str) -> dict:
+        nonlocal indexed_folder_sizes
+        size = None
+        if os.path.isdir(os.path.join(root, name)):
+            if indexed_folder_sizes is None:
+                # The shared inventory calculates nested sizes once and is
+                # refreshed after application writes or shortly after SMB writes.
+                from lib.search_index import workspace_inventory
+
+                indexed_folder_sizes = {
+                    item["path"]: int(item["size"])
+                    for item in workspace_inventory(relative_path) if item["is_dir"]
+                }
+            item_path = normalize_relative_path(os.path.join(relative_root, name))
+            size = indexed_folder_sizes.get(item_path)
+        return build_file_item(root, name, relative_root, directory_size=size)
+
     if search_query:
         query = search_query.casefold()
         for root, dirs, filenames in os.walk(current_path):
@@ -205,15 +226,15 @@ def list_directory(relative_path: str, search_query: str | None = None) -> list[
             full_relative_root = normalize_relative_path(os.path.join(relative_path, rel_root))
             for dirname in dirs:
                 if query in dirname.casefold():
-                    files.append(build_file_item(root, dirname, full_relative_root))
+                    files.append(make_item(root, dirname, full_relative_root))
             for filename in filenames:
                 if query in filename.casefold():
-                    files.append(build_file_item(root, filename, full_relative_root))
+                    files.append(make_item(root, filename, full_relative_root))
     else:
         for name in os.listdir(current_path):
             if name == ".tamestorage_system":
                 continue
-            files.append(build_file_item(current_path, name, relative_path))
+            files.append(make_item(current_path, name, relative_path))
 
     files.sort(key=lambda item: (not item["is_dir"], item["name"].casefold()))
     return files

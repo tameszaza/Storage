@@ -121,8 +121,11 @@ def enqueue(title, url):
     validate_url(url)
     with connection() as db:
         db.execute('BEGIN IMMEDIATE')
-        if db.execute("SELECT count(*) FROM downloads WHERE status IN ('queued','downloading')").fetchone()[0] >= 20:
-            raise ValueError('The queue is full. Wait for a download to finish.')
+        # A serial worker handles one item at a time; keep a larger persisted
+        # queue so a requested series can continue unattended without opening
+        # concurrent browser sessions or downloads.
+        if db.execute("SELECT count(*) FROM downloads WHERE status IN ('queued','downloading')").fetchone()[0] >= 250:
+            raise ValueError('The queue is full. Wait for downloads to finish.')
         key = str(uuid.uuid4())
         row = {'id': key, 'title': title, 'url': url, 'folder_name': ''}
         used = _assigned_folder_names(db)
@@ -236,6 +239,8 @@ def download(row):
     path.mkdir(parents=True, exist_ok=True)
     partial = path / 'video.part'
     conn = None
+    old = path / row['filename'] if row.get('filename') else None
+    row['_upgrade'] = bool(old and old.is_file() and not old.is_symlink())
     try:
         if urlsplit(row['url']).hostname in ('hdwatch.pro', 'www.hdwatch.pro'):
             from lib.video_streams import download_page
@@ -251,7 +256,11 @@ def download(row):
     except Exception as exc:
         if not deleting(key):
             message = str(exc) if isinstance(exc, ValueError) else 'The download failed or timed out. Check the source and retry.'
-            update(key, status='failed', message=message[:300])
+            if row['_upgrade'] and old.is_file():
+                update(key, status='ready', received=old.stat().st_size, total=old.stat().st_size,
+                       message=('Original kept; upgrade unavailable: ' + message)[:300])
+            else:
+                update(key, status='failed', message=message[:300])
     finally:
         partial.unlink(missing_ok=True)
         for name in ('segments.ts', 'remux.mp4', 'stream.log'):
@@ -299,15 +308,21 @@ def finish(row, partial, received):
         formats = metadata.get('format',{}).get('format_name','')
         if probe.returncode or not any(s.get('codec_type') == 'video' for s in metadata.get('streams',[])):
             raise ValueError('The downloaded file is not a recognized video.')
-        if not any(s.get('codec_type')=='video' and s.get('height',0)>=720 for s in metadata.get('streams',[])):
-            raise ValueError('The video is below 720p; it was not saved.')
+        if not any(s.get('codec_type')=='video' and s.get('height',0)>0 for s in metadata.get('streams',[])):
+            raise ValueError('The downloaded file has no usable video track.')
         extension = '.mp4' if 'mp4' in formats or 'mov' in formats else '.webm' if 'webm' in formats else '.mkv' if 'matroska' in formats else None
         if not extension:
             raise ValueError('Use an MP4, MOV, WebM or MKV video file.')
         from werkzeug.utils import secure_filename
         _, stem = media_labels(row)
         name = (secure_filename(stem)[:100] or 'Video') + extension
-        if (path / name).exists() and path.joinpath(name).resolve() != partial.resolve():
+        old = path / row['filename'] if row.get('_upgrade') else None
+        if old:
+            validate_upgrade(old, partial)
+            if old.suffix.lower() != extension:
+                raise ValueError('Upgrade format changed; keeping the original file.')
+            name = old.name
+        if not old and (path / name).exists() and path.joinpath(name).resolve() != partial.resolve():
             stem = stem[:90]
             number = 2
             while (path / name).exists():
@@ -319,6 +334,27 @@ def finish(row, partial, received):
                 return
             partial.replace(path / name)
             db.execute("UPDATE downloads SET status='ready', received=?, filename=?, message=? WHERE id=?", (received,name,row.get('_ready_message','Ready to watch'),key))
+
+def media_info(path):
+    result = subprocess.run(['ffprobe','-v','error','-show_entries',
+        'stream=codec_type,height:format=duration','-of','json',str(path)],
+        capture_output=True, timeout=30)
+    if result.returncode:
+        raise ValueError('Cannot verify video quality; keeping the original.')
+    data = json.loads(result.stdout)
+    return (max((s.get('height',0) for s in data.get('streams',[]) if s.get('codec_type')=='video'), default=0),
+            float(data.get('format',{}).get('duration',0)),
+            any(s.get('codec_type')=='audio' for s in data.get('streams',[])))
+
+def validate_upgrade(old, new):
+    old_height, old_duration, old_audio = media_info(old)
+    height, duration, audio = media_info(new)
+    if height < 1080 or height <= old_height:
+        raise ValueError('No higher-resolution 1080p version available.')
+    if not duration or not old_duration or abs(duration-old_duration)>max(5,old_duration*.02):
+        raise ValueError('Upgrade duration differs from original; keeping the original.')
+    if old_audio and not audio:
+        raise ValueError('Upgrade is missing audio; keeping the original.')
 
 def worker():
     import fcntl

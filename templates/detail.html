@@ -6,7 +6,7 @@
     <div>
         <p class="eyebrow">Storage analytics</p>
         <h1>{{ directory }}</h1>
-        <p class="muted">{{ file_count }} files · {{ total_storage }} MB used</p>
+        <p class="muted">{{ '{:,}'.format(file_count) }} files · {{ total_storage }} used</p>
     </div>
     <div class="button-row">
         <a class="btn btn-outline-primary" href="{{ url_for('index') }}">Back to files</a>

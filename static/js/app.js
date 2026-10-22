@@ -26,6 +26,7 @@
         const normalized = ["light", "dark", "system"].includes(preference) ? preference : "light";
         const resolved = resolveTheme(normalized);
         document.documentElement.setAttribute("data-theme", resolved);
+        document.documentElement.setAttribute("data-bs-theme", resolved);
         document.documentElement.setAttribute("data-theme-preference", normalized);
         document.documentElement.style.colorScheme = resolved;
         document.documentElement.style.backgroundColor = resolved === "dark" ? "#0b1120" : "#f8fafc";
@@ -119,9 +120,18 @@
             if (title && !ariaLabel && !visibleText) element.setAttribute("aria-label", title);
         });
 
-        if (window.bootstrap?.Tooltip) {
+        if (window.bootstrap?.Tooltip && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
             document.querySelectorAll("[data-tooltip='true']").forEach((element) => {
-                bootstrap.Tooltip.getOrCreateInstance(element, { container: "body", trigger: "hover focus", delay: { show: 350, hide: 80 } });
+                const tooltip = bootstrap.Tooltip.getOrCreateInstance(element, { container: "body", trigger: "hover", delay: { show: 350, hide: 80 } });
+                element.addEventListener("focus", () => {
+                    if (element.matches(":focus-visible")) tooltip.show();
+                });
+                element.addEventListener("blur", () => tooltip.hide());
+                element.addEventListener("click", () => {
+                    tooltip.hide();
+                    tooltip.disable();
+                    window.setTimeout(() => tooltip.enable(), 450);
+                });
             });
         }
 

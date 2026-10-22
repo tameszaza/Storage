@@ -5,6 +5,7 @@
         messages: [],
         imageFile: null,
         imageUrl: "",
+        retryMessageId: "",
     };
 
     function $(id) { return document.getElementById(id); }
@@ -154,7 +155,7 @@
     function previousUserMessage(messageId) {
         const index = state.messages.findIndex((message) => message.id === messageId);
         for (let i = index; i >= 0; i -= 1) {
-            if (state.messages[i]?.role === "user" && state.messages[i]?.text) return state.messages[i];
+            if (state.messages[i]?.role === "user" && (state.messages[i]?.text || state.messages[i]?.imageName)) return state.messages[i];
         }
         return null;
     }
@@ -327,7 +328,7 @@
     }
 
     function setImageFile(file) {
-        if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+        if (state.imageUrl && !state.messages.some(message => message.imageUrl === state.imageUrl)) URL.revokeObjectURL(state.imageUrl);
         state.imageFile = file || null;
         state.imageUrl = file ? URL.createObjectURL(file) : "";
         if (state.imageUrl) imageUrlsToRevoke.push(state.imageUrl);
@@ -345,8 +346,9 @@
         const imageFile = options.imageFile || null;
         if (!message && !imageFile) return;
 
+        let userMessage;
         if (!options.skipUserBubble) {
-            addMessage("user", message, {
+            userMessage = addMessage("user", message, {
                 imageUrl: imageFile ? state.imageUrl : "",
                 imageName: imageFile ? imageFile.name : "",
             });
@@ -355,6 +357,9 @@
         const thinking = addMessage("assistant", "", { kind: "thinking" });
         const formData = new FormData();
         formData.append("msg", message);
+        const requestId = options.requestId || userMessage?.id || newId();
+        formData.append("request_id", requestId);
+        formData.append("csrf", $("chatForm").elements.csrf?.value || "");
         formData.append("prompt", $("imagePromptInput")?.value || "Describe this image.");
         const prefs = getPreferences();
         formData.append("include_context", prefs.includeContext);
@@ -370,6 +375,18 @@
             if (!response.ok) throw new Error(data.response || "Request failed");
             const receipts = Array.isArray(data.actions) ? data.actions : [];
             const lastAction = receipts.at(-1);
+            const photo = receipts.find(action => action.action === "diary.saved" && /^https:\/\/server\.tailb7f57c\.ts\.net\/obsidian-images\/[0-9a-f]{64}\.(png|jpg|gif|webp|avif)$/.test(action.image_url || ""));
+            const original = messageById(requestId);
+            if (photo && original) {
+                const previous = original.imageUrl;
+                original.imageUrl = photo.image_url;
+                if (previous?.startsWith("blob:")) {
+                    URL.revokeObjectURL(previous);
+                    const index = imageUrlsToRevoke.indexOf(previous);
+                    if (index >= 0) imageUrlsToRevoke.splice(index, 1);
+                    if (state.imageUrl === previous) state.imageUrl = "";
+                }
+            }
             const receiptText = receipts.length ? "\n\n" + receipts.map(a => "✓ " + a.action.replaceAll(".", " · ") + ": " + a.title).join("\n") : "";
             updateMessage(thinking.id, (data.response || "No response.") + receiptText, {
                 actionUrl: data.action_url || lastAction?.url || "",
@@ -383,12 +400,30 @@
         }
     }
 
-    function regenerateFromMessage(messageId) {
+    async function regenerateFromMessage(messageId) {
         const message = messageById(messageId);
         if (!message) return;
         const promptMessage = message.role === "user" ? message : previousUserMessage(messageId);
-        if (!promptMessage || !promptMessage.text) return;
-        sendPrompt(promptMessage.text, { skipUserBubble: true });
+        if (!promptMessage || (!promptMessage.text && !promptMessage.imageName)) return;
+        let imageFile = null;
+        if (promptMessage.imageName) {
+            if (!promptMessage.imageUrl) {
+                setComposerText(promptMessage.text || "");
+                state.retryMessageId = promptMessage.id;
+                $("imageInput")?.click();
+                return;
+            }
+            try {
+                const blob = await (await fetch(promptMessage.imageUrl)).blob();
+                imageFile = new File([blob], promptMessage.imageName, {type: blob.type});
+            } catch (_error) {
+                setComposerText(promptMessage.text || "");
+                state.retryMessageId = promptMessage.id;
+                $("imageInput")?.click();
+                return;
+            }
+        }
+        sendPrompt(promptMessage.text, { skipUserBubble: true, requestId: promptMessage.id, imageFile });
     }
 
     function autoResizeInput() {
@@ -413,6 +448,7 @@
     }
 
     function setComposerText(text) {
+        state.retryMessageId = "";
         const input = $("chatInput");
         if (!input) return;
         input.value = text || "";
@@ -422,6 +458,43 @@
 
     function selectedContextPath() {
         return $("fileContextPath")?.value || "";
+    }
+
+    let contextSearchTimer;
+    let contextSearchController;
+
+    async function searchContextFiles() {
+        const search = $("fileContextSearch");
+        const select = $("fileContextPath");
+        const status = $("fileContextSearchStatus");
+        if (!search || !select || !status) return;
+        const query = search.value.trim();
+        const selected = select.value;
+        if (contextSearchController) contextSearchController.abort();
+        contextSearchController = new AbortController();
+        let paths = [];
+        if (query.length >= 2) {
+            status.textContent = "Searching…";
+            try {
+                const response = await fetch(`/chat/files?q=${encodeURIComponent(query)}`, {signal:contextSearchController.signal});
+                if (!response.ok) throw new Error("Search is unavailable");
+                paths = (await response.json()).items || [];
+            } catch (error) {
+                if (error.name === "AbortError") return;
+                status.textContent = "Could not search files. Try again.";
+                return;
+            }
+        }
+        const options = [new Option("Choose automatically", "")];
+        const matchCount = paths.length;
+        if (selected && !paths.includes(selected)) paths.unshift(selected);
+        paths.forEach(path => options.push(new Option(path, path)));
+        select.replaceChildren(...options);
+        select.value = selected;
+        status.textContent = query.length < 2
+            ? "Search by name, then select a file."
+            : matchCount ? `${matchCount} matching file${matchCount === 1 ? "" : "s"}` : "No readable files found.";
+        updateContextUI();
     }
 
     function updateContextUI() {
@@ -439,10 +512,14 @@
         }
         if (help) {
             const toolSummary = help.dataset.toolSummary || "Workspace, calendar, and task tools are available.";
+            const helpText = path
+                ? `Reading ${path} for this request.`
+                : (toolsEnabled ? toolSummary : "Private workspace, calendar, and task tools are disabled for this request.");
             help.classList.toggle("has-file", Boolean(path));
+            help.setAttribute("aria-label", helpText);
             help.innerHTML = path
                 ? `<i class="fa-solid fa-check" aria-hidden="true"></i><span class="context-scope-note-text">Reading <strong>${escapeHtml(path)}</strong> for this request.</span>`
-                : `<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span class="context-scope-note-text">${escapeHtml(toolsEnabled ? toolSummary : "Private workspace, calendar, and task tools are disabled for this request.")}</span>`;
+                : `<i class="fa-solid fa-circle-info" aria-hidden="true"></i><span class="context-scope-note-text">${escapeHtml(helpText)}</span>`;
         }
         document.querySelectorAll(".quick-prompt.requires-file").forEach((button) => {
             button.classList.toggle("needs-context", !path);
@@ -475,6 +552,10 @@
                 // Continue by clearing only the in-memory conversation.
             }
             state.messages = [];
+            state.retryMessageId = "";
+            for (const url of imageUrlsToRevoke) if (url !== state.imageUrl) URL.revokeObjectURL(url);
+            const activeUrls = imageUrlsToRevoke.filter(url => url === state.imageUrl);
+            imageUrlsToRevoke.splice(0, imageUrlsToRevoke.length, ...activeUrls);
             loadHistory();
             renderMessages();
             scrollToBottom();
@@ -482,6 +563,11 @@
         $("chatSearchInput")?.addEventListener("input", renderMessages);
 
         $("fileContextPath")?.addEventListener("change", updateContextUI);
+        $("fileContextSearch")?.addEventListener("input", () => {
+            clearTimeout(contextSearchTimer);
+            if (contextSearchController) contextSearchController.abort();
+            contextSearchTimer = setTimeout(searchContextFiles, 240);
+        });
         $("includeTreeContext")?.addEventListener("change", updateContextUI);
 
         document.querySelectorAll(".quick-prompt").forEach((button) => {
@@ -490,12 +576,15 @@
                 if (button.classList.contains("requires-file") && !path) {
                     const options = document.querySelector('.chat-options');
                     if (options) options.open = true;
-                    $("fileContextPath")?.focus();
+                    $("fileContextSearch")?.focus();
                     $("fileContextHelp")?.classList.add("context-attention");
                     setTimeout(() => $("fileContextHelp")?.classList.remove("context-attention"), 1600);
                     return;
                 }
                 setComposerText((button.dataset.prompt || button.textContent.trim()).replaceAll("{file}", path));
+                if (button.classList.contains("requires-image") && !state.imageFile) {
+                    imageInput?.click();
+                }
             });
         });
 
@@ -549,7 +638,15 @@
                 input.value = "";
                 autoResizeInput();
             }
-            await sendPrompt(text, { imageFile });
+            const retry = messageById(state.retryMessageId);
+            state.retryMessageId = "";
+            if (retry && text === retry.text.trim() && imageFile) {
+                retry.imageUrl = state.imageUrl;
+                retry.imageName = imageFile.name;
+                await sendPrompt(text, {imageFile, skipUserBubble: true, requestId: retry.id});
+            } else {
+                await sendPrompt(text, { imageFile });
+            }
         });
     });
 })();

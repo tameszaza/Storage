@@ -179,10 +179,25 @@
     height: 28px;
     margin: -2px 0 0;
     border-radius: 8px;
+    border: 0;
+    padding: 0;
     color: var(--ts-primary);
     background: var(--ts-primary-soft);
     cursor: help;
 }
+
+.chat-tool-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+
+.chat-tool-row .chat-check-row { margin: 0; }
+
+#fileContextSearch { margin: 0 0 8px; }
+.chat-options-panel #fileContextPath { margin-bottom: 4px; }
+.file-context-search-status { margin: 0 0 14px; color: var(--ts-muted); font-size: .72rem; }
 
 .context-scope-note i { margin: 0; }
 
@@ -207,6 +222,7 @@
 }
 
 .context-scope-note:hover .context-scope-note-text,
+.context-scope-note:focus .context-scope-note-text,
 .context-scope-note:focus-visible .context-scope-note-text {
     opacity: 1;
     transform: translateY(0);
@@ -909,5 +925,6 @@
 }
 
 .context-scope-note-text {
-    width: min(360px, 78vw);
+    left: -110px;
+    width: min(280px, calc(100vw - 64px));
 }

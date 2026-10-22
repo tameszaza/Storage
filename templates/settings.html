@@ -27,8 +27,8 @@
             <p class="muted mt-2 mb-0">{{ used_label }} used{% if quota_label != 'Unlimited' %} of {{ quota_label }}{% else %} · No account quota{% endif %}</p>
             <div class="storage-summary-grid">
                 <div class="storage-summary-item"><strong>{{ used_label }}</strong><span>Space used</span></div>
-                <div class="storage-summary-item"><strong>{{ file_count }}</strong><span>Files</span></div>
-                <div class="storage-summary-item"><strong>{{ folder_count }}</strong><span>Folders</span></div>
+                <div class="storage-summary-item"><strong>{{ "{:,}".format(file_count) }}</strong><span>Files</span></div>
+                <div class="storage-summary-item"><strong>{{ "{:,}".format(folder_count) }}</strong><span>Folders</span></div>
             </div>
         </section>
 
@@ -54,3 +54,4 @@
     </div>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/settings-nav.js') }}?v=20260924b" defer></script>{% endblock %}

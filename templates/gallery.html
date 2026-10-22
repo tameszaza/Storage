@@ -8,16 +8,18 @@
         <p class="muted">A cleaner visual view for photos, screenshots, and image documents.</p>
     </div>
     <div class="gallery-hero-actions">
-        <span class="gallery-count"><i class="fa-solid fa-images"></i> {{ images|length }} image{% if images|length != 1 %}s{% endif %}</span>
+        <span class="gallery-count"><i class="fa-solid fa-images"></i> {{ image_total }} image{% if image_total != 1 %}s{% endif %}</span>
         <a class="btn btn-outline-primary" href="{{ url_for('index', path=path) if path else url_for('index') }}"><i class="fa-solid fa-folder-open"></i> Back to folder</a>
     </div>
 </section>
 
 <section class="gallery-toolbar glass-card">
-    <div class="gallery-search-wrap">
+    <form class="gallery-search-wrap" method="GET" action="{{ url_for('gallery_page') }}" role="search">
+        <input type="hidden" name="path" value="{{ path }}">
         <i class="fa-solid fa-magnifying-glass"></i>
-        <input id="gallerySearch" class="form-control" type="search" placeholder="Filter images in this gallery">
-    </div>
+        <input id="gallerySearch" class="form-control" type="search" name="q" value="{{ query }}" placeholder="Search images" aria-label="Search images">
+        <button class="btn btn-outline-secondary" type="submit">Search</button>
+    </form>
     <div class="gallery-tip muted"><i class="fa-solid fa-arrow-pointer"></i> Click an image to preview it.</div>
 </section>
 
@@ -39,25 +41,16 @@
     {% else %}
         <div class="empty-state glass-card gallery-empty">
             <i class="fa-solid fa-images"></i>
-            <h2>No images here</h2>
-            <p class="muted">Upload JPG, PNG, WebP, GIF, BMP, or SVG files and they will appear here.</p>
+            <h2>{{ 'No matching images' if query else 'No images here' }}</h2>
+            <p class="muted">{{ 'Try a shorter search.' if query else 'Upload JPG, PNG, WebP, GIF, BMP, or SVG files and they will appear here.' }}</p>
             <a class="btn btn-primary" href="{{ url_for('index', path=path) if path else url_for('index') }}">Back to files</a>
         </div>
     {% endfor %}
 </section>
-{% endblock %}
 
-{% block scripts %}
-<script>
-(function () {
-    const input = document.getElementById("gallerySearch");
-    const cards = Array.from(document.querySelectorAll(".polished-gallery-card"));
-    input?.addEventListener("input", () => {
-        const query = input.value.trim().toLowerCase();
-        cards.forEach((card) => {
-            card.hidden = query && !(card.dataset.name || "").includes(query);
-        });
-    });
-})();
-</script>
+{% if page_count > 1 %}<nav class="gallery-pagination" aria-label="Gallery pages">
+    {% if page > 1 %}<a class="btn btn-outline-secondary" href="{{ url_for('gallery_page', path=path, q=query, page=page - 1) }}">Previous</a>{% endif %}
+    <span>{{ result_start }}–{{ result_end }} of {{ image_total }}</span>
+    {% if page < page_count %}<a class="btn btn-outline-secondary" href="{{ url_for('gallery_page', path=path, q=query, page=page + 1) }}">Next</a>{% endif %}
+</nav>{% endif %}
 {% endblock %}

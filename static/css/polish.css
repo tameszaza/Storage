@@ -31,8 +31,14 @@ body[data-theme="dark"] .pdf-thumb-link { background: linear-gradient(180deg, #0
 .pdf-viewer { display: grid; gap: 14px; }
 .pdf-toolbar { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 10px; border: 1px solid var(--border); border-radius: 18px; background: var(--input-bg); }
 .pdf-page-indicator { min-width: 90px; text-align: center; color: var(--text); font-weight: 900; }
-.pdf-canvas-stage { min-height: 640px; max-height: 82vh; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: clamp(12px, 3vw, 28px); border: 1px solid var(--border); border-radius: 22px; background: color-mix(in srgb, var(--card-solid), black 4%); }
-.pdf-canvas { max-width: 100%; height: auto; background: white; box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22); }
+.pdf-zoom-level { min-width: 52px; text-align: center; color: var(--muted); font-size: .82rem; font-variant-numeric: tabular-nums; }
+.pdf-canvas-stage { min-height: 640px; max-height: 82vh; overflow: auto; display: block; padding: clamp(12px, 3vw, 28px); border: 1px solid var(--border); border-radius: 22px; background: color-mix(in srgb, var(--card-solid), black 4%); }
+.pdf-canvas-stage.can-pan { cursor: grab; }
+.pdf-canvas-stage.is-panning { cursor: grabbing; user-select: none; }
+.preview-page.pdf-expanded { max-width: none; }
+.preview-page.pdf-expanded .preview-content-grid { grid-template-columns: minmax(0, 1fr); }
+.preview-page.pdf-expanded .file-details-panel { display: none; }
+.pdf-canvas { display: block; max-width: none; height: auto; margin-inline: auto; background: white; box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22); }
 .pdf-fallback { text-align: center; padding: 48px; color: var(--text); }
 .pdf-fallback i { color: var(--danger); font-size: 3rem; margin-bottom: 14px; }
 .request-submit-page { display: grid; gap: 22px; }
@@ -258,6 +264,8 @@ body[data-theme="dark"] .select-item:checked { background: linear-gradient(135de
     position: relative;
     flex: 1 1 420px;
     max-width: 680px;
+    display: flex;
+    gap: 8px;
 }
 .gallery-search-wrap i {
     position: absolute;
@@ -268,6 +276,8 @@ body[data-theme="dark"] .select-item:checked { background: linear-gradient(135de
 }
 .gallery-search-wrap .form-control {
     padding-left: 42px;
+    flex: 1;
+    min-width: 0;
 }
 .polished-gallery-grid {
     display: grid;
@@ -624,6 +634,7 @@ body[data-theme="dark"] .select-item:checked { background: linear-gradient(135de
     .gallery-tip {
         justify-content: flex-start;
     }
+    .gallery-search-wrap { flex: 0 0 auto; width: 100%; max-width: none; }
     .polished-gallery-grid {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 12px;

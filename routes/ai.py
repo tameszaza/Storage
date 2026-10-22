@@ -1,13 +1,15 @@
 import os
 import re
+import secrets
 import shutil
 from datetime import datetime
 from pathlib import Path
 
-from flask import current_app, g, jsonify, render_template, request, session, url_for
+from flask import abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
 from lib.activity import log_activity
-from lib.assistant_agenda import direct_temporal_answer
+from lib.assistant_calendar_drafts import confirm_draft, draft_image_path, load_draft
+from lib.assistant_agenda import direct_temporal_answer, calendar_clock
 from lib.ai_client import (
     ask_image,
     ask_text,
@@ -17,9 +19,9 @@ from lib.ai_client import (
     direct_command_catalog,
     initial_history,
     is_ai_readable_file,
-    tool_catalog,
 )
 from lib.metadata import move_metadata
+from lib.search_index import matching_file_paths
 from lib.security import login_required
 from lib.storage import (
     file_kind,
@@ -28,7 +30,6 @@ from lib.storage import (
     normalize_relative_path,
     safe_path_part,
     safe_upload_path,
-    upload_root,
     visible_path_for_user,
 )
 from lib.versions import move_versions
@@ -39,60 +40,8 @@ def _current_user():
 
 
 def _assistant_workspace() -> dict:
-    username = _current_user()
-    relative_root = "" if username == "Admin" else normalize_relative_path(username)
-    absolute_root = upload_root() if username == "Admin" else safe_upload_path(relative_root)
-    context_files = []
-    recent_files = []
-    file_count = 0
-    folder_count = 0
-    total_bytes = 0
-
-    if os.path.isdir(absolute_root):
-        for root, directories, filenames in os.walk(absolute_root):
-            directories[:] = sorted(
-                directory
-                for directory in directories
-                if directory != ".tamestorage_system"
-            )
-            folder_count += len(directories)
-            relative_directory = normalize_relative_path(os.path.relpath(root, absolute_root))
-            relative_directory = "" if relative_directory == "." else relative_directory
-            for filename in sorted(filenames):
-                relative_path = normalize_relative_path(
-                    os.path.join(relative_root, relative_directory, filename)
-                )
-                absolute_path = os.path.join(root, filename)
-                try:
-                    stat_result = os.stat(absolute_path)
-                except OSError:
-                    continue
-                file_count += 1
-                total_bytes += stat_result.st_size
-                item = {
-                    "name": filename,
-                    "path": relative_path,
-                    "kind": file_kind(filename, False),
-                    "size_label": format_bytes(stat_result.st_size),
-                    "modified_timestamp": stat_result.st_mtime,
-                }
-                recent_files.append(item)
-                if is_ai_readable_file(relative_path) and len(context_files) < 500:
-                    context_files.append(item)
-
-    context_files.sort(key=lambda item: item["path"].casefold())
-    recent_files.sort(key=lambda item: item["modified_timestamp"], reverse=True)
-    tools = tool_catalog(username)
-    return {
-        "file_count": file_count,
-        "folder_count": folder_count,
-        "total_size_label": format_bytes(total_bytes),
-        "context_files": context_files,
-        "recent_files": recent_files[:4],
-        "tools": tools,
-        "tool_summary": "Available tools: " + ", ".join(item["name"] for item in tools) + ".",
-        "commands": direct_command_catalog(),
-    }
+    """Keep the chat page fast; file options are searched on demand."""
+    return {"commands": direct_command_catalog()}
 
 
 @login_required
@@ -105,11 +54,28 @@ def chat_page():
         or not os.path.isfile(safe_upload_path(selected_context_path))
     ):
         selected_context_path = ""
+    if not session.get("assistant_csrf"):
+        session["assistant_csrf"] = secrets.token_urlsafe(32)
     return render_template(
         "chat.html",
         assistant_workspace=_assistant_workspace(),
+        assistant_csrf=session["assistant_csrf"],
         selected_context_path=selected_context_path,
     )
+
+
+@login_required
+def chat_context_files():
+    """Find readable files anywhere in this account's workspace for the picker."""
+    query = request.args.get("q", "").strip()[:100]
+    if len(query) < 2:
+        return jsonify({"items": []})
+    base_path = "" if _current_user() == "Admin" else normalize_relative_path(_current_user())
+    def allowed(path: str) -> bool:
+        return is_ai_readable_file(path) and _can_access(path) and not os.path.islink(safe_upload_path(path))
+
+    matches = matching_file_paths(base_path, query, allowed=allowed)
+    return jsonify({"items": matches})
 
 
 def _split_command_arguments(text: str) -> tuple[str, str]:
@@ -352,6 +318,10 @@ def chat():
     image = request.files.get("image")
     prompt = request.form.get("prompt", "Describe this image.").strip() or "Describe this image."
 
+    if (msg and not (image and image.filename) and calendar_write_requested(msg)
+            and re.search(r"\b(?:image|photo|picture|screenshot)\b", msg, re.IGNORECASE)):
+        return jsonify({"response": "Attach the schedule image first. No calendar dates were added."})
+
     include_context = request.form.get("include_context", "1") == "1"
 
     if msg and not image:
@@ -370,11 +340,25 @@ def chat():
         response_style=response_style,
     )
 
+    image_bytes = None
+    if image and image.filename:
+        from routes.obsidian_images import LIMIT
+        image_bytes = image.read(LIMIT + 1)
+        if len(image_bytes) > LIMIT:
+            return jsonify({"response": "Please use an image under 20 MB."}), 413
+    csrf = session.get("assistant_csrf", "")
+    supplied_csrf = request.form.get("csrf", "")
+    if include_context and session.get("username") == "Admin" and csrf and supplied_csrf.isascii() and secrets.compare_digest(csrf, supplied_csrf):
+        request_id = request.form.get("request_id", "")
+        if not re.fullmatch(r"[A-Za-z0-9.-]{1,128}", request_id):
+            request_id = secrets.token_hex(16)
+        g.diary_context = dict(request_id=request_id, clock=calendar_clock(), image_bytes=image_bytes)
+
     try:
         if image and image.filename:
             response_text, history = ask_image(
                 history,
-                image.read(),
+                image_bytes,
                 prompt,
                 msg,
                 extra_context=extra_context,
@@ -400,9 +384,82 @@ def chat():
         return jsonify({"response": "The assistant could not finish its reply. See completed actions below." if actions else "The assistant service is temporarily unavailable. Please try again.", "actions": actions}), 200 if actions else 503
 
     session["conversation_history"] = compact_session_history(history)
-    return jsonify({"response": response_text, "actions": getattr(g, "assistant_actions", [])})
+    return jsonify({
+        "response": response_text,
+        "actions": getattr(g, "assistant_actions", []),
+        "action_url": getattr(g, "assistant_review_url", ""),
+        "action_label": getattr(g, "assistant_review_label", ""),
+    })
+
+
+@login_required
+def calendar_import_review(token):
+    username = _current_user()
+    draft = load_draft(username, token)
+    if draft is None:
+        abort(404)
+    csrf = session.get("calendar_import_csrf")
+    if not csrf:
+        csrf = secrets.token_urlsafe(32)
+        session["calendar_import_csrf"] = csrf
+    error = ""
+    rows = draft.get("candidates", [])
+    selected = None
+    if request.method == "POST" and not draft.get("confirmed"):
+        origin = request.headers.get("Origin")
+        if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+            abort(403)
+        if not secrets.compare_digest(request.form.get("csrf", ""), csrf):
+            abort(403)
+        selected = set(request.form.getlist("selected"))
+        submitted = []
+        revised = []
+        for index, original in enumerate(rows):
+            item = {
+                "title": request.form.get(f"title_{index}", original.get("title", "")).strip(),
+                "date": request.form.get(f"date_{index}", original.get("date", "")).strip(),
+                "all_day": request.form.get(f"timing_{index}", "all_day") == "all_day",
+                "start_time": request.form.get(f"start_{index}", "").strip(),
+                "end_time": request.form.get(f"end_{index}", "").strip(),
+                "date_evidence": original.get("date_evidence", ""),
+                "time_evidence": original.get("time_evidence", ""),
+                "verified": original.get("verified", True),
+                "review_reason": original.get("review_reason", ""),
+                "conflict_group": original.get("conflict_group", ""),
+            }
+            revised.append(item)
+            if str(index) in selected:
+                submitted.append(item)
+        rows = revised
+        if not submitted:
+            error = "Select at least one date to add."
+        else:
+            try:
+                result = confirm_draft(username, token, submitted)
+                if result is None:
+                    abort(404)
+                return redirect(url_for("calendar_import_review", token=token), code=303)
+            except ValueError as exc:
+                error = str(exc)
+    return render_template(
+        "calendar_import_review.html", token=token, draft=draft, rows=rows,
+        csrf=csrf, error=error, selected=selected,
+    )
+
+
+@login_required
+def calendar_import_image(token):
+    image = draft_image_path(_current_user(), token)
+    if image is None:
+        abort(404)
+    response = send_file(image, mimetype="image/jpeg", conditional=True)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 def register_routes(app):
     app.add_url_rule("/chat", "chat_page", chat_page, methods=["GET"])
     app.add_url_rule("/chat", "chat", chat, methods=["POST"])
+    app.add_url_rule("/chat/files", "chat_context_files", chat_context_files, methods=["GET"])
+    app.add_url_rule("/chat/calendar-import/<token>", "calendar_import_review", calendar_import_review, methods=["GET", "POST"])
+    app.add_url_rule("/chat/calendar-import/<token>/image", "calendar_import_image", calendar_import_image, methods=["GET"])

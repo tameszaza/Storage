@@ -63,7 +63,9 @@
         <div class="disk-offline-message"><i class="fa-solid fa-triangle-exclamation"></i><p>{{ disk.status_message }}</p></div>
         {% endif %}
 
-        <details class="disk-technical"><summary>Mount &amp; device details</summary><dl class="disk-details">
+        <details class="disk-analysis" data-url="{{ url_for('disk_analysis', disk=disk.key) }}"><summary>Show more <span>Storage analysis &amp; drive details</span></summary>
+        {% if disk.available %}<div class="disk-analysis-content"><div class="disk-analysis-toolbar"><strong>Space by folder</strong><button type="button" class="btn btn-outline-secondary btn-sm" data-rescan><i class="fa-solid fa-rotate" aria-hidden="true"></i> Refresh</button></div><nav class="disk-analysis-path" aria-label="Folder path"></nav><p class="disk-analysis-status muted" role="status">Open to analyse this disk.</p><div class="disk-analysis-layout"><div class="disk-analysis-ring"></div><div class="disk-analysis-list"></div></div></div>{% endif %}
+        <dl class="disk-details">
             <div><dt>Server mount</dt><dd>{{ disk.display_path }}</dd></div>
             <div><dt>Device</dt><dd>{{ disk.device }}</dd></div>
             <div><dt>Filesystem</dt><dd>{{ disk.filesystem }}</dd></div>
@@ -83,3 +85,4 @@
 <script>window.setTimeout(function () { window.location.reload(); }, 30000);</script>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/disk_analysis.js') }}?v={{ admin_asset_version }}" defer></script>{% endblock %}

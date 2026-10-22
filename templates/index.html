@@ -2,7 +2,7 @@
 {% from "_folder_picker.html" import folder_picker %}
 {% block title %}Files · Tamestorage{% endblock %}
 {% block link %}
-<link href="{{ url_for('static', filename='css/files-page.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/files-page.css') }}?v=20260924f" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/folder-picker.css') }}" rel="stylesheet">
 {% endblock %}
 {% block content %}
@@ -30,6 +30,8 @@
     </div>
     {% endif %}
 </section>
+
+{% include "_goodnotes_warning.html" %}
 
 <section id="dropArea" class="upload-panel glass-card" aria-labelledby="uploadHeading">
     <form id="uploadForm"
@@ -107,7 +109,7 @@
 {% endif %}
 
 <section id="fileBrowser"
-         class="file-browser browser-grid{% if not files %} is-empty-browser{% endif %}"
+         class="file-browser browser-list{% if not files %} is-empty-browser{% endif %}"
          data-current-path="{{ path }}"
          data-move-url="{{ url_for('move_copy_item') }}"
          data-download-selected-url="{{ url_for('download_selected') }}"
@@ -526,5 +528,5 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/pdf_preview.js') }}"></script>
 <script src="{{ url_for('static', filename='js/folder-picker.js') }}"></script>
-<script src="{{ url_for('static', filename='js/storage.js') }}"></script>
+<script src="{{ url_for('static', filename='js/storage.js') }}?v=20260924a"></script>
 {% endblock %}

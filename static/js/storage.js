@@ -1143,7 +1143,7 @@
             }
         }
 
-        setView(readLocalPreference("storageView", "grid"));
+        setView(readLocalPreference("storageView", "list"));
         const viewToggle = document.getElementById("viewToggleBtn");
         if (viewToggle) {
             viewToggle.addEventListener("click", () => {

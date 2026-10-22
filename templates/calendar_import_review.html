@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Review calendar dates · Tamestorage{% endblock %}
+{% block page_style %}<link href="{{ url_for('static', filename='css/calendar-import.css') }}?v=20260924f" rel="stylesheet">{% endblock %}
+{% block content %}
+<main class="calendar-review-page">
+    <header class="calendar-review-header">
+        <div>
+            <a class="calendar-review-back" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Assistant</a>
+            <h1>Review calendar dates</h1>
+            <p>Compare each date with your photo. Nothing is added until you confirm.</p>
+        </div>
+        {% if not draft.confirmed %}<span class="calendar-review-count">{{ rows|length }} proposed</span>{% endif %}
+    </header>
+
+    {% if draft.confirmed %}
+        {% set result = draft.result or {} %}
+        <section class="calendar-review-result" aria-live="polite">
+            <h2>Review complete</h2>
+            <p>{{ result.get('created', [])|length }} added · {{ result.get('existing', [])|length }} already on calendar{% if result.get('review') %} · {{ result.review|length }} need checking{% endif %}</p>
+            {% if result.get('review') %}<ul>{% for note in result.review %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
+            <a class="btn btn-primary" href="{{ url_for('planner_page') }}">Open calendar</a>
+        </section>
+    {% else %}
+        {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+        <div class="calendar-review-layout">
+            <section class="calendar-review-source" aria-label="Source image">
+                <div class="calendar-review-section-head"><h2>Source photo</h2><a href="{{ url_for('calendar_import_image', token=token) }}" target="_blank" rel="noopener">Open full size <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i></a></div>
+                <img src="{{ url_for('calendar_import_image', token=token) }}" alt="The schedule photo sent to the assistant">
+            </section>
+            <form class="calendar-review-form" method="post" action="{{ url_for('calendar_import_review', token=token) }}">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <div class="calendar-review-section-head"><h2>Proposed dates</h2><span>Links expire after 24 hours</span></div>
+                {% for item in rows %}
+                    <fieldset class="calendar-review-row"{% if item.get('conflict_group') %} data-conflict-group="{{ item.conflict_group }}"{% endif %}>
+                        <legend>Event {{ loop.index }}{% if item.get('conflict_group') %} <span class="calendar-review-flag">Choose one date</span>{% elif not item.get('verified', True) %} <span class="calendar-review-flag">Needs checking</span>{% endif %}</legend>
+                        {% if item.get('review_reason') %}<p class="calendar-review-reason">{{ item.review_reason }}</p>{% endif %}
+                        <label class="calendar-review-select"><input type="checkbox" name="selected" value="{{ loop.index0 }}" {% if (selected is none and item.get('verified', True)) or (selected is not none and loop.index0|string in selected) %}checked{% endif %}><span>Add this event</span></label>
+                        <label>Title<input name="title_{{ loop.index0 }}" type="text" maxlength="160" value="{{ item.title }}" required></label>
+                        <div class="calendar-review-fields"><label>Date<input name="date_{{ loop.index0 }}" type="date" value="{{ item.date }}" required><small class="calendar-review-weekday" data-weekday></small></label><label>Time<select name="timing_{{ loop.index0 }}" data-timing><option value="all_day" {% if item.all_day %}selected{% endif %}>All day</option><option value="timed" {% if not item.all_day %}selected{% endif %}>Set time</option></select></label></div>
+                        <div class="calendar-review-fields calendar-review-times" {% if item.all_day %}hidden{% endif %}><label>Start<input name="start_{{ loop.index0 }}" type="time" value="{{ item.start_time }}"></label><label>End<input name="end_{{ loop.index0 }}" type="time" value="{{ item.end_time }}"></label></div>
+                        <p class="calendar-review-evidence">Seen in photo: {{ item.date_evidence }}{% if item.time_evidence %} · {{ item.time_evidence }}{% endif %}</p>
+                    </fieldset>
+                {% endfor %}
+                {% if draft.review %}<details class="calendar-review-uncertain"><summary>{{ draft.review|length }} uncertain {% if draft.review|length == 1 %}entry{% else %}entries{% endif %} not selected</summary><ul>{% for note in draft.review %}<li>{{ note }}</li>{% endfor %}</ul></details>{% endif %}
+                <div class="calendar-review-actions"><a class="btn btn-outline-primary" href="{{ url_for('chat_page') }}">Cancel</a><button class="btn btn-primary" type="submit"><i class="fa-regular fa-calendar-plus" aria-hidden="true"></i> Add selected to calendar</button></div>
+            </form>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/calendar-import.js') }}?v=20260924b" defer></script>{% endblock %}

@@ -3298,9 +3298,3 @@ body[data-theme="dark"] .pdf-thumb-link {
         width: 100%;
     }
 }
-
-@media (min-width: 721px) {
-    .mobile-menu-button {
-        display: none !important;
-    }
-}

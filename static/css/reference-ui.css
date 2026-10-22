@@ -533,8 +533,6 @@ body[data-theme="dark"] .file-icon.folder { background: rgba(202, 138, 4, 0.16);
 .audio-stage { min-height: 260px; background: var(--ts-surface-soft); }
 .full-preview-audio { width: min(620px, 92%); }
 .pdf-toolbar { display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap; padding: 9px; margin-bottom: 10px; border: 1px solid var(--ts-border); border-radius: 9px; background: var(--ts-surface-soft); }
-.pdf-canvas-stage { min-height: 65vh; display: grid; place-items: start center; overflow: auto; padding: 18px; border-radius: 9px; background: #475569; }
-.pdf-canvas { max-width: 100%; box-shadow: 0 10px 28px rgba(0,0,0,.25); }
 .code-preview { max-height: 72vh; overflow: auto; margin: 0; padding: 18px; border-radius: 9px; color: #dbeafe; background: #0f172a; font-size: 0.82rem; }
 
 /* Tables, search, admin and utility pages */
@@ -879,7 +877,7 @@ body[data-theme="dark"] .float-file { border-color: var(--ts-border); background
     .app-topbar .topbar-icon[href*="notifications"] { display: none !important; }
     .app-topbar .topbar-actions { display: flex !important; }
     .app-topbar .global-search { min-width: 0; }
-    .workspace-header .stats-grid.mini { display: none; }
+    body:not([data-page="admin"]) .workspace-header .stats-grid.mini { display: none; }
     .file-browser.browser-grid .file-card[data-is-dir="1"] { min-height: 86px; }
 }
 

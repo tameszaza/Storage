@@ -10,6 +10,8 @@ self.addEventListener("activate", (event) => {
 });
 self.addEventListener("fetch", (event) => {
   const request = event.request;
+  // Downloads must fail normally offline, never receive the shell CSS fallback.
+  if (new URL(request.url).pathname === "/goodnotes/download-for-ipad") return;
   if (request.method !== "GET" || new URL(request.url).origin !== location.origin) return;
   event.respondWith(fetch(request).catch(() => caches.match(request).then((cached) => cached || caches.match("/static/css/styles.css"))));
 });

@@ -1,6 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Duplicates · Tamestorage{% endblock %}
+{% block title %}Duplicate files · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/duplicates.css') }}?v=20260924c" rel="stylesheet">{% endblock %}
 {% block content %}
-<section class="workspace-header glass-card compact-header"><div><p class="eyebrow">Cleanup</p><h1>Duplicate files</h1><p class="muted">Exact duplicate detection uses SHA-256 hashes.</p></div></section>
-{% for group in groups %}<section class="glass-card duplicate-group"><p class="eyebrow">{{ group.size_label }} duplicate group</p><code>{{ group.hash }}</code><div class="file-browser browser-list mt-3">{% for file in group.files %}<article class="file-card"><a class="file-main" href="{{ url_for('preview_file', target=file.path) }}"><span class="file-icon file"><i class="fa-solid fa-file"></i></span><span class="file-title"><strong>{{ file.path }}</strong><small>{{ group.size_label }}</small></span></a></article>{% endfor %}</div></section>{% else %}<section class="empty-state glass-card"><i class="fa-solid fa-clone"></i><h2>No exact duplicates found</h2></section>{% endfor %}
+<section class="duplicates-page" data-status-url="{{ url_for('duplicates_status') }}" data-scan-url="{{ url_for('duplicates_scan') }}">
+    <header class="duplicates-heading">
+        <div><h1>Duplicate files</h1><p>Find exact copies by content.</p></div>
+        <button id="duplicateScanButton" class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Scan again</button>
+    </header>
+    <div id="duplicateStatus" class="duplicate-status" role="status" aria-live="polite">Checking the last scan…</div>
+    <div id="duplicateSummary" class="duplicate-summary" hidden></div>
+    <div id="duplicateGroups" class="duplicate-groups"></div>
+    <nav id="duplicatePages" class="duplicate-pages" aria-label="Duplicate result pages" hidden></nav>
+    <noscript><p>Enable JavaScript to view scan results.</p></noscript>
+</section>
 {% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/duplicates.js') }}?v=20260924b" defer></script>{% endblock %}

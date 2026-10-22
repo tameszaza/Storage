@@ -1,0 +1,21 @@
+.duplicates-page{max-width:1100px}
+.duplicates-heading{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:30px}
+.duplicates-heading p{margin:8px 0 0;color:var(--ts-muted);font-size:14px}
+.duplicate-status{min-height:28px;color:var(--ts-muted);font-size:14px}
+.duplicate-status.is-error{color:var(--ts-danger,#c02f42)}
+.duplicate-summary{display:flex;gap:28px;flex-wrap:wrap;padding:14px 0 22px;border-bottom:1px solid var(--ts-border);font-size:14px;color:var(--ts-muted)}
+.duplicate-summary strong{color:var(--ts-text);font-size:18px;font-variant-numeric:tabular-nums}
+.duplicate-group{padding:22px 0;border-bottom:1px solid var(--ts-border)}
+.duplicate-group-heading{display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:start;gap:10px;margin:0;cursor:pointer;font-size:14px;list-style:none}
+.duplicate-group-heading::-webkit-details-marker{display:none}
+.duplicate-group-heading::before{content:"";width:8px;height:8px;margin:6px 0 0 1px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s ease}
+.duplicate-group[open] .duplicate-group-heading::before{transform:rotate(45deg)}
+.duplicate-group-heading strong{min-width:0;font-size:16px;margin:0;overflow-wrap:anywhere}
+.duplicate-group[open] .duplicate-group-heading{margin-bottom:10px}
+.duplicate-group-heading span{color:var(--ts-muted);font-size:13px}
+.duplicate-file{display:block;padding:9px 0 9px 22px;position:relative;font-size:14px;overflow-wrap:anywhere;text-decoration:none}
+.duplicate-file::before{content:"";position:absolute;left:3px;top:17px;width:7px;height:7px;border-radius:50%;background:var(--ts-border-strong)}
+.duplicate-file:hover{text-decoration:underline}
+.duplicate-pages{display:flex;align-items:center;justify-content:center;gap:14px;padding:28px 0}
+.duplicate-pages span{font-size:13px;color:var(--ts-muted)}
+@media(max-width:600px){.duplicates-heading{align-items:flex-start;gap:12px}.duplicates-heading .btn{white-space:nowrap}.duplicate-summary{gap:10px 20px}.duplicate-group-heading{grid-template-columns:12px minmax(0,1fr)}.duplicate-group-heading span{grid-column:2}}

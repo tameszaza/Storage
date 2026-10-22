@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+primary_uuid=4dcef454-5a20-484b-b00e-fe9a136f82b9
+primary_mount=/srv/tamestorage
+primary_device=/dev/disk/by-uuid/$primary_uuid
+recovery_needed=/run/tamestorage-primary-recovery-needed
+recovery_failed=/run/tamestorage-primary-recovery-failed
+containers=(
+  tamestorage
+  tamestorage-calendar-worker
+  tamestorage-playlist-worker
+  tamestorage-video-worker
+  tamestorage-calendar
+  tamestorage-webdav
+  livesync-couchdb
+)
+
+exec 9>/run/lock/tamestorage-primary-recover.lock
+flock -n 9 || exit 0
+
+if mountpoint -q "$primary_mount"; then
+  mounted_uuid=$(findmnt -n -o UUID --target "$primary_mount")
+  if [[ "$mounted_uuid" != "$primary_uuid" ]]; then
+    echo "Unexpected filesystem at $primary_mount: $mounted_uuid" >&2
+    exit 1
+  fi
+  if [[ ! -e "$recovery_needed" ]]; then
+    exit 0
+  fi
+else
+  touch "$recovery_needed"
+  echo "Primary disk is not mounted; stopping disk-backed services."
+  docker stop -t 15 "${containers[@]}" >/dev/null 2>&1 || true
+  for container in "${containers[@]}"; do
+    if [[ "$(docker inspect -f '{{.State.Running}}' "$container" 2>/dev/null || true)" == true ]]; then
+      echo "Cannot safely recover while $container is running." >&2
+      exit 1
+    fi
+  done
+  systemctl stop smbd.service
+
+  if [[ ! -b "$primary_device" ]]; then
+    echo "Primary disk is disconnected; waiting for its UUID."
+    exit 0
+  fi
+  if [[ -e "$recovery_failed" ]]; then
+    echo "Previous filesystem repair failed; manual inspection required." >&2
+    exit 1
+  fi
+
+  echo "Primary disk returned; checking filesystem."
+  if e2fsck -p "$primary_device"; then
+    :
+  else
+    check_status=$?
+    if [[ "$check_status" -ne 1 ]]; then
+      touch "$recovery_failed"
+      echo "e2fsck exited $check_status; automatic recovery stopped." >&2
+      exit 1
+    fi
+  fi
+
+  systemctl start srv-tamestorage.mount
+  if ! mountpoint -q "$primary_mount" ||
+     [[ "$(findmnt -n -o UUID --target "$primary_mount")" != "$primary_uuid" ]]; then
+    echo "Primary disk did not mount at the expected location." >&2
+    exit 1
+  fi
+fi
+
+if [[ ! -d "$primary_mount/uploads" || ! -d "$primary_mount/.tamestorage_state" ]]; then
+  echo "Primary disk is mounted but expected data directories are missing." >&2
+  exit 1
+fi
+
+systemctl start smbd.service
+# Preserve explicit stops selected in Admin center across NAS reconnection.
+desired_text=$(python3 - "${containers[@]}" <<'PY2'
+import json,sys
+from pathlib import Path
+p=Path('/var/lib/tamestorage-control/stopped.json')
+try: stopped=set(json.loads(p.read_text())) if p.exists() else set()
+except (OSError,ValueError):
+    print('Container stop preferences unreadable; automatic starts skipped.',file=sys.stderr)
+    sys.exit(1)
+for name in sys.argv[1:]:
+    if name not in stopped:print(name)
+PY2
+)
+desired=()
+if [[ -n "$desired_text" ]]; then mapfile -t desired <<<"$desired_text"; fi
+if ((${#desired[@]})); then docker start "${desired[@]}" >/dev/null; fi
+rm -f "$recovery_needed" "$recovery_failed"
+echo "Primary disk and disk-backed services recovered."

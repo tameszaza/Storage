@@ -8,15 +8,18 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from lib.activity import list_activity, log_activity
+from lib.duplicate_scan import scan_status, start_scan
 from lib.backup import create_backup_zip
 from lib.file_requests import create_request, get_request, is_expired, list_requests, update_request
 from lib.extensions import bcrypt
 from lib.metadata import all_metadata, get_metadata, move_metadata, set_metadata
 from lib.notifications import list_notifications, mark_read, notify, unread_count
-from lib.search_index import duplicate_groups, search_files
+from lib.public_upload import UploadLimitExceeded, save_public_upload
+from lib.search_index import recent_files, search_files, workspace_stats
 from lib.security import admin_required, login_required
 from lib.storage import (
     AUDIO_EXTENSIONS,
@@ -25,7 +28,6 @@ from lib.storage import (
     VIDEO_EXTENSIONS,
     file_kind,
     format_bytes,
-    get_folder_size,
     get_path_details,
     is_allowed_for_user,
     normalize_relative_path,
@@ -215,17 +217,22 @@ def advanced_search():
     has_search = any(
         [query, kind, tag, content, starred, modified_days is not None, size_preset]
     )
-    results = search_files(
-        base,
-        query=query,
-        kind=kind,
-        tag=tag,
-        content=content,
-        starred=starred,
-        min_size=min_size,
-        max_size=max_size,
-        modified_days=modified_days,
-    )
+    if has_search:
+        results = search_files(
+            base,
+            query=query,
+            kind=kind,
+            tag=tag,
+            content=content,
+            starred=starred,
+            min_size=min_size,
+            max_size=max_size,
+            modified_days=modified_days,
+        )
+    else:
+        # The landing page displays only recent items; avoid preparing and
+        # sorting hundreds of unrelated search results on every visit.
+        results = recent_files(base, limit=12)
 
     normalized_query = query.casefold()
     if sort_mode == "newest" or not has_search:
@@ -251,9 +258,6 @@ def advanced_search():
         results.sort(key=lambda item: (-item.get("mtime", 0), item["name"].casefold()))
 
     show_recent = not has_search
-    if show_recent:
-        results = results[:12]
-
     tags = sorted({value for meta in all_metadata().values() for value in meta.get("tags", [])})
     return render_template(
         "advanced_search.html",
@@ -277,8 +281,25 @@ def starred_files():
 @login_required
 def duplicates_page():
     username = session.get("username")
-    base = "" if username == "Admin" else username
-    return render_template("duplicates.html", groups=duplicate_groups(base))
+    start_scan(username)
+    return render_template("duplicates.html")
+
+
+@login_required
+def duplicates_status():
+    try:
+        page = int(request.args.get("page", "1"))
+    except ValueError:
+        page = 1
+    return jsonify(scan_status(session.get("username"), page=page))
+
+
+@login_required
+def duplicates_scan():
+    origin = request.headers.get("Origin")
+    if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+        return jsonify({"error": "Please start scans from this site."}), 403
+    return jsonify(start_scan(session.get("username"), force=True))
 
 
 @login_required
@@ -378,8 +399,22 @@ def move_copy_item():
 @login_required
 def gallery_page():
     path = visible_path_for_user(request.args.get("path", ""), session.get("username"))
-    results = [item for item in search_files(path, kind="image")]
-    return render_template("gallery.html", path=path, images=results)
+    results = search_files(path, kind="image", limit=None)
+    query = request.args.get("q", "").strip()[:100]
+    if query:
+        results = [item for item in results if query.casefold() in item["name"].casefold()]
+    page_size = 100
+    page_count = max(1, (len(results) + page_size - 1) // page_size)
+    try:
+        page = max(1, min(int(request.args.get("page", "1")), page_count))
+    except ValueError:
+        page = 1
+    start = (page - 1) * page_size
+    return render_template(
+        "gallery.html", path=path, query=query, images=results[start:start + page_size],
+        image_total=len(results), page=page, page_count=page_count,
+        result_start=start + 1 if results else 0, result_end=min(start + page_size, len(results)),
+    )
 
 
 @admin_required
@@ -402,7 +437,65 @@ def download_backup():
 
 @admin_required
 def activity_page():
-    return render_template("activity.html", entries=list_activity())
+    try:
+        page = max(1, min(40, int(request.args.get("page", "1"))))
+    except ValueError:
+        page = 1
+    show_all = request.args.get("view") == "all"
+    page_size = 50
+    entries = list_activity(
+        limit=page_size + 1, offset=(page - 1) * page_size,
+        include_calendar_syncs=show_all,
+    )
+    has_next = len(entries) > page_size
+    timezone_name = str(current_app.config.get("APP_TIMEZONE") or "Asia/Singapore")
+    try:
+        local_zone = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        local_zone = ZoneInfo("UTC")
+    visible = []
+    for entry in entries[:page_size]:
+        item = dict(entry)
+        try:
+            item["display_time"] = datetime.fromisoformat(str(item.get("time") or "").replace("Z", "+00:00")).astimezone(local_zone).strftime("%d %b %Y, %H:%M")
+        except ValueError:
+            item["display_time"] = str(item.get("time") or "")
+        action = str(item.get("action") or "Activity")
+        details = item.get("details") if isinstance(item.get("details"), dict) else {}
+        item["display_action"] = {
+            "planner.calendar.sync": "Calendar synced",
+            "planner.todo.create": "Task created",
+            "planner.todo.delete": "Task deleted",
+            "planner.event.create": "Event created",
+            "planner.event.update": "Event updated",
+            "planner.event.delete": "Event deleted",
+            "ai.calendar.create": "Event added by assistant",
+            "ai.calendar.update": "Event updated by assistant",
+            "ai.calendar.delete": "Event deleted by assistant",
+            "ai.playlist.sync": "Playlist sync requested",
+            "file.upload": "File uploaded",
+            "file.download": "File downloaded",
+            "file.create_text": "Text file created",
+            "file.trash": "Moved to trash",
+            "trash.restore": "Restored from trash",
+            "trash.delete_forever": "Permanently deleted",
+            "trash.empty": "Trash emptied",
+            "backup.create": "Backup exported",
+            "account.password_change": "Password changed",
+        }.get(action, action.replace("_", " ").replace(".", " · "))
+        if action == "planner.todo.toggle":
+            item["display_action"] = "Task completed" if details.get("completed") else "Task reopened"
+        item["display_target"] = str(item.get("target") or "")
+        if action in {"planner.todo.delete", "planner.todo.toggle", "planner.event.delete",
+                      "trash.restore", "trash.delete_forever"}:
+            item["display_target"] = ""
+        elif action == "planner.event.update":
+            item["display_target"] = str(details.get("title") or "")
+        visible.append(item)
+    return render_template(
+        "activity.html", entries=visible, page=page, has_next=has_next,
+        show_all=show_all,
+    )
 
 
 @login_required
@@ -411,7 +504,11 @@ def notifications_page():
     if request.method == "POST":
         mark_read(username)
         return redirect(url_for("notifications_page"))
-    return render_template("notifications.html", items=list_notifications(username))
+    items = list_notifications(username)
+    return render_template(
+        "notifications.html", items=items,
+        has_unread=any(not item.get("read") for item in items),
+    )
 
 
 def _file_request_destination_options(username: str) -> list[dict]:
@@ -471,26 +568,41 @@ def folder_destinations_api():
     )
 
 
+def _file_request_destination(username: str, path: str) -> tuple[str, str] | None:
+    """Validate one chosen folder without scanning the entire storage tree."""
+    base = "" if username == "Admin" else normalize_relative_path(username)
+    relative = normalize_relative_path(path)
+    if username != "Admin" and not is_allowed_for_user(relative, username):
+        return None
+    absolute = safe_upload_path(relative)
+    root = os.path.realpath(safe_upload_path(base))
+    resolved = os.path.realpath(absolute)
+    if os.path.commonpath((root, resolved)) != root or not os.path.isdir(absolute):
+        return None
+    label_path = relative[len(base) + 1:] if base and relative.startswith(base + "/") else ""
+    if username == "Admin":
+        label_path = relative
+    return relative, label_path.replace("/", " › ") or ("Storage root" if username == "Admin" else "My files")
+
+
 @login_required
 def file_requests_page():
     username = session.get("username")
-    destination_options = _file_request_destination_options(username)
-    allowed_destinations = {option["path"] for option in destination_options}
-    default_destination = username if username in allowed_destinations else destination_options[0]["path"]
-    selected_destination = default_destination
+    default_destination = "" if username == "Admin" else normalize_relative_path(username)
+    selected = _file_request_destination(username, default_destination)
+    default_label = selected[1] if selected else ("Storage root" if username == "Admin" else "My files")
     if request.method == "POST":
-        destination = visible_path_for_user(request.form.get("destination", default_destination), username)
-        if destination not in allowed_destinations:
+        selected = _file_request_destination(username, request.form.get("destination", default_destination))
+        if selected is None:
             flash("Choose an existing destination folder from the list.", "warning")
-            selected_option = next(option for option in destination_options if option["path"] == default_destination)
             return render_template(
                 "file_requests.html",
                 requests=list_requests(username),
-                destination_options=destination_options,
                 selected_destination=default_destination,
-                selected_destination_label=selected_option["label"],
+                selected_destination_label=default_label,
                 form_values=request.form,
             ), 400
+        destination = selected[0]
         item = create_request(request.form.get("title", ""), destination, request.form.get("password", ""), request.form.get("expires_at", ""), request.form.get("allowed_ext", ""), request.form.get("max_size_mb", ""))
         flash("Upload request created.", "success")
         log_activity("file_request.create", item["id"])
@@ -498,9 +610,8 @@ def file_requests_page():
     return render_template(
         "file_requests.html",
         requests=list_requests(username),
-        destination_options=destination_options,
-        selected_destination=selected_destination,
-        selected_destination_label=next(option["label"] for option in destination_options if option["path"] == selected_destination),
+        selected_destination=default_destination,
+        selected_destination_label=default_label,
         form_values={},
     )
 
@@ -557,34 +668,54 @@ def public_file_request(request_id):
             return render_template("file_request_upload.html", item=item, error="Wrong password."), 403
         files = request.files.getlist("file")
         uploaded_count = 0
+        skipped: list[str] = []
+        max_bytes = int(item["max_size_mb"]) * 1024 * 1024 if item.get("max_size_mb") else None
         for uploaded in files:
             if not uploaded or not uploaded.filename:
                 continue
             relative_name = safe_relative_upload_name(uploaded.filename)
             ext = os.path.splitext(relative_name)[1].lower().lstrip(".")
             if item.get("allowed_ext") and ext not in item["allowed_ext"]:
+                skipped.append(f"{relative_name}: file type not accepted")
                 continue
-            if item.get("max_size_mb") and uploaded.content_length and uploaded.content_length > item["max_size_mb"] * 1024 * 1024:
+            try:
+                save_public_upload(
+                    uploaded.stream, safe_upload_path(item["destination"]),
+                    relative_name, max_bytes=max_bytes,
+                )
+            except UploadLimitExceeded:
+                skipped.append(f"{relative_name}: exceeds the size limit")
                 continue
-            dest = safe_upload_path(item["destination"], relative_name)
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            uploaded.save(dest)
+            except (OSError, ValueError):
+                current_app.logger.exception("Public file request upload failed")
+                skipped.append(f"{relative_name}: could not be saved")
+                continue
             uploaded_count += 1
-        update_request(request_id, uploads=int(item.get("uploads", 0)) + uploaded_count)
-        notify(item.get("owner", "Admin"), "File request upload", f"{uploaded_count} file(s) uploaded to {item.get('destination')}")
-        log_activity("file_request.upload", request_id, details={"count": uploaded_count}, username="public")
-        return render_template("file_request_upload.html", item=item, success=f"Uploaded {uploaded_count} file(s).")
+        if uploaded_count:
+            update_request(request_id, uploads=int(item.get("uploads", 0)) + uploaded_count)
+            notify(item.get("owner", "Admin"), "File request upload", f"{uploaded_count} file(s) uploaded to {item.get('destination')}")
+            log_activity("file_request.upload", request_id, details={"count": uploaded_count, "skipped": len(skipped)}, username="public")
+        message = f"Uploaded {uploaded_count} {'file' if uploaded_count == 1 else 'files'}." if uploaded_count else "No files were uploaded."
+        skipped_message = ""
+        if skipped:
+            skipped_message = "; ".join(skipped[:5])
+            if len(skipped) > 5:
+                skipped_message += f"; and {len(skipped) - 5} more skipped"
+            skipped_message += "."
+        return render_template(
+            "file_request_upload.html", item=item,
+            success=message if uploaded_count else None,
+            warning=skipped_message if uploaded_count else None,
+            error=f"{message} {skipped_message}" if not uploaded_count else None,
+        ), 200 if uploaded_count else 400
     return render_template("file_request_upload.html", item=item)
 
 
 @admin_required
 def integrity_page():
-    username = session.get("username")
-    base = "" if username == "Admin" else username
-    results = search_files(base)
-    missing = []
-    total_size = sum(item["size"] for item in results if not item["is_dir"])
-    return render_template("integrity.html", total=len(results), total_size=format_bytes(total_size), missing=missing)
+    # The former page was only a capped inventory and could not verify file
+    # integrity. Keep old bookmarks working without claiming a false result.
+    return redirect(url_for("disk_dashboard"))
 
 
 
@@ -592,7 +723,7 @@ def integrity_page():
 def recent_page():
     username = session.get("username")
     base = "" if username == "Admin" else username
-    results = sorted(search_files(base), key=lambda item: item.get("mtime", 0), reverse=True)[:100]
+    results = recent_files(base, limit=100)
     return render_template("recent.html", results=results)
 
 
@@ -623,19 +754,16 @@ def settings_page():
             return redirect(url_for("settings_page"))
 
     base = "" if username == "Admin" else username
-    absolute = safe_upload_path(base)
-    used_bytes = get_folder_size(absolute) if os.path.isdir(absolute) else 0
+    stats = workspace_stats(base)
+    used_bytes = stats["bytes"]
     quota_bytes = int(user.get("quota_bytes") or current_app.config.get("DEFAULT_USER_QUOTA_BYTES", 0) or 0) if username != "Admin" else 0
-    results = search_files(base)
-    file_count = sum(1 for item in results if not item.get("is_dir"))
-    folder_count = sum(1 for item in results if item.get("is_dir"))
     return render_template(
         "settings.html",
         used_label=format_bytes(used_bytes),
         quota_label=format_bytes(quota_bytes) if quota_bytes else "Unlimited",
         storage_percent=min(100, round((used_bytes / quota_bytes) * 100, 1)) if quota_bytes else 0,
-        file_count=file_count,
-        folder_count=folder_count,
+        file_count=stats["files"],
+        folder_count=stats["folders"],
     )
 
 def register_routes(app):
@@ -655,6 +783,8 @@ def register_routes(app):
     app.add_url_rule("/search", "advanced_search", advanced_search)
     app.add_url_rule("/starred", "starred_files", starred_files)
     app.add_url_rule("/duplicates", "duplicates_page", duplicates_page)
+    app.add_url_rule("/duplicates/status", "duplicates_status", duplicates_status)
+    app.add_url_rule("/duplicates/scan", "duplicates_scan", duplicates_scan, methods=["POST"])
     app.add_url_rule("/move-copy", "move_copy_item", move_copy_item, methods=["POST"])
     app.add_url_rule("/gallery", "gallery_page", gallery_page)
     app.add_url_rule("/backup", "backup_page", backup_page)

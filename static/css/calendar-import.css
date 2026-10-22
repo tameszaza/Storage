@@ -1,0 +1,36 @@
+.calendar-review-page { max-width: 1440px; margin: 0 auto; padding: clamp(20px, 3vw, 42px); }
+.calendar-review-header, .calendar-review-section-head, .calendar-review-actions { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.calendar-review-header { margin-bottom: 26px; align-items: end; }
+.calendar-review-header h1 { margin: 7px 0 3px; font-size: clamp(1.7rem, 2.6vw, 2.4rem); letter-spacing: -.035em; }
+.calendar-review-header p { margin: 0; color: var(--muted); }
+.calendar-review-back { color: var(--primary); font-weight: 650; text-decoration: none; }
+.calendar-review-count { color: var(--muted); white-space: nowrap; }
+.calendar-review-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(360px, 480px); gap: clamp(22px, 3vw, 42px); align-items: start; }
+.calendar-review-source { position: sticky; top: 82px; }
+.calendar-review-section-head { margin-bottom: 14px; }
+.calendar-review-section-head h2 { margin: 0; font-size: 1.12rem; }
+.calendar-review-section-head span, .calendar-review-section-head a { color: var(--muted); font-size: .84rem; }
+.calendar-review-source img { display: block; width: 100%; height: auto; max-height: min(75vh, 1100px); object-fit: contain; object-position: top; border: 1px solid var(--border); border-radius: 14px; background: var(--card-solid); }
+.calendar-review-form { min-width: 0; }
+.calendar-review-row { position: relative; min-width: 0; border: 0; border-top: 1px solid var(--border); padding: 18px 0 20px; margin: 0; }
+.calendar-review-row legend { float: none; width: 100%; margin: 0 0 17px; color: var(--muted); font-size: .74rem; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+.calendar-review-flag { margin-left: 5px; padding: 3px 6px; border-radius: 5px; color: #9a3412; background: #ffedd5; font-size: .68rem; letter-spacing: 0; text-transform: none; }
+body[data-theme="dark"] .calendar-review-flag { color: #fdba74; background: #431407; }
+.calendar-review-reason { margin: -7px 0 14px; padding-right: 145px; color: var(--muted); font-size: .78rem; }
+.calendar-review-select { position: absolute; right: 0; top: 16px; display: flex !important; align-items: center; gap: 7px; margin: 0 !important; color: var(--primary); font-weight: 700; }
+.calendar-review-select input { width: 17px; height: 17px; accent-color: var(--primary); }
+.calendar-review-row > label:not(.calendar-review-select), .calendar-review-fields label { display: grid; gap: 6px; margin: 0 0 13px; font-size: .82rem; font-weight: 650; }
+.calendar-review-row input:not([type=checkbox]), .calendar-review-row select { width: 100%; min-width: 0; min-height: 42px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--card-solid); color: var(--text); font: inherit; }
+.calendar-review-weekday { color: var(--muted); font-size: .76rem; font-weight: 500; }
+.calendar-review-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.calendar-review-times[hidden] { display: none; }
+.calendar-review-evidence { margin: 0; color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+.calendar-review-uncertain { padding: 15px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: .86rem; }
+.calendar-review-uncertain summary { cursor: pointer; font-weight: 650; }
+.calendar-review-uncertain ul, .calendar-review-result ul { margin: 12px 0 0; padding-left: 20px; }
+.calendar-review-actions { justify-content: flex-end; position: sticky; bottom: 0; padding: 16px 0; border-top: 1px solid var(--border); background: var(--body-bg, var(--card-solid)); }
+.calendar-review-result { max-width: 620px; padding: 24px 0; border-top: 1px solid var(--border); }
+.calendar-review-result h2 { font-size: 1.25rem; }
+.calendar-review-result .btn { margin-top: 18px; }
+@media (max-width: 900px) { .calendar-review-layout { grid-template-columns: 1fr; } .calendar-review-source { position: static; } .calendar-review-source img { max-height: 360px; } }
+@media (max-width: 580px) { .calendar-review-page { padding: 20px 15px; } .calendar-review-header { align-items: start; } .calendar-review-count { display: none; } .calendar-review-select { position: static; margin: 0 0 13px !important; } .calendar-review-reason { margin: -7px 0 12px; padding-right: 0; } .calendar-review-fields { gap: 9px; } .calendar-review-actions .btn { flex: 1; } }

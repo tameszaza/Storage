@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Shared {{ share.name }} · Tamestorage{% endblock %}
+{% block page_style %}<link href="{{ url_for('static', filename='css/share-public.css') }}?v=20260924a" rel="stylesheet">{% endblock %}
 {% block content %}
 <section class="workspace-header glass-card share-hero">
     <div>
@@ -7,7 +8,7 @@
         <h1>{{ share.name }}</h1>
         <p class="muted">Shared by {{ share.owner }}{% if share.note %} · {{ share.note }}{% endif %}</p>
         <div class="share-tags mt-2">
-            <span class="status-pill">{{ share.permission }}</span>
+            <span class="status-pill">{{ permission_label }}</span>
             {% if share.password_hash %}<span class="status-pill">Password protected</span>{% endif %}
             {% if share.expires_at %}<span class="status-pill">Expires {{ share.expires_at }}</span>{% endif %}
             {% if share.max_downloads %}<span class="status-pill">{{ share.download_count }}/{{ share.max_downloads }} downloads</span>{% endif %}
@@ -45,13 +46,7 @@
 
 {% if is_file %}
     <section class="glass-card shared-file-preview">
-        <div class="file-preview-heading">
-            <span class="file-icon {{ item.kind }}"><i class="fa-solid fa-file"></i></span>
-            <div>
-                <h2>{{ item.name }}</h2>
-                <p class="muted">{{ item.size_label }} · {{ item.mod_time }}</p>
-            </div>
-        </div>
+        <p class="shared-file-meta muted">{{ item.size_label }} · {{ item.mod_time }}</p>
 
         {% if item.kind == 'image' %}
             <img class="shared-large-preview" src="{{ url_for('shared_raw_root', token=share.token) }}" alt="{{ item.name }}">

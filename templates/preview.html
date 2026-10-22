@@ -60,10 +60,13 @@
                         <span class="pdf-page-indicator" aria-live="polite"><span data-pdf-page>1</span> / <span data-pdf-pages>?</span></span>
                         <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-next title="Next page">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
                         <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-out aria-label="Zoom out" title="Zoom out" data-tooltip="true"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+                        <span class="pdf-zoom-level" data-pdf-zoom-level aria-live="polite">100%</span>
                         <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-zoom-in aria-label="Zoom in" title="Zoom in" data-tooltip="true"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-fit aria-label="Fit page to width" title="Fit page to width" data-tooltip="true"><i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i> Fit</button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-pdf-expand aria-label="Expand PDF preview" aria-pressed="false" title="Expand PDF preview" data-tooltip="true"><i class="fa-solid fa-expand" aria-hidden="true"></i></button>
                         <a class="btn btn-outline-primary btn-sm" href="{{ url_for('raw_file', target=target) }}" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Browser viewer</a>
                     </div>
-                    <div class="pdf-canvas-stage"><canvas class="pdf-canvas" data-pdf-canvas aria-label="PDF page"></canvas><div class="pdf-fallback" data-pdf-fallback hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><h2>PDF preview could not load</h2><p class="muted">Open the browser viewer or download the file.</p></div></div>
+                    <div class="pdf-canvas-stage" tabindex="0" aria-label="PDF page. Drag to pan when zoomed in."><canvas class="pdf-canvas" data-pdf-canvas aria-label="PDF page"></canvas><div class="pdf-fallback" data-pdf-fallback hidden><i class="fa-solid fa-file-pdf" aria-hidden="true"></i><h2>PDF preview could not load</h2><p class="muted">Open the browser viewer or download the file.</p></div></div>
                 </div>
             {% elif rows %}
                 <div class="table-responsive preview-table-wrap"><table class="table data-table"><caption class="visually-hidden">Preview of {{ name }}</caption><tbody>{% for row in rows %}<tr>{% for col in row %}<td>{{ col }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
@@ -103,6 +106,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-{% if ext == '.pdf' %}<script type="module" src="{{ url_for('static', filename='js/pdf_preview.js') }}"></script>{% endif %}
+{% if ext == '.pdf' %}<script type="module" src="{{ url_for('static', filename='js/pdf_preview.js') }}?v=20260924h"></script>{% endif %}
 {% if audio %}<script src="{{ url_for('static', filename='js/media_player.js') }}"></script>{% endif %}
 {% endblock %}

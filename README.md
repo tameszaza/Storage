@@ -93,3 +93,13 @@ cat /srv/tamestorage-backup/.nas-last-success
 
 Public registration and the old phone-only air-conditioner, camera, sound,
 voice, planner, feedback, and AI features are not included in this deployment.
+
+
+## Admin transcription
+
+Admin → Transcribe a recording uploads to the private Cyborg transcription queue and saves full plaintext in Admin/Transcripts. See [the maintained transcription manual](docs/TRANSCRIPTION.md) for model choices, retention, recovery and on-demand service controls.
+
+
+## Activity console
+
+Admin Center → Activity shows current Server/Cyborg worker stages and existing queues. It is a server web page at `/admin/activity`, with admin-only read-only snapshots and no Mac monitoring process. See [Activity](docs/ACTIVITY.md) and the corrected [Goodnotes import/upload workflow](docs/GOODNOTES-DOWNLOAD.md).

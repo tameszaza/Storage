@@ -4,11 +4,13 @@ import shutil
 import tempfile
 from pathlib import Path
 from flask import abort, after_this_request, current_app, flash, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
-from lib.charts import build_storage_analysis
+from lib.charts import build_indexed_storage_analysis
+from lib.search_index import workspace_inventory
 from lib.editor_service import EditorConflictError, load_document, save_document
 from lib.activity import log_activity
-from lib.metadata import get_metadata, move_metadata
+from lib.metadata import all_metadata, get_metadata, move_metadata
 from lib.trash import move_to_trash
+from lib.atomic_upload import save_atomic
 from lib.versions import create_version, move_versions
 from lib.users import load_users
 from lib.security import login_required
@@ -98,8 +100,9 @@ def index(path=""):
 
     search_query = request.args.get("search", "").strip() or None
     files = list_directory(path, search_query)
+    metadata = all_metadata()
     for item in files:
-        item["metadata"] = get_metadata(item.get("relative_path", ""))
+        item["metadata"] = metadata.get(item.get("relative_path", ""), {})
     readme_path = safe_upload_path(path, "README.md")
     folder_readme = None
     if os.path.isfile(readme_path):
@@ -214,10 +217,9 @@ def upload_file(path=""):
     uploaded_count = 0
     for uploaded, relative_target in planned:
         filepath = safe_upload_path(relative_target)
-        if os.path.exists(filepath) and os.path.isfile(filepath):
-            create_version(relative_target, "before upload replace")
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        uploaded.save(filepath)
+        def preserve_previous():
+            if os.path.isfile(filepath):create_version(relative_target, "before upload replace")
+        save_atomic(uploaded, filepath, preserve_previous)
         uploaded_count += 1
         logging.info("File uploaded: %s", filepath)
         log_activity("file.upload", relative_target)
@@ -550,7 +552,9 @@ def detail(directory):
         abort(404)
 
     chart_title = os.path.basename(directory.rstrip("/")) if directory else "Root"
-    storage_tree, file_type_data = build_storage_analysis(directory_path, chart_title)
+    storage_tree, file_type_data = build_indexed_storage_analysis(
+        workspace_inventory(""), directory, chart_title,
+    )
     total_size = int(storage_tree.get("size", 0))
     file_type_rows = [
         {"name": extension, "size": int(size)}
@@ -571,7 +575,7 @@ def detail(directory):
         "detail.html",
         directory=directory or "Root",
         file_count=storage_tree.get("file_count", 0),
-        total_storage=round(total_size / (1024 ** 2), 2),
+        total_storage=format_bytes(total_size),
         storage_analysis=storage_analysis,
     )
 

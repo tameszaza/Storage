@@ -1,0 +1,9 @@
+{% if goodnotes_import_warning %}
+<section class="alert alert-warning" aria-label="Goodnotes import reminder">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-2">
+    <strong><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {{ goodnotes_import_warning.missing_count }} PDFs missing from the last iPad inventory{% if goodnotes_import_warning.unconfirmed_count %} · {{ goodnotes_import_warning.unconfirmed_count }} unconfirmed{% endif %}</strong>
+    <a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{{ url_for('goodnotes_import_review') }}"><i class="fa-solid fa-table-list" aria-hidden="true"></i> Review iPad imports</a>
+  </div>
+  <details><summary>Show files</summary><ul class="mb-2 mt-2">{% for file in goodnotes_import_warning.files %}<li><a href="{{ url_for('index',path=file.folder) }}">{{ file.path }}</a>{% if file.confidence != 'missing' %} <small>(unconfirmed · excluded from ZIP)</small>{% endif %}</li>{% endfor %}</ul></details>
+</section>
+{% endif %}

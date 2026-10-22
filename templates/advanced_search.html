@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if starred_page %}Starred{% else %}Search{% endif %} · Tamestorage{% endblock %}
-{% block link %}<link href="{{ url_for('static', filename='css/search-page.css') }}" rel="stylesheet">{% endblock %}
+{% block link %}<link href="{{ url_for('static', filename='css/search-page.css') }}?v=20260924c" rel="stylesheet">{% endblock %}
 {% block content %}
 <section class="search-page-shell">
     <header class="search-page-header">
@@ -13,16 +13,20 @@
     </header>
 
     {% if not starred_page %}
-    <form id="searchForm" method="GET" class="search-command-card" role="search">
+    {% set filters_active = request.args.get('kind') or request.args.get('modified_days') or request.args.get('size') or request.args.get('sort') not in (none, '', 'relevance') or request.args.get('starred') or request.args.get('content') or request.args.get('tag') %}
+    <form id="searchForm" method="GET" class="search-command-card {% if filters_active %}mobile-filters-open{% endif %}" role="search">
         <div class="search-primary-row">
             <div class="search-primary-input">
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <label class="visually-hidden" for="q">Search files and folders</label>
                 <input id="q" name="q" value="{{ request.args.get('q','') }}" type="search" placeholder="Search files and folders" autocomplete="off" autofocus>
             </div>
             <button class="btn btn-primary" type="submit">Search</button>
         </div>
 
-        <div class="search-filter-row">
+        <button id="mobileFiltersButton" class="btn btn-outline-secondary search-mobile-filter-button" type="button" aria-controls="searchFilterRow" aria-expanded="{{ 'true' if filters_active else 'false' }}"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filters{% if filters_active %} · Active{% endif %}</button>
+
+        <div id="searchFilterRow" class="search-filter-row">
             <label>
                 <span>Type</span>
                 <select name="kind" aria-label="File type">
@@ -105,4 +109,4 @@
     </section>
 </section>
 {% endblock %}
-{% block scripts %}{% if not starred_page %}<script src="{{ url_for('static', filename='js/search.js') }}"></script>{% endif %}{% endblock %}
+{% block scripts %}{% if not starred_page %}<script src="{{ url_for('static', filename='js/search.js') }}?v=20260924a"></script>{% endif %}{% endblock %}

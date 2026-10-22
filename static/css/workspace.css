@@ -84,7 +84,6 @@ body .chat-composer-main{background:none;border:0;padding:0;box-shadow:none;bord
 body .chat-send-button{align-self:flex-end;height:40px;min-width:70px;border-radius:6px}
 body .chat-composer-actions{padding-top:8px;gap:12px}body .chat-enter-hint{display:none}.chat-suggestions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px auto 0}
 body .chat-suggestions .quick-prompt{width:auto;padding:8px 12px;border:1px solid var(--ts-border);border-radius:6px;background:none;font-size:13px;display:flex;gap:8px}
-body .context-scope-note{font-size:13px;background:none;padding:0;line-height:1.5;display:block}body .context-scope-note-text{display:inline!important;position:static!important}
 body .chat-message{background:none;border-radius:6px;box-shadow:none}body .chat-message-content{font-size:16px;line-height:1.7}body .chat-header-actions{gap:8px}
 /* Storage, settings, reports and planner share the same restrained hierarchy. */
 body .disk-summary-grid{display:flex;flex-wrap:wrap;gap:32px;margin-bottom:32px}body .disk-summary-card{padding:0;border:0;flex:1;min-width:140px}body .disk-summary-card>span{font-size:22px}body .disk-summary-card p{font-size:13px}
@@ -129,10 +128,9 @@ body .storage-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,
 body .recent-table{width:100%;table-layout:fixed;font-size:14px}body .recent-table th:first-child{width:42%}body .recent-file-link{min-width:0}body .recent-file-link>span:last-child{min-width:0}body .recent-file-link strong{overflow-wrap:anywhere;white-space:normal}body .recent-table td{overflow-wrap:anywhere;white-space:normal}
 body .network-panel .eyebrow,body .editor-page-header .eyebrow{display:none}body .log-summary-card,body .log-entry,body .log-filter-card{border-radius:0;background:none;box-shadow:none}body .log-entry{border:0;border-bottom:1px solid var(--ts-border)}
 @media(max-width:767px){body .account-menu{display:block!important}body .account-trigger{padding:0}body .account-trigger-copy,body .account-trigger>.fa-chevron-down{display:none}body .app-topbar{gap:8px}body .global-search{min-width:0;flex:1}body .topbar-actions{gap:4px}body .global-search input{min-width:0;width:100%;font-size:13px}body .app-topbar #themeToggle{display:none}.chat-options-panel{top:130px}
-body .chat-page-header{gap:8px}body .chat-header-actions{gap:6px}body .chat-header-actions .btn{padding:8px;font-size:12px}body .chat-page-shell{min-height:540px}body .chat-composer-actions{gap:8px}body .chat-send-button{min-width:42px;padding:10px}body .chat-send-button span{display:none}body .recent-table th:first-child{width:60%}body .recent-table .file-icon{width:26px;min-width:26px;height:30px}body .settings-nav{flex-wrap:wrap;overflow:visible;gap:4px}body .settings-nav a{font-size:13px;padding:8px}body .file-browser.browser-grid{grid-auto-rows:244px}body .file-browser.browser-grid .file-card[data-is-dir="1"],body .file-browser.browser-grid .file-card.back-card{min-height:244px!important;height:244px!important}
+body .chat-page-header{gap:8px}body .chat-header-actions{gap:6px}body .chat-header-actions .btn{padding:8px;font-size:12px}body .chat-page-shell{min-height:540px}body .chat-composer-actions{gap:8px}body .chat-send-button{min-width:42px;padding:10px}body .chat-send-button span{display:none}body .recent-table th:first-child{width:60%}body .recent-table .file-icon{width:26px;min-width:26px;height:30px}body .settings-nav{flex-wrap:wrap;overflow:visible;gap:4px}body .settings-nav a{font-size:13px;padding:8px}
 }
-body .file-browser.browser-grid .file-card[data-is-dir="1"],body .file-browser.browser-grid .file-card.back-card{min-height:260px!important;height:260px!important;grid-template-rows:auto minmax(0,1fr) auto;align-content:stretch}body .file-browser.browser-grid .file-card[data-is-dir="1"] .file-tile-visual,body .file-browser.browser-grid .file-card.back-card .file-tile-visual{display:grid!important}
-body .file-browser.browser-grid{align-items:start}body .file-browser.browser-list{border:0;border-radius:0;background:none}
+body .file-browser.browser-list{border:0;border-radius:0;background:none}
 body .disk-capacity-row strong{font-size:18px;line-height:1.5}body .disk-capacity-track{height:6px}body .disk-summary-card .disk-state-text{background:none}body .disk-metrics>div{border:0;border-radius:0;background:none;padding:0}body .disk-card-heading{margin-bottom:14px}body .disk-card{padding:20px 0}body .disk-status-copy{margin-top:12px}
 body .metadata-grid>.glass-card,body .preview-details-card{padding:0}body .file-detail-grid>div,body .metadata-item{border-radius:0;box-shadow:none;background:none}
 body .welcome-message{width:100%;align-self:center}body .welcome-message .message-content{width:100%;max-width:none!important}body .welcome-message .message-body{width:100%;justify-items:center;text-align:center}body .text-danger{color:var(--ts-danger)!important}body .text-warning{color:var(--ts-warning)!important}
@@ -142,7 +140,6 @@ body .public-content{padding:32px 24px;max-width:1280px;width:100%;margin:auto}b
 body .request-submit-hero{padding:0;margin-bottom:24px}body .request-submit-badge{display:none}body .request-submit-card{padding:0}body .request-drop-card{border:1px dashed var(--ts-border-strong);border-radius:8px;background:var(--ts-surface-soft);box-shadow:none;padding:24px}body .request-submit-page{max-width:800px;margin:auto}body .request-help{font-size:13px}
 body .code-editor{border-radius:6px;min-height:300px;height:50vh;width:100%;border:1px solid var(--ts-border-strong);background:var(--ts-surface);color:var(--ts-text);padding:16px}body .editor-card{padding:0}body .auth-card h1{margin-bottom:10px}
 @media(max-width:767px){body .public-content{padding:24px 18px}body .auth-layout{margin:24px 0}.public-content .shared-public-shell{padding:24px 0}.request-submit-footer{gap:16px}}
-body .file-browser.browser-grid{grid-auto-rows:260px;align-items:start!important}
 body[data-page="admin"] .workspace-header{display:block}body[data-page="admin"] .admin-stats{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:32px;margin:24px 0 0;width:auto}body[data-page="admin"] .admin-stats .stat-card{border:0!important}
 body[data-page="admin"] .admin-card>.action-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}body[data-page="admin"] .admin-card>.action-stack>a{justify-content:flex-start;border:0;border-bottom:1px solid var(--ts-border);border-radius:0;padding:16px 0;font-weight:500}body[data-page="admin"] .admin-card>.action-stack>form{margin-top:12px;justify-self:start}
 body .sidebar-brand{min-height:44px;margin-bottom:12px;padding-bottom:12px}body .sidebar-nav{padding-top:0}
@@ -152,5 +149,19 @@ body .search-empty-state{border:0;border-radius:0;background:none;padding:48px 1
 body[data-page="admin"] #mainContent .admin-stats{gap:32px!important}body[data-page="admin"] #mainContent .admin-stats .stat-card{border:0!important;padding:0!important;min-width:90px}body[data-page="admin"] #mainContent .action-stack>a{background:none!important}
 .workspace-welcome{max-width:800px;margin:60px auto}.workspace-welcome h1{margin:24px 0 12px}.workspace-welcome>.btn{margin-top:12px}.workspace-guide{margin-top:48px}.workspace-guide>div{padding:20px 0;border-top:1px solid var(--ts-border)}.workspace-guide dt{font-size:16px;margin-bottom:8px}.workspace-guide dt i{color:var(--ts-primary);width:26px}.workspace-guide dd{color:var(--ts-muted);margin:0}
 body .gallery-hero,body .gallery-toolbar{padding:0;margin-bottom:24px}body .gallery-card{padding:0!important}body .gallery-image-link{border-radius:6px}
+.gallery-pagination{display:flex;align-items:center;justify-content:center;gap:14px;padding:24px 0;color:var(--ts-muted);font-size:13px}
 @media(max-width:767px){.workspace-welcome{margin:24px auto}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Give the mobile storage totals room to breathe without adding more cards. */
+@media(max-width:640px){
+  body .settings-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;overflow:visible}
+  body .settings-nav a{justify-content:center;white-space:nowrap}
+  body .settings-card .storage-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
+  body.authenticated .glass-card.settings-card .storage-summary-item{border-right:0!important;padding:0!important}
+  body .settings-card .storage-summary-item:first-child{grid-column:1/-1}
+  body .settings-card .storage-summary-item strong{font-variant-numeric:tabular-nums}
+}
+
+/* Keep legacy controls and Bootstrap aligned with the current theme. */
+body{--text-color:var(--ts-text);--muted-text:var(--ts-muted);--border-color:var(--ts-border);--surface:var(--ts-surface);--surface-2:var(--ts-surface-soft)}

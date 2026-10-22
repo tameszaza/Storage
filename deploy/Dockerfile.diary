@@ -1,0 +1,4 @@
+ARG BASE_IMAGE=tamestorage:latest
+FROM ${BASE_IMAGE}
+# Context is the small overlay prepared by build-diary-image.py, not the whole app.
+COPY . /app/

@@ -22,7 +22,52 @@
             });
     }
 
+    function setupExitNodeControl() {
+        const root = document.querySelector("[data-exit-node-control]");
+        if (!root) return;
+        const toggle = root.querySelector("[data-exit-node-toggle]");
+        const status = root.querySelector("[data-exit-node-status]");
+        const url = root.dataset.url;
+        const render = (enabled) => {
+            toggle.checked = enabled;
+            toggle.disabled = false;
+            status.textContent = enabled ? "On" : "Off";
+            root.classList.toggle("is-enabled", enabled);
+        };
+        const fail = (message) => {
+            toggle.disabled = true;
+            status.textContent = message || "Unavailable";
+        };
+        fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" })
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok || !data.ok) throw new Error(data.error);
+                render(Boolean(data.enabled));
+            })
+            .catch((error) => fail(error.message));
+        toggle.addEventListener("change", () => {
+            const enabled = toggle.checked;
+            toggle.disabled = true;
+            status.textContent = "Updating…";
+            fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({ enabled }),
+            })
+                .then(async (response) => {
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) throw new Error(data.error);
+                    render(Boolean(data.enabled));
+                })
+                .catch((error) => {
+                    toggle.checked = !enabled;
+                    fail(error.message);
+                });
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
+        setupExitNodeControl();
         if (document.getElementById("cpuUsage")) {
             fetchSystemUsage();
             window.setInterval(fetchSystemUsage, 5000);

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Videos · Tamestorage{% endblock %}
-{% block link %}<link rel="stylesheet" href="{{ url_for('static',filename='css/videos.css') }}">{% endblock %}
+{% block link %}<link rel="stylesheet" href="{{ url_for('static',filename='css/videos.css') }}?v=20260924b">{% endblock %}
 {% block content %}
 <section class="video-page" data-token="{{ video_csrf }}">
   <header class="video-heading"><div><p class="video-kicker">YOUR OFFLINE LIBRARY</p><h1>Videos</h1><p class="muted">Download to your NAS and watch on any device.</p></div><span class="video-mark"><i class="fa-solid fa-film" aria-hidden="true"></i></span></header>
@@ -13,10 +13,18 @@
   </form>
   <p id="video-feedback" role="status" hidden></p>
   <header class="video-library-heading"><h2>Your videos <span id="video-count">0</span></h2><span class="video-library-location"><span><i class="fa-regular fa-folder-open" aria-hidden="true"></i> Admin / Movies</span><button class="video-info video-library-info" type="button" aria-label="Video storage information" title="Stored in your NAS share. Excluded from backups. Delete removes files permanently." data-tooltip="true"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button></span></header>
+  <div class="video-library-tools">
+    <label class="visually-hidden" for="video-search">Search videos</label>
+    <input id="video-search" type="search" placeholder="Search videos" autocomplete="off">
+    <label class="visually-hidden" for="video-filter">Download status</label>
+    <select id="video-filter" aria-label="Download status"><option value="all">All videos</option><option value="active">In progress</option><option value="ready">Ready</option><option value="failed">Failed</option></select>
+  </div>
   <section id="video-list" class="video-list" aria-label="Video downloads"></section>
   <div id="video-empty" class="video-empty" hidden><i class="fa-regular fa-circle-play" aria-hidden="true"></i><h2>Something worth saving?</h2><p>Paste a video link above to start your offline collection.</p></div>
+  <div id="video-no-results" class="video-empty" hidden>No videos match this search.</div>
+  <nav id="video-pagination" class="video-pagination" aria-label="Video pages" hidden><button id="video-previous" class="btn btn-outline-secondary" type="button"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Previous</button><span id="video-page-range" aria-live="polite"></span><button id="video-next" class="btn btn-outline-secondary" type="button">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></nav>
   <dialog id="video-delete"><h2>Delete this video?</h2><p id="video-delete-title"></p><p>The video and any partial download will be permanently removed. There is no backup or trash copy.</p><form method="dialog"><button class="btn btn-outline-secondary" value="cancel">Keep video</button><button class="btn btn-danger" value="delete">Delete permanently</button></form></dialog>
   <dialog id="video-player"><button id="video-player-close" class="btn btn-outline-secondary" aria-label="Close player">Close</button><video controls playsinline preload="metadata"></video><button class="video-info" type="button" aria-label="Playback compatibility information" title="If your browser cannot play this format, save the file and open it in a compatible video app." data-tooltip="true"><i class="fa-solid fa-circle-info" aria-hidden="true"></i></button></dialog>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static',filename='js/videos.js') }}"></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static',filename='js/videos.js') }}?v=20260924b"></script>{% endblock %}

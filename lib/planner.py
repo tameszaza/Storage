@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import calendar
+import re
 import secrets
 import threading
+import unicodedata
 from datetime import date, datetime, time
 from typing import Any
 
@@ -125,11 +127,37 @@ def update_event_metadata(username: str, event_id: str, metadata: dict[str, Any]
     return None
 
 
+def get_todo(username: str, todo_id: str) -> dict[str, Any] | None:
+    """Return a task snapshot, including its CalDAV identity when present."""
+    return next((item for item in list_items(username)["todos"] if item.get("id") == str(todo_id)), None)
+
+
+def update_todo_metadata(username: str, todo_id: str, metadata: dict[str, Any]) -> dict[str, Any] | None:
+    """Attach sync metadata without treating it as a user-visible task edit."""
+    with _LOCK:
+        payload = _load()
+        for item in _user_bucket(payload, username)["todos"]:
+            if isinstance(item, dict) and item.get("id") == todo_id:
+                item.update(metadata)
+                item["updated_at"] = _now_iso()
+                write_json(_data_path(), payload)
+                return dict(item)
+    return None
+
+
 def replace_events(username: str, events: list[dict[str, Any]]) -> None:
     """Replace only the event collection; tasks remain local to Tames."""
     with _LOCK:
         payload = _load()
         _user_bucket(payload, username)["events"] = [dict(item) for item in events if isinstance(item, dict)]
+        write_json(_data_path(), payload)
+
+
+def replace_todos(username: str, todos: list[dict[str, Any]]) -> None:
+    """Replace tasks after a CalDAV merge; calendar events remain untouched."""
+    with _LOCK:
+        payload = _load()
+        _user_bucket(payload, username)["todos"] = [dict(item) for item in todos if isinstance(item, dict)]
         write_json(_data_path(), payload)
 
 
@@ -210,6 +238,38 @@ def create_event(username: str, values: dict[str, Any]) -> dict[str, Any]:
         _user_bucket(payload, username)["events"].append(item)
         write_json(_data_path(), payload)
     return dict(item)
+
+
+def create_event_once(username: str, values: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Create an event once for assistant imports, even when requests overlap."""
+    event_values = _event_values(values)
+
+    def signature(item: dict[str, Any]) -> tuple[str, str, bool, str]:
+        title = unicodedata.normalize("NFKC", str(item.get("title") or "")).casefold()
+        return (
+            " ".join(re.findall(r"\w+", title)),
+            str(item.get("date") or ""),
+            bool(item.get("all_day")),
+            str(item.get("start_time") or ""),
+        )
+
+    wanted = signature(event_values)
+    with _LOCK:
+        payload = _load()
+        bucket = _user_bucket(payload, username)
+        for existing in bucket["events"]:
+            if isinstance(existing, dict) and signature(existing) == wanted:
+                return dict(existing), False
+        item = {
+            "id": secrets.token_urlsafe(12),
+            **event_values,
+            "source": "local",
+            "created_at": _now_iso(),
+            "updated_at": _now_iso(),
+        }
+        bucket["events"].append(item)
+        write_json(_data_path(), payload)
+    return dict(item), True
 
 
 def update_event(username: str, event_id: str, values: dict[str, Any]) -> dict[str, Any] | None:

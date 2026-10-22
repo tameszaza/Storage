@@ -33,6 +33,9 @@ services:
     build:
       context: .
     container_name: tamestorage
+    networks:
+      - default
+      - vault-sync
     restart: unless-stopped
     env_file:
       - /etc/tamestorage.env
@@ -46,6 +49,40 @@ services:
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
+      - type: bind
+        source: /home/tameszaza/.local/lib/goodnotes-links
+        target: /opt/livesync
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /home/tameszaza/.config/goodnotes-links/livesync.json
+        target: /run/obsidian-livesync.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - /srv/docker/tamestorage/routes/__init__.py:/app/routes/__init__.py:ro
+      - /srv/docker/tamestorage/templates/base.html:/app/templates/base.html:ro
+      - /srv/docker/tamestorage/templates/admin_panel.html:/app/templates/admin_panel.html:ro
+      - /srv/docker/tamestorage/lib/atomic_upload.py:/app/lib/atomic_upload.py:ro
+      - /srv/docker/tamestorage/routes/files.py:/app/routes/files.py:ro
+      - /srv/docker/tamestorage/templates/goodnotes_import.html:/app/templates/goodnotes_import.html:ro
+      - /srv/docker/tamestorage/static/js/activity-console.js:/app/static/js/activity-console.js:ro
+      - /srv/docker/tamestorage/static/css/activity-console.css:/app/static/css/activity-console.css:ro
+      - /srv/docker/tamestorage/templates/activity_console.html:/app/templates/activity_console.html:ro
+      - /srv/docker/tamestorage/routes/activity.py:/app/routes/activity.py:ro
+      - /srv/docker/tamestorage/routes/goodnotes.py:/app/routes/goodnotes.py:ro
+      - /srv/docker/tamestorage/lib/goodnotes_status.py:/app/lib/goodnotes_status.py:ro
+      - /srv/docker/tamestorage/lib/goodnotes_download.py:/app/lib/goodnotes_download.py:ro
+      - /srv/docker/tamestorage/templates/_goodnotes_warning.html:/app/templates/_goodnotes_warning.html:ro
+      - /srv/docker/tamestorage/static/service-worker.js:/app/static/service-worker.js:ro
+      - /srv/docker/tamestorage/routes/obsidian_mobile.py:/app/routes/obsidian_mobile.py:ro
+      - /srv/docker/tamestorage/lib/obsidian_mobile_runner.py:/app/lib/obsidian_mobile_runner.py:ro
+      - /srv/docker/tamestorage/lib/assistant_diary.py:/app/lib/assistant_diary.py:ro
+      - /srv/docker/tamestorage/templates/_services.html:/app/templates/_services.html:ro
+      - /srv/docker/tamestorage/static/js/services.js:/app/static/js/services.js:ro
+      - /srv/docker/tamestorage/static/js/chat.js:/app/static/js/chat.js:ro
+      - /srv/docker/tamestorage/static/css/services.css:/app/static/css/services.css:ro
       - type: bind
         source: /srv/tamestorage/uploads
         target: /srv/tamestorage/uploads
@@ -80,12 +117,28 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      - type: bind
+        source: /run/tamestorage-control
+        target: /run/tamestorage-control
+        bind:
+          create_host_path: false
     user: "1000:1000"
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c 'from pathlib import Path; import urllib.request;
+          Path("/srv/tamestorage/.tamestorage_state/users.json").read_bytes();
+          urllib.request.urlopen("http://127.0.0.1:5000/", timeout=3)'
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
 
   playlist-worker:
     image: tamestorage:latest
@@ -109,6 +162,17 @@ services:
       - type: bind
         source: /srv/music
         target: /srv/music
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/tamestorage/uploads/temp/Transcription
+        target: /srv/tamestorage/uploads/temp/Transcription
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/tamestorage/uploads/Admin/Transcripts
+        target: /srv/tamestorage/uploads/Admin/Transcripts
+        read_only: true
         bind:
           create_host_path: false
     user: "1000:1000"
@@ -168,3 +232,8 @@ services:
       - no-new-privileges:true
     healthcheck:
       disable: true
+
+networks:
+  vault-sync:
+    external: true
+    name: obsidian-livesync_default

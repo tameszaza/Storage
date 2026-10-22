@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}iPad imports · Tamestorage{% endblock %}
+{% block content %}
+<section class="workspace-header"><a href="{{ url_for('index',path='Goodnotes') }}">← Goodnotes</a><h1 class="mt-3">iPad imports</h1></section>
+<section class="glass-card p-4 mb-4">
+  <h2 class="h5">{{ warning.missing_count if warning else 0 }} confirmed missing PDFs</h2>
+  <div class="alert alert-warning mt-3"><strong>Import into existing folders.</strong><br>Goodnotes does not merge imported folders. Importing this ZIP directly can create folders such as “NTU (1)”.</div>
+  <ol class="mb-4"><li>Download and extract the ZIP in Files.</li><li>Open the matching existing folder in Goodnotes.</li><li>Import that folder’s PDFs together. Repeat for the other folders.</li></ol>
+  {% if warning and warning.missing_count %}
+  <form action="{{ url_for('download_goodnotes_for_ipad') }}" method="get"><label class="d-flex align-items-start gap-2 mb-3"><input type="checkbox" name="existing_folders" value="yes" required class="mt-1"><span>I’ll import the PDFs into their existing folders.</span></label><button class="btn btn-primary" type="submit"><i class="fa-solid fa-download" aria-hidden="true"></i> Download ZIP · {{ warning.missing_bytes|filesizeformat(true) }}</button></form>
+  {% else %}<p class="mb-0">No confirmed missing PDFs to download.</p>{% endif %}
+  {% if warning and warning.unconfirmed_count %}<p class="small mt-3 mb-0">{{ warning.unconfirmed_count }} unconfirmed PDFs are excluded. A fresh full-library Goodnotes backup updates their status.</p>{% endif %}
+</section>
+{% if folders %}<section class="glass-card p-4"><h2 class="h5">Destination folders</h2>{% for folder,files in folders.items() %}<details class="mt-3"><summary>{{ folder }} · {{ files|length }} PDFs</summary><ul class="mt-2">{% for file in files %}<li>{{ file.path.rsplit('/',1)[-1] }}</li>{% endfor %}</ul></details>{% endfor %}</section>{% endif %}
+{% endblock %}

@@ -56,7 +56,7 @@
                 {% for value in (50, 100, 200, 500) %}<option value="{{ value }}" {% if selected_limit == value %}selected{% endif %}>{{ value }} rows</option>{% endfor %}
             </select>
             <button class="btn btn-primary" type="submit">Apply</button>
-            {% if query or category != 'all' or selected_limit != 200 %}<a class="btn btn-outline-secondary" href="{{ request.path }}">Reset</a>{% endif %}
+            {% if query or category != 'all' or selected_limit != 50 %}<a class="btn btn-outline-secondary" href="{{ request.path }}">Reset</a>{% endif %}
             <button class="btn btn-icon btn-outline-secondary" type="button" data-log-refresh title="Reload the newest log entries" aria-label="Reload logs"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
         </form>
 

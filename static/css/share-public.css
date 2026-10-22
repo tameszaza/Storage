@@ -1,0 +1,10 @@
+/* Public shares follow the same restrained layout as the authenticated workspace. */
+body.public-page .share-hero { border-bottom: 1px solid var(--ts-border); padding: 0 0 24px; }
+body.public-page .share-hero .share-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+body.public-page .share-hero .status-pill { font-size: .72rem; padding: 4px 9px; }
+body.public-page .shared-file-preview { padding: 0; border: 0; background: transparent; box-shadow: none; }
+body.public-page .shared-file-meta { margin: 0 0 16px; font-size: .88rem; }
+body.public-page .shared-file-preview .shared-text-preview { margin-top: 0; }
+body.public-page .shared-browser .preview-box { border: 0; }
+body.public-page .shared-browser .preview-box.text-preview { background: transparent; padding: 0; }
+body.public-page .shared-browser .preview-box.text-preview pre { margin: 0; }

@@ -1,6 +1,8 @@
 FROM tamestorage-video:browser-base
 USER root
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN python -m playwright install chromium --no-shell
 COPY --chmod=755 lib/ /app/lib/
 COPY --chmod=755 video_worker.py /app/video_worker.py
+COPY --chmod=755 queue_quality_upgrades.py /app/queue_quality_upgrades.py
 USER 1000:1000

@@ -105,3 +105,4 @@ def normalize_embedded_cover(source: Path) -> str:
             raise ValueError("Square cover verification failed.")
         os.replace(copy, source)
     return "updated"
+

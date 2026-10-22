@@ -1,8 +1,10 @@
 import json
 import re
+import secrets
+from functools import lru_cache
 from pathlib import Path
 
-from flask import abort, current_app, flash, redirect, render_template, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for, jsonify, send_file, session
 
 from lib.playlists import (
     SCHEDULES,
@@ -18,7 +20,31 @@ from lib.playlists import (
 from lib.security import admin_required
 from lib.storage import format_bytes, get_folder_size
 from lib.lyrics import summarize_playlist_lyrics
+from routes.transcription import admin as review_admin, store as review_store
+from lib import lyric_review
+from lib.transcription_store import QueueError
 from lib.navidrome_stats import playlist_playback_stats
+
+
+def _file_stamp(path: Path) -> tuple[int, int]:
+    try:
+        stat_result = path.stat()
+        return stat_result.st_mtime_ns, stat_result.st_size
+    except OSError:
+        return 0, 0
+
+
+@lru_cache(maxsize=64)
+def _cached_lyric_summary(
+    ordered_ids: tuple[str, ...], manifest: str, managed: str, state: str,
+    manifest_stamp: tuple[int, int], managed_stamp: tuple[int, int],
+    state_stamp: tuple[int, int],
+) -> dict[str, int]:
+    # A changed manifest, lyric state, or managed directory invalidates the
+    # count. Editing an existing sidecar in place cannot change its presence.
+    return summarize_playlist_lyrics(
+        list(ordered_ids), Path(manifest), Path(managed), Path(state),
+    )
 
 
 def _playlist_lyric_summary(item: dict) -> dict[str, int]:
@@ -44,12 +70,11 @@ def _playlist_lyric_summary(item: dict) -> dict[str, int]:
         / "Managed Playlists"
         / str(item.get("library_dir_name") or "")
     )
-    return summarize_playlist_lyrics(
-        order,
-        manifest_path,
-        managed_dir,
-        runtime_dir / "lyrics-state.json",
-    )
+    state_path = runtime_dir / "lyrics-state.json"
+    return _cached_lyric_summary(
+        tuple(order), str(manifest_path), str(managed_dir), str(state_path),
+        _file_stamp(manifest_path), _file_stamp(managed_dir), _file_stamp(state_path),
+    ).copy()
 
 
 def _playlist_sync_summary(item: dict, health: dict[str, int]) -> dict[str, int]:
@@ -93,6 +118,7 @@ def music_sync_page():
         schedules=SCHEDULES,
         music_folder=music_folder,
         music_size=format_bytes(get_folder_size(music_folder)),
+        lyrics_csrf=session.setdefault("transcription_csrf",secrets.token_urlsafe(32)),
     )
 
 
@@ -172,7 +198,50 @@ def music_sync_log(playlist_id: str):
     return render_template("music_sync_log.html", playlist=item, log_text=read_log(playlist_id))
 
 
+@review_admin
+def lyrics_list(playlist_id):
+    item=next((item for item in list_playlists() if item.get('id')==playlist_id),None)
+    if not item: abort(404)
+    return jsonify(songs=lyric_review.listing(review_store(),str(item.get('library_dir_name') or '')))
+
+
+@review_admin
+def lyrics_edit(job_id):
+    queue=review_store();root=current_app.config['MUSIC_FOLDER']
+    if request.method in {'GET','HEAD'}: return jsonify(lyric_review.read(queue,job_id,root))
+    if request.content_length is None or request.content_length>300000: raise QueueError('Edits are too large.',413)
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict): raise QueueError('Invalid lyric edits.',400)
+    return jsonify(token=lyric_review.submit(queue,job_id,data,root)),202
+
+
+@review_admin
+def lyrics_status(job_id):
+    return jsonify(lyric_review.status(review_store(),job_id,request.args.get('token','')))
+
+
+@review_admin
+def lyrics_audio(job_id):
+    row,opt=lyric_review._row(review_store(),job_id)
+    source=lyric_review.source_path(opt,current_app.config['MUSIC_FOLDER'])
+    if lyric_review.signature(source)!=opt['lyrics_signature']: raise QueueError('The song changed.')
+    # .opus here is an Ogg file, not the audio/opus RTP payload format.
+    mime='audio/ogg' if source.suffix.lower() in {'.opus','.ogg','.oga'} else None
+    return send_file(source,mimetype=mime,conditional=True,max_age=0)
+
+
 def register_routes(app):
+    @app.after_request
+    def private_lyric_review(response):
+        if (request.endpoint or '').startswith('music_sync_lyrics_'):
+            response.headers['Cache-Control']='private, no-store, max-age=0'
+            response.headers['X-Content-Type-Options']='nosniff'
+        return response
+
+    app.add_url_rule('/music-sync/<playlist_id>/lyrics','music_sync_lyrics_list',lyrics_list)
+    app.add_url_rule('/music-sync/lyrics/<job_id>','music_sync_lyrics_edit',lyrics_edit,methods=['GET','POST'])
+    app.add_url_rule('/music-sync/lyrics/<job_id>/status','music_sync_lyrics_status',lyrics_status)
+    app.add_url_rule('/music-sync/lyrics/<job_id>/audio','music_sync_lyrics_audio',lyrics_audio)
     app.add_url_rule("/music-sync", "music_sync_page", music_sync_page)
     app.add_url_rule("/music-sync/add", "music_sync_add", music_sync_add, methods=["POST"])
     app.add_url_rule("/music-sync/<playlist_id>/sync", "music_sync_now", music_sync_now, methods=["POST"])

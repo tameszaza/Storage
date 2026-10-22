@@ -8,7 +8,14 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from app import app
+from flask import Flask
+from lib.config import Config
+from lib.request_logging import setup_logging
+
+# A worker needs configuration and logging, not the complete web route tree.
+app = Flask("tamestorage-playlist-worker")
+app.config.from_object(Config)
+setup_logging(app)
 from lib.playlist_reconcile import (
     SnapshotError,
     parse_playlist_snapshot,
@@ -30,6 +37,8 @@ from lib.playlists import (
 )
 from lib.lyrics import sync_playlist_lyrics
 from lib.artwork import AUDIO_SUFFIXES, normalize_embedded_cover
+from lib.artwork_repair import repair_imported_covers
+from lib.lyric_transcription import enqueue_playlist, queue_for
 
 
 def _yt_dlp_base() -> list[str]:
@@ -205,6 +214,14 @@ def sync_playlist(item: dict) -> None:
         recorded = record_download_report(report, manifest, managed_dir)
         if recorded:
             append_log(playlist_id, f"Recorded {recorded} newly downloaded managed file(s).")
+        try:
+            repaired = repair_imported_covers(report, managed_dir, runtime_dir / "artwork-retry.json")
+            if repaired["repaired"] or repaired["errors"] or repaired["deferred"]:
+                append_log(playlist_id, f"Cover repair: {repaired['repaired']} repaired, "
+                           f"{repaired['errors']} unavailable, {repaired['deferred']} deferred. "
+                           "Failed covers retry during a later playlist sync; audio is retained.")
+        except Exception as exc:
+            append_log(playlist_id, f"Cover repair deferred safely: {exc}. Playlist sync will continue.")
         cover_outcomes = _normalize_new_covers(report, managed_dir)
         if cover_outcomes.get("updated"):
             append_log(playlist_id, f"Squared embedded artwork for {cover_outcomes['updated']} new song(s).")
@@ -372,6 +389,14 @@ def sync_playlist(item: dict) -> None:
             "sync_removed_count": len(deleted_ids),
         },
     )
+    if app.config.get("LYRICS_ENABLED", True):
+        try:
+            generated = enqueue_playlist(item, ordered_ids, manifest, managed_dir,
+                                         runtime_dir / "lyrics-state.json", music_root=music_folder,
+                                         queue=queue_for(app.config["UPLOAD_FOLDER"]))
+            append_log(playlist_id, "Local lyrics: " + ", ".join(f"{key}={value}" for key, value in generated.items()))
+        except Exception as exc:
+            append_log(playlist_id, f"Local lyric queue unavailable; normal playlist sync is preserved: {type(exc).__name__}.")
 
 
 def delete_playlist_files(item: dict) -> None:
@@ -477,6 +502,12 @@ def main() -> None:
     with app.app_context():
         recover_interrupted()
         while True:
+            try:
+                from lib.lyric_review import publish_pending
+                from lib.lyric_transcription import queue_for
+                publish_pending(queue_for(app.config['UPLOAD_FOLDER']), app.config['MUSIC_FOLDER'])
+            except Exception:
+                app.logger.exception('Lyric review save deferred; existing music sync continues.')
             delete_item = claim_delete()
             if delete_item:
                 try:

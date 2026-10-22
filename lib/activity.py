@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 from flask import current_app, request, session
 from lib.json_store import read_json, write_json
@@ -17,7 +17,7 @@ def log_activity(action: str, target: str = "", status: str = "success", details
             entries = []
         entries.insert(0, {
             "id": uuid4().hex,
-            "time": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            "time": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "user": username or session.get("username") or "public",
             "action": action,
             "target": target,
@@ -32,8 +32,13 @@ def log_activity(action: str, target: str = "", status: str = "success", details
         pass
 
 
-def list_activity(limit: int = 250) -> list[dict]:
+def list_activity(limit: int = 250, offset: int = 0, *, include_calendar_syncs: bool = True) -> list[dict]:
     entries = read_json(activity_file(), [])
     if not isinstance(entries, list):
         return []
-    return entries[:limit]
+    if not include_calendar_syncs:
+        entries = [entry for entry in entries if not (
+            entry.get("action") == "planner.calendar.sync" and entry.get("status") == "success"
+        )]
+    start = max(0, int(offset))
+    return entries[start:start + max(0, int(limit))]

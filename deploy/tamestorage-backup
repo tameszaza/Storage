@@ -1,34 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+[[ ! -f /etc/tamestorage-operations.conf ]] || source /etc/tamestorage-operations.conf
+backup_days=${BACKUP_RETENTION_DAYS:-30}
+
 source_mount=/srv/tamestorage
 backup_mount=/srv/tamestorage-backup
-source_uuid=1e5557c2-1302-4632-9937-3e2db211c295
-backup_uuid=70e5d00b-c0e1-4bdd-84cc-1af5e56c75f8
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+version_rel=.backup-versions/$stamp
 
-exec 9>/run/tamestorage-backup.lock
+exec 9>/run/lock/tamestorage-backup.lock
 flock -n 9 || exit 0
 
-if ! mountpoint -q "$source_mount" || ! mountpoint -q "$backup_mount"; then
-    echo "Both Tamestorage disks must be mounted; refusing to run." >&2
-    exit 1
-fi
+mountpoint -q "$source_mount" || { echo "primary is not mounted" >&2; exit 1; }
+/usr/local/sbin/tamestorage-temp-cleanup
+mountpoint -q "$backup_mount" || { echo "backup is not mounted" >&2; exit 1; }
+[[ $(findmnt -n -o FSTYPE -T "$source_mount") == ext4 ]] || exit 1
+[[ $(findmnt -n -o FSTYPE -T "$backup_mount") == ext4 ]] || exit 1
 
-if [[ "$(findmnt -n -o UUID --target "$source_mount")" != "$source_uuid" ]]; then
-    echo "Primary disk UUID mismatch; refusing to run." >&2
-    exit 1
-fi
-
-if [[ "$(findmnt -n -o UUID --target "$backup_mount")" != "$backup_uuid" ]]; then
-    echo "Backup disk UUID mismatch; refusing to run." >&2
-    exit 1
-fi
-
-ionice -c 2 -n 7 nice -n 19 rsync \
-    -aHAX --numeric-ids --delete-before --inplace \
-    --exclude=/lost+found/ \
-    --exclude=/.nas-last-success \
+install -d -m 0700 "$backup_mount/.backup-versions/$stamp"
+rsync -aHAX --numeric-ids \
+    --delete-delay \
+    --backup \
+    --backup-dir="$version_rel" \
+    --exclude='/.backup-versions/' \
+    --exclude='/.nas-last-success' \
+    --exclude='/uploads/Admin/Movies/' \
+    --exclude='/uploads/temp/' \
     "$source_mount/" "$backup_mount/"
 
-date --iso-8601=seconds > "$backup_mount/.nas-last-success"
-sync -f "$backup_mount/.nas-last-success"
+find "$backup_mount/.backup-versions" -mindepth 1 -maxdepth 1 -type d -mtime +"$backup_days" -exec rm -rf -- {} +
+printf '%s\n' "$stamp" > "$backup_mount/.nas-last-success"

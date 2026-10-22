@@ -4,7 +4,7 @@ from flask import g
 from lib.activity import log_activity
 
 
-def build_integrated_tools(username, allow_write=True):
+def build_integrated_tools(username, allow_write=True, allow_calendar_write=True):
     from lib import planner
     from lib.ai_client import _resolve_workspace_path
 
@@ -166,7 +166,10 @@ def build_integrated_tools(username, allow_write=True):
             return {"error": str(exc)}
 
     tools = [read_document, list_plan_items]
-    if allow_write: tools += [manage_task, delete_calendar_event]
+    if allow_write:
+        tools.append(manage_task)
+        if allow_calendar_write:
+            tools.append(delete_calendar_event)
     if username == "Admin":
         tools += [read_media]
         if allow_write: tools += [manage_playlist, manage_video]

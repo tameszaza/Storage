@@ -4,6 +4,8 @@ import json
 import os
 import re
 import subprocess
+import sqlite3
+from contextlib import closing
 import tempfile
 import time
 import unicodedata
@@ -40,6 +42,8 @@ class AudioMetadata:
     artist: str
     album: str
     duration: float
+    embedded_lyrics: bool = False
+    thai_text: bool = False
 
 
 def _atomic_json(path: Path, value: object) -> None:
@@ -128,6 +132,8 @@ def probe_audio(path: Path) -> AudioMetadata:
         artist=str(merged_tags.get("artist") or merged_tags.get("album_artist") or "").strip(),
         album=str(merged_tags.get("album") or "").strip(),
         duration=max(durations, default=0.0),
+        embedded_lyrics=any(('lyric' in key or 'unsynced' in key) and value.strip() for key, value in merged_tags.items()),
+        thai_text=any(re.search(r'[\u0e00-\u0e7f]', value) for value in merged_tags.values()),
     )
 
 
@@ -164,6 +170,10 @@ def choose_candidate(results: list[dict], metadata: AudioMetadata) -> dict | Non
         if title_score < 0.62:
             continue
         artist_score = _similarity(metadata.artist, str(candidate.get("artistName") or ""))
+        # A title collision is not evidence that another artist's recording matches.
+        # Reuse normalization for featured artists/diacritics; reject weak identity.
+        if _normalize(metadata.artist) and artist_score < 0.60:
+            continue
         try:
             candidate_duration = float(candidate.get("duration") or 0)
         except (TypeError, ValueError):
@@ -319,12 +329,56 @@ def _fetch_netease(identifier: str | int, api_url: str) -> tuple[str, str]:
     return "", original
 
 
+
+# Credit-only responses are common, particularly from NetEase. Validate content,
+# not byte count; short genuine/repeated lyrics (including non-Latin text) are valid.
+_TIMING_OR_TAG = re.compile(r'^\s*(?:\[[^\]\n]*\]\s*)+')
+_CREDIT = re.compile(r'^(?:(?:作[词詞曲]|[词詞曲]|编曲|編曲|制作|製作|出品|监制|監製|演唱|歌手|专辑|專輯|混音|录音|錄音|配唱|和声|和聲)\s*[:：]|(?:composer|composition|composed\s+by|lyricist|lyrics?\s+by|written\s+by|arranged?\s+by|arranger|producer|produced\s+by|artist|album|title|transcribed\s+by|copyright)\s*[:：])', re.I)
+_INSTRUMENTAL = re.compile(r'^(?:纯音乐(?:请欣赏|请您欣赏)?|純音樂(?:請欣賞|請您欣賞)?|此歌曲为没有填词的纯音乐请您欣赏|instrumental(?:version|only)?|no(?:vocal|lyric)s?)[.!。\s]*$',re.I)
+_UNAVAILABLE = re.compile(r'^(?:lyrics?\s+(?:not\s+(?:available|found)|unavailable)|暂无歌词|暫無歌詞|no\s+lyrics?\s+(?:available|found))[.!。\s]*$',re.I)
+
+
+def lyrics_quality(value: str) -> str:
+    """Return usable/instrumental/credits_only/empty without guessing musical genre."""
+    credits = instrumental = False
+    for raw in str(value or '').lstrip('\ufeff').splitlines():
+        text = _TIMING_OR_TAG.sub('', raw).strip()
+        if not text or re.fullmatch(r'\d+|\d{1,2}:\d{2}:\d{2}[,.]\d+\s*-->.*',text):continue
+        if text == 'Transcribed by Cybrog AI':continue
+        if _CREDIT.match(text):credits=True;continue
+        folded=re.sub(r'[\s,，:：()（）\[\]]','',text)
+        if _INSTRUMENTAL.fullmatch(folded):instrumental=True;continue
+        if _UNAVAILABLE.fullmatch(text):continue
+        if any(unicodedata.category(c)[0] in {'L','N'} for c in text):return 'usable'
+    return 'instrumental' if instrumental else 'credits_only' if credits else 'empty'
+
+
+def _ai_instrumentals(state_path: Path, managed_dir: Path) -> set[str]:
+    """Read existing durable job results only when rendering playlist health."""
+    database=Path(state_path).parent.parent.parent/'transcription/queue.sqlite'
+    if not database.is_file():return set()
+    found=set()
+    try:
+        with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True,timeout=.2)) as db:
+            rows=db.execute("SELECT options FROM jobs WHERE state='completed' AND stage='Likely instrumental'")
+            for (raw,) in rows:
+                options=json.loads(raw);relative=Path(options.get('lyrics_source',''))
+                if not relative.parts or relative.parts[0]!=managed_dir.name:continue
+                audio=managed_dir.parent/relative
+                if audio.is_symlink() or not audio.is_file():continue
+                st=audio.stat()
+                if options.get('lyrics_signature')==[st.st_dev,st.st_ino,st.st_size,st.st_mtime_ns]:
+                    found.add(str(audio.relative_to(managed_dir)))
+    except (OSError,ValueError,sqlite3.Error):pass
+    return found
+
+
 def _write_lyrics(path: Path, synced: str, plain: str) -> tuple[str, Path | None]:
-    if synced:
+    if lyrics_quality(synced) == "usable":
         target = path.with_suffix(".lrc")
         _atomic_text(target, synced)
         return "fetched_synced", target
-    if plain:
+    if lyrics_quality(plain) == "usable":
         target = path.with_suffix(".txt")
         _atomic_text(target, plain)
         return "fetched_plain", target
@@ -335,6 +389,9 @@ def existing_lyrics(path: Path) -> Path | None:
     for suffix in LYRIC_SUFFIXES:
         candidate = path.with_suffix(suffix)
         if candidate.is_file() and candidate.stat().st_size > 0:
+            if suffix in {'.lrc','.elrc','.txt','.srt'}:
+                with candidate.open('r',encoding='utf-8',errors='replace') as stream:text=stream.read(262145)
+                if len(text)<=262144 and lyrics_quality(text)!='usable':continue
             return candidate
     return None
 
@@ -346,6 +403,7 @@ def fetch_lyrics(
     provider_order: tuple[str, ...] = DEFAULT_PROVIDER_ORDER,
     simpmusic_api_url: str = DEFAULT_SIMPMUSIC_API_URL,
     netease_api_url: str = DEFAULT_NETEASE_API_URL,
+    provenance: dict | None = None,
 ) -> tuple[str, Path | None]:
     current = existing_lyrics(path)
     if current:
@@ -385,7 +443,15 @@ def fetch_lyrics(
             else:
                 continue
             if synced or plain:
-                return _write_lyrics(path, synced, plain)
+                status,target=_write_lyrics(path,synced,plain)
+                if target:
+                    if provenance is not None:
+                        provenance['source']=provider
+                        provenance['source_track']={k:selected.get(k) for k in ('id','providerId','trackName','artistName','duration') if selected.get(k) is not None}
+                    return status,target
+                if provenance is not None:
+                    provenance.setdefault('rejected',[]).append({'source':provider,'synced':lyrics_quality(synced),'plain':lyrics_quality(plain)})
+                if 'instrumental' in {lyrics_quality(synced),lyrics_quality(plain)}:instrumental=True
         except LyricsRateLimitError as exc:
             rate_limited = True
             errors.append(str(exc))
@@ -395,7 +461,7 @@ def fetch_lyrics(
         if rate_limited:
             raise LyricsRateLimitError("; ".join(errors))
         raise LyricsLookupError("; ".join(errors))
-    return ("instrumental", None) if instrumental else ("not_found", None)
+    return "not_found", None
 
 
 def playlist_audio_files(
@@ -450,12 +516,15 @@ def summarize_playlist_lyrics(
         "pending": 0,
         "problems": 0,
     }
+    inferred_instrumentals=_ai_instrumentals(Path(state_path),managed_dir.resolve())
     for audio in audio_files:
         relative = str(audio.relative_to(managed_dir.resolve()))
         status = tracks.get(relative, {})
         status = str(status.get("status") or "") if isinstance(status, dict) else ""
         if existing_lyrics(audio):
             summary["lyrics"] += 1
+        elif relative in inferred_instrumentals:
+            summary["instrumental"] += 1
         elif status == "error":
             summary["errors"] += 1
         elif status == "instrumental":
@@ -464,7 +533,7 @@ def summarize_playlist_lyrics(
             summary["not_found"] += 1
         else:
             summary["pending"] += 1
-    summary["problems"] = summary["errors"] + summary["instrumental"] + summary["not_found"]
+    summary["problems"] = summary["errors"] + summary["not_found"]
     return summary
 
 
@@ -515,6 +584,7 @@ def sync_playlist_lyrics(
         if current:
             summary["existing"] += 1
             tracks[relative] = {
+                **(tracks.get(relative) if isinstance(tracks.get(relative),dict) else {}),
                 "status": "existing",
                 "lyrics": current.name,
                 "attempted_at": current_time,
@@ -538,6 +608,7 @@ def sync_playlist_lyrics(
                 summary["deferred"] += 1
                 continue
 
+        provenance={}
         try:
             status, lyric_path = fetch_lyrics(
                 path,
@@ -545,6 +616,7 @@ def sync_playlist_lyrics(
                 provider_order=provider_order,
                 simpmusic_api_url=simpmusic_api_url,
                 netease_api_url=netease_api_url,
+                provenance=provenance,
             )
         except LyricsRateLimitError:
             summary["rate_limited"] = True
@@ -552,6 +624,7 @@ def sync_playlist_lyrics(
         except Exception as exc:
             summary["errors"] += 1
             tracks[relative] = {
+                **provenance,
                 "status": "error",
                 "attempted_at": current_time,
                 "message": str(exc)[:300],
@@ -560,6 +633,7 @@ def sync_playlist_lyrics(
         else:
             summary[status] = int(summary.get(status, 0)) + 1
             tracks[relative] = {
+                **provenance,
                 "status": status,
                 "lyrics": lyric_path.name if lyric_path else None,
                 "attempted_at": current_time,

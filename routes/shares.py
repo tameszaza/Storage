@@ -16,6 +16,8 @@ from flask import (
 )
 
 from lib.security import login_required
+from lib.public_upload import save_public_upload
+from lib.pdf_text_cache import searchable_pdf
 from lib.shares import (
     PERMISSION_PRESETS,
     check_share_password,
@@ -275,6 +277,9 @@ def shared_view(token: str, subpath: str = ""):
         "shared_view.html",
         share=share,
         permissions=permissions,
+        permission_label=PERMISSION_PRESETS.get(
+            share.get("permission"), PERMISSION_PRESETS["download"]
+        )["label"],
         share_url=_share_url(token),
         files=files,
         is_file=is_file,
@@ -297,7 +302,12 @@ def shared_raw(token: str, item_path: str = ""):
     if not os.path.isfile(target_path):
         return _render_path_error(share, "That file is no longer available in this shared item.")
     log_share_event(token, _actor(), "previewed", item_path)
-    return send_file(target_path, as_attachment=False, download_name=os.path.basename(target_path))
+    served_path = searchable_pdf(target_path)
+    response = send_file(served_path, as_attachment=False, download_name=os.path.basename(target_path), mimetype="application/pdf" if str(target_path).lower().endswith(".pdf") else None)
+    if str(share.get("note", "")).startswith("Obsidian PDF++ Goodnotes: "):
+        # Goodnotes replaces files during export; do not cache these live references.
+        response.headers["Cache-Control"] = "private, no-store, max-age=0"
+    return response
 
 
 def shared_download(token: str, item_path: str = ""):
@@ -314,7 +324,7 @@ def shared_download(token: str, item_path: str = ""):
     increment_download_count(token, _actor(), item_path or share.get("path", ""))
     if os.path.isdir(target_path):
         return _zip_directory(target_path, os.path.basename(target_path) or share.get("name", "shared-folder"))
-    return send_file(target_path, as_attachment=True, download_name=os.path.basename(target_path))
+    return send_file(searchable_pdf(target_path), as_attachment=True, download_name=os.path.basename(target_path))
 
 
 def shared_upload(token: str, subpath: str = ""):
@@ -329,17 +339,23 @@ def shared_upload(token: str, subpath: str = ""):
         return _render_path_error(share, "Uploads can only be added to a folder in this shared item.", 400)
 
     files = request.files.getlist("file")
+    uploaded_count = 0
+    failures = 0
     for uploaded in files:
         if not uploaded or not uploaded.filename:
             continue
         relative_name = safe_relative_upload_name(uploaded.filename)
-        destination = os.path.abspath(os.path.join(target_path, relative_name))
-        if os.path.commonpath([target_path, destination]) != target_path:
-            abort(403)
-        os.makedirs(os.path.dirname(destination), exist_ok=True)
-        uploaded.save(destination)
-        log_share_event(token, _actor(), "uploaded", normalize_relative_path(f"{subpath}/{relative_name}"))
-    flash("Upload completed.", "success")
+        try:
+            saved_name, _size = save_public_upload(uploaded.stream, target_path, relative_name)
+        except (OSError, ValueError):
+            failures += 1
+            continue
+        uploaded_count += 1
+        log_share_event(token, _actor(), "uploaded", normalize_relative_path(f"{subpath}/{saved_name}"))
+    if uploaded_count:
+        flash(f"Uploaded {uploaded_count} file(s). Existing files were kept." + (f" {failures} could not be saved." if failures else ""), "success")
+    else:
+        flash("No files were uploaded. Please choose a file and try again.", "warning")
     if subpath:
         return redirect(url_for("shared_view_path", token=token, subpath=subpath))
     return redirect(url_for("shared_view", token=token))

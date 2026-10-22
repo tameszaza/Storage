@@ -6,7 +6,7 @@ import subprocess
 import time
 from urllib.parse import urlsplit
 import m3u8
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from lib import video_downloads as jobs
 
 def cancelled(key):
@@ -51,7 +51,7 @@ def vod_manifest(url, headers, depth=0):
     return manifest
 
 def stream_choices(url, headers):
-    """Prefer 1080p, permitting 720p but never a lower rendition."""
+    """Try the highest-resolution rendition first, without a quality cutoff."""
     body=fetch(url,headers,4*1024**2).decode('utf-8-sig')
     if not body.lstrip().startswith('#EXTM3U'):
         raise ValueError('The server did not return a video playlist.')
@@ -60,10 +60,10 @@ def stream_choices(url, headers):
         raise ValueError('Encrypted streams are not supported.')
     if not manifest.is_variant:
         return [url]
-    choices=[p for p in manifest.playlists if not p.stream_info.audio and p.stream_info.resolution and p.stream_info.resolution[1] in (720,1080)]
+    choices=[p for p in manifest.playlists if not p.stream_info.audio]
     if not choices:
-        raise ValueError('No 720p or 1080p stream is available.')
-    return [p.absolute_uri for p in sorted(choices,key=lambda p:(p.stream_info.resolution[1],p.stream_info.bandwidth or 0),reverse=True)]
+        raise ValueError('No supported combined audio/video stream is available.')
+    return [p.absolute_uri for p in sorted(choices,key=lambda p:((p.stream_info.resolution or (0,0))[1],p.stream_info.bandwidth or 0),reverse=True)]
 
 def save_stream(row,url,headers,partial,server):
     key=row['id']
@@ -86,6 +86,8 @@ def save_stream(row,url,headers,partial,server):
                     print(f'{server} part {i+1}: {type(exc).__name__}: {str(exc)[:160]}',flush=True)
                     cancelled(key)
                     if attempt==5:
+                        if row.get('_upgrade'):
+                            raise ValueError('Upgrade has a missing segment; keeping original or trying another server.')
                         missing.append((i+1,segment.duration))
                         if sum(d for _,d in missing)>min(30,duration*.02):
                             raise ValueError('Too much video is missing (over 30 seconds or 2%); refusing an incomplete download.')
@@ -123,6 +125,8 @@ def save_stream(row,url,headers,partial,server):
         raise ValueError('The saved video duration does not match the complete stream.')
     result.replace(partial)
     transport.unlink()
+    if row.get('_upgrade'):
+        jobs.validate_upgrade(path / row['filename'], partial)
     row['_ready_message']=('Saved with gaps: '+str(len(missing))+' missing part(s), approximately '+str(round(sum(d for _,d in missing),1))+' seconds (parts '+', '.join(str(i) for i,_ in missing)+').') if missing else 'Ready to watch'
     return partial.stat().st_size
 
@@ -161,19 +165,27 @@ def download_page(row,partial):
         context.on('page',lambda popup:popup.close() if popup!=page else None)
         page.set_default_timeout(1200)
         try:
-            page.goto(row['url'],wait_until='domcontentloaded',timeout=30000)
-            page.locator('a.sv-item').first.wait_for(timeout=15000)
+            try:
+                page.goto(row['url'],wait_until='domcontentloaded',timeout=60000)
+            except PlaywrightTimeoutError:
+                pass  # A slow page can already contain usable server links.
+            page.locator('a.sv-item').first.wait_for(timeout=60000)
             sources=page.locator('a.sv-item').evaluate_all('(links)=>links.map(a=>a.getAttribute("data-id"))')
             count=len(sources)
-            order=([1] if count>1 else [])+[i for i in range(min(count,6)) if i!=1]
+            vidfast_indices=[i for i in range(min(count,6)) if urlsplit(sources[i]).hostname in ('vidfast.pro','vidfast.vc')]
+            order=list(dict.fromkeys(vidfast_indices+([1] if count>1 else [])+list(range(min(count,6)))))
             errors=[]
-            for index in order:
+            for index in order * 2:
                 cancelled(key)
                 server=f'Server {index+1}'
                 jobs.update(key,message=f'Checking {server.lower()}…',received=0,total=0)
                 candidates=[]
                 def observe(response):
-                    if response.status==200 and '.m3u8' in urlsplit(response.url).path:
+                    content_type=response.headers.get('content-type','').lower()
+                    is_playlist=('.m3u8' in response.url.lower() or
+                                 'mpegurl' in content_type or
+                                 content_type.startswith('application/vnd.apple.mpegurl'))
+                    if response.status==200 and is_playlist:
                         if response.url not in [c[0] for c in candidates]:
                             ref=response.request.headers.get('referer',row['url'])
                             candidates.append((response.url,{'Referer':ref,'User-Agent':response.request.headers.get('user-agent','Mozilla/5.0')}))
@@ -182,15 +194,42 @@ def download_page(row,partial):
                     # Open the same embed as the server link. This also avoids
                     # racing the page's asynchronously registered click handler.
                     jobs.validate_url(sources[index])
-                    page.goto(sources[index],referer=row['url'],wait_until='domcontentloaded',timeout=30000)
-                    deadline=time.monotonic()+55
+                    source_host=(urlsplit(sources[index]).hostname or '').lower()
+                    if source_host in ('vidfast.pro','vidfast.vc'):
+                        # Vidfast stalled with DevTools attached during capture.
+                        # A separate normal browser stays embedded and records
+                        # its network log, then closes before the download.
+                        from lib.video_passive import discover
+                        page.goto('about:blank')
+                        jobs.update(key,message=f'Loading {server.lower()}…')
+                        candidates=discover(sources[index],lambda:cancelled(key))
+                    else:
+                        try:
+                            page.goto(sources[index],referer=row['url'],wait_until='domcontentloaded',timeout=60000)
+                        except PlaywrightTimeoutError:
+                            jobs.update(key,message=f'{server} is loading slowly; waiting for playback…')
+                    # Vidsrc uses two nested frames before its player appears.
+                    # It is consistently slower than the other sources, so give
+                    # it a separate loading budget instead of treating it like
+                    # a failed direct player.
+                    wait_seconds=300 if source_host in {'vidsrc.to','vidsrc.cc'} else 90
+                    deadline=time.monotonic()+wait_seconds
                     clicked=set()
                     while time.monotonic()<deadline and not candidates:
                         cancelled(key)
                         for frame in page.frames:
+                            # These sources will not work from the NAS until the
+                            # provider permits this server.  Do not burn the
+                            # complete wait budget on an explicit block page.
+                            try:
+                                body=frame.locator('body').inner_text(timeout=250).lower()
+                                if 'sorry, you have been blocked' in body or 'verify you are human' in body:
+                                    raise ValueError(f'{server} blocked this NAS connection.')
+                            except PlaywrightTimeoutError:
+                                pass
                             if frame.url in clicked:
                                 continue
-                            play=frame.locator('#bigPlay, button[aria-label="Play"], .jw-icon-display').first
+                            play=frame.locator('#bigPlay, button[aria-label="Play"], .jw-icon-display, .vjs-big-play-button').first
                             try:
                                 if play.is_visible():
                                     play.click(timeout=1200)
@@ -199,7 +238,7 @@ def download_page(row,partial):
                                 pass
                         page.wait_for_timeout(500)
                     if not candidates:
-                        raise ValueError('No playable stream was found.')
+                        raise ValueError(f'No stream appeared after waiting {wait_seconds} seconds for playback.')
                     # Stop playback to save bandwidth; capture has finished.
                     for frame in page.frames:
                         try:
@@ -219,21 +258,19 @@ def download_page(row,partial):
                                 continue
                             seen.add(identity)
                             try:
-                                # Once the manifest and request headers are
-                                # captured, segment downloading is handled by
-                                # Python. Closing the player here prevents a
-                                # hidden Chromium renderer from consuming CPU
-                                # while a long video is being saved.
-                                close_browser()
+                                # Unload playback while keeping the browser
+                                # available if another server must be tried.
+                                page.goto('about:blank')
                                 return save_stream(row,url,headers,partial,server)
                             except Exception as exc:
                                 cancelled(key)
                                 print(f'{server}: {type(exc).__name__}: {str(exc)[:200]}',flush=True)
-                                jobs.update(key,message='Trying another 720p/1080p source…',received=0)
+                                jobs.update(key,message='Trying the next available quality or server…',received=0)
                                 errors.append(f'{server}: {exc}' if isinstance(exc,ValueError) else f'{server}: stream request failed.')
                     raise ValueError('The stream could not be saved.')
                 except Exception as exc:
                     cancelled(key)
+                    print(f'{server}: {type(exc).__name__}: {str(exc)[:300]}',flush=True)
                     errors.append(f'{server}: {exc}' if isinstance(exc,ValueError) else f'{server}: player unavailable.')
                 finally:
                     page.remove_listener('response',observe)

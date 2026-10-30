@@ -12,7 +12,7 @@
     {
       "container": "tamestorage-goodnotes-stats",
       "image": "tamestorage-goodnotes-stats:1",
-      "image_id": "sha256:df2e6529b11ae9aaacc7f04a1edd6a39d33144b0c4ebbb82e95c4087ae106c33",
+      "image_id": "sha256:f59d8e89d4cec7ef9ca90bb78bd82bc2984fc89b6f5a490e2fc9c57b12623080",
       "registry_digests": [
         "tamestorage-goodnotes-stats@sha256:df2e6529b11ae9aaacc7f04a1edd6a39d33144b0c4ebbb82e95c4087ae106c33"
       ]

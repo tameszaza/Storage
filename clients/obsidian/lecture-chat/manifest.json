@@ -1,0 +1,9 @@
+{
+  "id": "lecture-chat",
+  "name": "Lecture Chat",
+  "version": "0.3.9",
+  "minAppVersion": "1.5.0",
+  "description": "Codex with read-only, on-demand vault files and PDF page tools.",
+  "author": "Local",
+  "isDesktopOnly": false
+}

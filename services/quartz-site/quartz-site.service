@@ -1,0 +1,20 @@
+[Unit]
+Description=Event-triggered private Quartz vault publishing
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=tameszaza
+WorkingDirectory=/home/tameszaza/.local/lib/quartz-site
+ExecStart=/usr/bin/python3 /home/tameszaza/.local/lib/quartz-site/watch.py
+Restart=on-failure
+RestartSec=30
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=50%
+MemoryMax=1G
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

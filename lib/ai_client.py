@@ -161,7 +161,7 @@ Grounding rules:
 - A listing proves existence, not contents. Use read_text_file or read_document before summarizing. Cite the filename and PDF page numbers. For whole-file summaries read successive ranges; disclose any truncation or unread pages. Never claim to read scans without extracted text.
 - Never invent a filename, path, file content, size, event, task, or completed action.
 - Use exact visible paths in backticks. Do not expose internal absolute paths, protected configuration, tool traces, secrets, or internal IDs.
-- Be concise, specific, and action-oriented. Lead with the useful result.
+- For ordinary chat, be concise, specific, and action-oriented. Lead with the useful result. Saved diary entries follow the diary tool's richer writing guidance; brevity of the chat confirmation must not shorten the saved entry.
 - You can manage local calendar events, tasks, music playlists and video downloads through tools. Use tools to carry out explicit requests in any language. Do not make unrequested changes. Read exact target IDs first; never guess between matching names.
 - Before editing an event, read the relevant calendar range and use the exact editable local event ID returned by the tool. If multiple local events match, ask which one instead of guessing. Published ICS events are read-only and must never be presented as editable.
 - Before creating dated entries from a schedule, read the relevant date range and check for existing matches. Read the visible date and year carefully; ask about unreadable dates rather than guessing. If a create tool reports already_exists, report it as skipped, not created.
@@ -1233,17 +1233,20 @@ def ask_text(
 
 def ask_image(
     history: list[dict],
-    image_bytes: bytes,
+    image_bytes: bytes | list[bytes],
     prompt: str,
     label: str = "",
     extra_context: str = "",
     username: str | None = None,
     allow_tools: bool = True,
 ) -> tuple[str, list[dict]]:
-    client = get_client()
-    image = Image.open(io.BytesIO(image_bytes))
-    image.load()
+    from lib.assistant_images import open_images
+    with open_images(image_bytes) as images:
+        return _ask_images(history, images, prompt, label, extra_context, username, allow_tools)
 
+
+def _ask_images(history, images, prompt, label, extra_context, username, allow_tools):
+    client = get_client()
     if allow_tools and calendar_image_import_requested(label or prompt):
         from lib.assistant_calendar_drafts import create_draft
         from lib.assistant_calendar_import import prepare_verified_events
@@ -1265,7 +1268,7 @@ def ask_image(
         )
         config = types.GenerateContentConfig(temperature=0, response_mime_type="application/json")
         first = client.models.generate_content(
-            model=current_app.config["GEMINI_MODEL"], contents=[instruction, image], config=config,
+            model=current_app.config["GEMINI_MODEL"], contents=[instruction, *images], config=config,
         )
         try:
             extracted = json.loads(_response_text(first))
@@ -1285,7 +1288,7 @@ def ask_image(
             f"Calendar timezone: {clock['timezone']}. User request: {label or prompt}"
         )
         second = client.models.generate_content(
-            model=current_app.config["GEMINI_MODEL"], contents=[verify_instruction, image], config=config,
+            model=current_app.config["GEMINI_MODEL"], contents=[verify_instruction, *images], config=config,
         )
         try:
             verified = json.loads(_response_text(second))
@@ -1297,7 +1300,7 @@ def ask_image(
         prepared = prepare_verified_events(extracted["events"], verified["events"], year_hint=year_hint)
         if prepared["candidates"]:
             unreadable = [note for note in prepared["review"] if "the image checks disagreed" not in note]
-            token = create_draft(username or "", prepared["candidates"], unreadable, image)
+            token = create_draft(username or "", prepared["candidates"], unreadable, images)
             g.assistant_review_url = url_for("calendar_import_review", token=token)
             g.assistant_review_label = "Review dates"
             ready = sum(bool(candidate.get("verified")) for candidate in prepared["candidates"])
@@ -1333,6 +1336,11 @@ def ask_image(
         from google.genai import types
 
         config_values: dict[str, Any] = {"temperature": 0.2, "system_instruction": ASSISTANT_CONTRACT}
+        from lib.assistant_diary import PHOTO_LOG_WRITING_GUIDANCE, available as diary_available
+
+        if allow_tools and diary_available(username):
+            config_values.update(temperature=0.45, max_output_tokens=8192)
+            config_values["system_instruction"] += "\n\n" + PHOTO_LOG_WRITING_GUIDANCE
         if allow_tools:
             config_values["tools"] = build_workspace_tools(username, allow_calendar_write=calendar_write_requested(label or prompt))
             config_values["automatic_function_calling"] = types.AutomaticFunctionCallingConfig(
@@ -1340,7 +1348,7 @@ def ask_image(
             )
         response = client.models.generate_content(
             model=current_app.config["GEMINI_MODEL"],
-            contents=[prompt_text, image],
+            contents=[prompt_text, *images],
             config=types.GenerateContentConfig(**config_values),
         )
     except ModuleNotFoundError as exc:

@@ -1,10 +1,10 @@
 # Assistant diary logging
 
-Verified 22 October 2026.
+Updated 24 October 2026.
 
 ## Use
 
-Sign in as Admin, open Assistant, and keep workspace context enabled. Use **Log a photo** or attach an image normally and ask to log/analyse it. The assistant writes a short heading and Markdown appropriate to the request; there is no fixed food/receipt template. Explicit “don't save”, “chat only” or “draft” requests stay in chat. Analysis uses the existing configured external model provider; it is not local inference.
+Sign in as Admin, open Assistant, and keep workspace context enabled. Use **Log a photo** or attach an image normally and ask to log/analyse it. The assistant writes a short heading and a developed, descriptive photo entry, normally about 250–450 words when the image supports it (or equivalent detail in your language). It moves from the overall scene into useful visible details such as subjects, arrangement, colors, lighting, textures and readable text, using natural, varied prose rather than a fixed food/receipt template. Creative wording must stay grounded in the image and your supplied context; unknown experiences, feelings, sounds, tastes or identities are not invented. Simple images can have shorter entries, and explicit brief/format/language requests take precedence. Explicit “don't save”, “chat only” or “draft” requests stay in chat. Analysis uses the existing configured external model provider; it is not local inference.
 
 A successful save returns **Open diary**. Entries append to `Diary/YYYY-MM-DD.md` and add a missing date link to `Diary.md`, preserving existing text. New notes carry the existing `diary` tag. Timestamp/date use the server calendar timezone (Asia/Singapore at verification); timestamp is logging time, not necessarily the time pictured. Entry order: time/title, original stored image, generated Markdown. Image interpretations remain machine analysis.
 
@@ -16,7 +16,7 @@ On save only, `deploy/obsidian-diary.mjs` launches the existing Node/CompatibleC
 
 Stable browser message IDs and a small lazy SQLite receipt store at `/srv/tamestorage/.tamestorage_state/assistant-diary.sqlite` make retries idempotent, including interrupted index updates and crossing midnight. Preserve generated `^log-…` block IDs. Regenerate retains the original entry; send a new message for an additional entry. Pending payloads survive until completion; completed rows retain receipts, not a second archive of diary bodies.
 
-Compose reuses readonly `/home/tameszaza/.local/lib/goodnotes-links` at `/opt/livesync` and the existing private config at `/run/obsidian-livesync.json`. Never print/copy that profile into documentation. Web joins the existing `obsidian-livesync_default` private Docker network as `vault-sync`; no new published port/firewall rule. Preserve diary Python/chat JS readonly binds alongside prior binds. No new resident worker, polling loop, Mac model/index or independent sync engine.
+Compose reuses readonly `/home/tameszaza/.local/lib/goodnotes-links` at `/opt/livesync` and the existing private config at `/run/obsidian-livesync.json`. Never print/copy that profile into documentation. Web joins the existing `obsidian-livesync_default` private Docker network as `vault-sync`; no new published port/firewall rule. Preserve the `lib/ai_client.py`, `lib/assistant_diary.py` and chat JS readonly binds alongside prior binds. No new resident worker, polling loop, Mac model/index or independent sync engine.
 
 ## Obsidian
 
@@ -27,3 +27,14 @@ Server Image Paste 1.2.3 handles `obsidian://tames-diary?vault=Notes&date=YYYY-M
 Unit/regression coverage: diary writer, calendar routing, shared image storage, chat diary service and mobile-safe URI lifecycle. Real model checks verified log/analyse tool use and explicit no-save behavior. Isolated encrypted LiveSync fixtures verified create/append, retry, exact content and native Mac reflection; fixtures were removed. A real production Python→image store→SQLite→Node CLI→encrypted namespaced note check passed. Browser checks covered desktop/mobile, previews, Open diary, reload/reattach retries and UUID reuse; browser POST responses were isolated test fixtures.
 
 Maintained opt-in integration tests under `tests/diary_*` use strict disposable namespaces; never run them against user diary paths. `deploy/build-diary-image.py` makes an overlay from the current image without reinstalling dependencies; normal source build includes these files too. Do not change LiveSync identity/encryption format independently of the vault. Existing backups/queues/recovery/cleanup rules remain separate; image storage and diary receipts are not temporary upload files.
+
+## Photo writing settings (24 October 2026)
+
+One shared photo-writing guide is included in the diary tool description and the authorized photo request's system instruction. Ordinary chat keeps its concise default; diary content is an explicit exception, while the saved-entry confirmation remains short. Authorized diary photo requests use temperature0.45 and an8192-token per-response ceiling through the existing Google Gen AI SDK. Ordinary text requests and image requests without authorized diary context keep their prior generation settings. The deterministic two-pass schedule import stays at temperature0.
+
+This changes new generations, not existing diary entries. Stable request IDs still preserve an already saved entry on Regenerate/retry; send a new message for a new entry. No minimum word count is enforced in storage, so the assistant can keep simple images or explicitly brief requests short. Richer entries can take longer and use more provider output tokens. The model/provider, image storage,16,000-character entry limit, no-save controls, receipts and LiveSync writer are unchanged. No new runtime dependency, service or polling job.
+
+Generation configuration reference: https://googleapis.github.io/python-genai/ . Regression tests cover diary authorization/style scope, ordinary-text settings, schedule extraction, safe append/retry and no-save authority. Live writing checks use synthetic images and replace the save tool in memory; they must never write test content to the user's diary.
+
+
+Multiple-image messages now preserve every attachment in order; see [Assistant image batches](ASSISTANT-IMAGES.md) for bounds, preview behavior and tests. Existing single-image entries and retry receipts remain compatible.

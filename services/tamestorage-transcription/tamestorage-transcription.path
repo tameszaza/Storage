@@ -1,0 +1,9 @@
+[Unit]
+Description=Wake Cyborg when Tamestorage has transcription jobs
+
+[Path]
+PathExists=/srv/tamestorage/.tamestorage_state/transcription/wake
+Unit=tamestorage-transcription.service
+
+[Install]
+WantedBy=multi-user.target

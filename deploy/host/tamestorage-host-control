@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+import json
+import os
+import socket
+import socketserver
+import struct
+import subprocess
+import sys
+sys.path.insert(0, "/usr/local/libexec")
+import tamestorage_containers as containers
+import tamestorage_settings as settings
+import tamestorage_activity as activity
+
+
+SOCKET_PATH = "/run/tamestorage-control/control.sock"
+ALLOWED_UID = 1000
+EXIT_ROUTES = {"0.0.0.0/0", "::/0"}
+
+
+def exit_node_status() -> dict:
+    completed = subprocess.run(
+        ["/usr/bin/tailscale", "debug", "prefs"],
+        check=True, capture_output=True, text=True, timeout=10,
+    )
+    prefs = json.loads(completed.stdout)
+    routes = set(prefs.get("AdvertiseRoutes") or [])
+    return {"enabled": bool(routes & EXIT_ROUTES)}
+
+
+def set_exit_node(enabled: bool) -> dict:
+    subprocess.run(
+        ["/usr/bin/tailscale", "set", f"--advertise-exit-node={'true' if enabled else 'false'}"],
+        check=True, capture_output=True, text=True, timeout=20,
+    )
+    return exit_node_status()
+
+
+class ControlHandler(socketserver.StreamRequestHandler):
+    def handle(self) -> None:
+        uid = struct.unpack("3i", self.request.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))[1]
+        if uid not in {0, ALLOWED_UID}:
+            self.reply({"ok": False, "error": "Access denied."})
+            return
+        try:
+            raw = self.rfile.readline(16_385)
+            if not raw or len(raw) > 16_384:
+                raise ValueError("Invalid request.")
+            payload = json.loads(raw)
+            action = payload.get("action")
+            if action == "activity-snapshot":
+                if set(payload) != {"action"}:raise ValueError("Invalid request.")
+                result = {"activity": activity.snapshot()}
+            elif action in {"settings-get","settings-preview","settings-save"}:
+                result = settings.dispatch(payload)
+            elif action in {"containers-list","container-detail","container-action","container-operation"}:
+                result = containers.dispatch(payload)
+            elif action == "status":
+                result = exit_node_status()
+            elif action == "set" and type(payload.get("enabled")) is bool:
+                result = set_exit_node(payload["enabled"])
+            else:
+                raise ValueError("Unsupported request.")
+            self.reply({"ok": True, **result})
+        except (containers.ControlError, settings.SettingsError) as error:
+            self.reply({"ok": False, "error": str(error)})
+        except (ValueError, json.JSONDecodeError):
+            self.reply({"ok": False, "error": "Invalid request."})
+        except (OSError, subprocess.SubprocessError):
+            self.reply({"ok": False, "error": "Tailscale did not accept the change."})
+
+    def reply(self, payload: dict) -> None:
+        self.wfile.write(json.dumps(payload).encode("utf-8") + b"\n")
+
+
+class ControlServer(socketserver.ThreadingUnixStreamServer):
+    daemon_threads = True
+
+
+def main() -> None:
+    containers.start_monitor_adapter()
+    os.makedirs(os.path.dirname(SOCKET_PATH), mode=0o750, exist_ok=True)
+    if os.path.exists(SOCKET_PATH):
+        os.unlink(SOCKET_PATH)
+    with ControlServer(SOCKET_PATH, ControlHandler) as server:
+        os.chown(SOCKET_PATH, 0, ALLOWED_UID)
+        os.chmod(SOCKET_PATH, 0o660)
+        server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,9 @@
+{
+  "id": "tames-pdf",
+  "name": "Tames PDF",
+  "version": "1.2.3",
+  "minAppVersion": "1.4.0",
+  "description": "Lightweight cloud PDF reading, color inversion, and Markdown annotations.",
+  "author": "Tames; annotation engine derived from Alexander Tian\u2019s PDF Annotator",
+  "isDesktopOnly": false
+}

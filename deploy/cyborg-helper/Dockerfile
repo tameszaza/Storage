@@ -10,6 +10,7 @@ COPY quartz /opt/quartz
 WORKDIR /opt/quartz
 RUN mkdir -p /work/home /work/tmp /work/cache && git config --global url."https://github.com/".insteadOf ssh://git@github.com/ && git config --global --add url."https://github.com/".insteadOf git@github.com: && npm ci --no-audit --no-fund && npm cache clean --force
 COPY worker.py /opt/helper/worker.py
+COPY image_ocr_quality.py /opt/helper/image_ocr_quality.py
 COPY pdf_inventory.py /opt/helper/pdf_inventory.py
 COPY searchable_pdf.py /opt/helper/pdf_local.py
 WORKDIR /work

@@ -1,9 +1,13 @@
-from routes import obsidian_mobile, goodnotes, activity
+from routes import goodnotes_stats
+from routes import obsidian_mobile, goodnotes, activity, chat_archive, workspace_agent
 from routes import admin, ai, auth, features, files, music, network_test, planner, public, shares
 from routes import videos, obsidian_images, transcription, services, settings
 
 
 def register_all_routes(app):
+    goodnotes_stats.register_routes(app)
+    chat_archive.register_routes(app)
+    workspace_agent.register_routes(app)
     obsidian_mobile.register_routes(app)
     goodnotes.register_routes(app)
     activity.register_routes(app)

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Goodnotes statistics · Tamestorage{% endblock %}
+{% block link %}<link href="{{ url_for('static',filename='css/goodnotes-stats.css') }}?v=1" rel="stylesheet">{% endblock %}
+{% block content %}
+<main id="goodnotesStats" data-api="{{ url_for('goodnotes_statistics_api',part='summary').rsplit('/',1)[0] }}" data-csrf="{{ stats_csrf }}">
+<header class="gn-heading"><section><a href="{{ url_for('admin') }}">← Admin center</a><h1>Goodnotes statistics</h1></section><nav aria-label="Statistics controls"><button id="gnRefresh" class="btn btn-outline-secondary" type="button">Refresh</button><button id="gnPause" class="btn btn-outline-secondary" type="button">Pause</button></nav></header>
+<p id="gnStatus" role="status" aria-live="polite">Loading…</p>
+<form id="gnFilters" class="gn-filters"><select id="gnFolder" class="form-select" aria-label="Notebook folder"><option value="">All folders</option></select><input id="gnQuery" class="form-control" type="search" placeholder="Find a notebook…" aria-label="Find a notebook"></form>
+<section id="gnMetrics" class="gn-metrics" aria-label="Handwriting estimates"></section>
+<section class="gn-panel"><header><h2>Notebooks</h2><span id="gnCount"></span></header><ul id="gnFiles" class="gn-files"></ul><nav class="gn-pager" aria-label="Notebook pages"><button id="gnPrev" class="btn btn-outline-secondary" type="button">Previous</button><button id="gnNext" class="btn btn-outline-secondary" type="button">Next</button></nav></section>
+<section id="gnDetail" class="gn-panel" hidden><header><h2 id="gnDetailTitle"></h2><button id="gnClose" class="btn btn-outline-secondary" type="button" aria-label="Close notebook details">×</button></header><p id="gnDetailStatus"></p><ol id="gnPages" class="gn-pages"></ol><button id="gnMore" class="btn btn-outline-secondary" type="button">More pages</button><h3>Pen colors</h3><ul id="gnColors" class="gn-swatches"></ul><h3>Line widths · mm on page</h3><p id="gnWidths"></p></section>
+<details class="gn-panel gn-method"><summary>How these estimates work</summary><p>Current exported library, not lifetime writing. PDF ink records are counted directly; rounded vector paths in Goodnotes’ Quartz exports are estimates. Printed graphics can match, and erased strokes or rasterized handwriting cannot be recovered.</p><p>Distance and widths use the PDF page scale. They are not measured physical pen travel or pressure. Colors and widths describe recognized paths. Repeated copies of a notebook count separately.</p><p id="gnCoverage"></p><p>Runs in spare capacity. OCR, indexing and web builds take priority. Original PDFs stay unchanged.</p></details>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static',filename='js/goodnotes-stats.js') }}?v=1" defer></script>{% endblock %}

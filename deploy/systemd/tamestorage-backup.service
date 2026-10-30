@@ -1,0 +1,10 @@
+[Unit]
+Description=Clean temporary files and mirror TameStorage to its backup disk
+RequiresMountsFor=/srv/tamestorage /srv/tamestorage-backup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tamestorage-backup
+Nice=10
+IOSchedulingClass=idle

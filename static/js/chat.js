@@ -1,10 +1,14 @@
 (function () {
     const STORAGE_KEY = "tamestorage.ai.chat.v5";
-    const imageUrlsToRevoke = [];
+    const imageUrlsToRevoke = new Set();
+    const MAX_IMAGES = 8, MAX_IMAGE_BYTES = 20 * 1024 * 1024, MAX_BATCH_BYTES = 40 * 1024 * 1024;
+    const storedImageUrl = url => /^https:\/\/server\.tailb7f57c\.ts\.net\/obsidian-images\/[0-9a-f]{64}\.(png|jpg|gif|webp|avif)$/.test(url || '');
+    const imagesOf = message => Array.isArray(message.images) ? message.images : message.imageName ? [{name: message.imageName, url: message.imageUrl || ''}] : [];
+    const archiveTimers=new Map();
     const state = {
         messages: [],
-        imageFile: null,
-        imageUrl: "",
+        attachments: [],
+        busy: false,
         retryMessageId: "",
     };
 
@@ -102,10 +106,13 @@
         const serializable = state.messages.map((message) => ({
             id: message.id,
             role: message.role,
+            scope:message.scope||"",
             text: message.text,
-            imageName: message.imageName || "",
+            images: imagesOf(message).map(image => ({name: image.name, url: storedImageUrl(image.url) ? image.url : ""})),
             actionUrl: message.actionUrl || "",
             actionLabel: message.actionLabel || "",
+            workspaceJob:message.workspaceJob||"",workspaceReceipt:message.workspaceReceipt||"",workspaceState:message.workspaceState||"",workspaceActivity:message.workspaceActivity||null,workspaceRequestId:message.workspaceRequestId||"",
+            archiveSources: message.archiveSources || [], archiveJob: message.archiveJob || "", archiveState: message.archiveState || "", provider: message.provider || "",
             kind: message.kind || "",
             createdAt: message.createdAt || Date.now(),
         }));
@@ -119,7 +126,7 @@
     function loadHistory() {
         try {
             const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-            if (Array.isArray(parsed)) state.messages = parsed;
+            if (Array.isArray(parsed)) state.messages = parsed.map(message => ({...message, images: imagesOf(message).map(image => ({name: String(image.name || "Image"), url: storedImageUrl(image.url) ? image.url : ""}))}));
         } catch (error) {
             state.messages = [];
         }
@@ -140,6 +147,7 @@
             filePath: $("fileContextPath")?.value.trim() || "",
             detailLevel: $("detailLevel")?.value || "balanced",
             responseStyle: $("responseStyle")?.value || "practical",
+            archiveMode: $("archiveMode")?.value || "workspace",
         };
     }
 
@@ -155,9 +163,14 @@
     function previousUserMessage(messageId) {
         const index = state.messages.findIndex((message) => message.id === messageId);
         for (let i = index; i >= 0; i -= 1) {
-            if (state.messages[i]?.role === "user" && (state.messages[i]?.text || state.messages[i]?.imageName)) return state.messages[i];
+            if (state.messages[i]?.role === "user" && (state.messages[i]?.text || imagesOf(state.messages[i]).length)) return state.messages[i];
         }
         return null;
+    }
+
+    function textWithSources(message){
+        const sources=(message.archiveSources||[]).filter(s=>/^\/admin\/chat-archive\//.test(s.url||''));
+        return (message.text||'')+(sources.length?'\n\n'+sources.map((s,i)=>'['+(i+1)+'] '+(s.title||'Untitled')+' · '+(s.created||'').slice(0,10)+' · '+s.role+'\n'+(s.quote||s.text||'')+'\n'+location.origin+s.url).join('\n\n'):'');
     }
 
     function makeSmallButton(html, title, onClick) {
@@ -178,7 +191,7 @@
 
         actions.appendChild(makeSmallButton('<i class="fa-regular fa-copy"></i> Copy', "Copy message", async (event) => {
             const button = event.currentTarget;
-            const text = message.text || "";
+            const text = textWithSources(message);
             try {
                 await navigator.clipboard.writeText(text);
                 button.innerHTML = '<i class="fa-solid fa-check"></i> Copied';
@@ -188,7 +201,9 @@
             }
         }));
 
-        actions.appendChild(makeSmallButton('<i class="fa-solid fa-rotate-right"></i> Regenerate', "Regenerate from this message", () => {
+        if(message.workspaceJob){
+            actions.appendChild(makeSmallButton('<i class="fa-solid fa-stop"></i> Stop',"Stop Workspace task",()=>cancelWorkspace(message)));
+        }else actions.appendChild(makeSmallButton('<i class="fa-solid fa-rotate-right"></i> Regenerate', "Regenerate from this message", () => {
             regenerateFromMessage(message.id);
         }));
 
@@ -239,20 +254,27 @@
             const content = document.createElement("div");
             content.className = "message-content";
 
-            if (message.imageUrl) {
-                const imageWrap = document.createElement("div");
-                imageWrap.className = "message-image-wrap";
-                const image = document.createElement("img");
-                image.className = "message-image";
-                image.src = message.imageUrl;
-                image.alt = message.imageName || "Attached image";
-                imageWrap.appendChild(image);
-                content.appendChild(imageWrap);
-            } else if (message.imageName) {
-                const imageNote = document.createElement("div");
-                imageNote.className = "message-attachment-note";
-                imageNote.innerHTML = '<i class="fa-solid fa-image"></i> ' + escapeHtml(message.imageName);
-                content.appendChild(imageNote);
+            const images = imagesOf(message);
+            if (images.length) {
+                const list = document.createElement("ul");
+                list.className = "message-images";
+                list.setAttribute("aria-label", "Attached images");
+                images.forEach(attachment => {
+                    const item = document.createElement("li");
+                    if (attachment.url) {
+                        const link = document.createElement("a");
+                        link.href = attachment.url;link.target = "_blank";link.rel = "noopener";
+                        link.setAttribute("aria-label", "Open " + attachment.name);
+                        const image = document.createElement("img");
+                        image.className = "message-image";image.src = attachment.url;
+                        image.alt = attachment.name || "Attached image";image.loading = "lazy";
+                        link.appendChild(image);item.appendChild(link);
+                    } else {
+                        item.className = "message-attachment-note";item.textContent = attachment.name;
+                    }
+                    list.appendChild(item);
+                });
+                content.appendChild(list);
             }
 
             const body = document.createElement("div");
@@ -266,9 +288,23 @@
             } else if (message.role === "assistant") {
                 body.innerHTML = formatAssistantText(text);
             } else {
-                body.textContent = text || (message.imageName ? "Attached image" : "");
+                body.textContent = text || (images.length ? "Attached images" : "");
             }
             content.appendChild(body);
+            if(message.archiveSources?.length){
+                const details=document.createElement('details'),summary=document.createElement('summary');
+                summary.className='archive-source-summary';summary.textContent=message.archiveSources.length+(message.archiveSources.length===1?' source':' sources');details.append(summary);
+                const list=document.createElement('ol');list.className='archive-source-list';
+                message.archiveSources.forEach((source,index)=>{
+                    if(!/^\/admin\/chat-archive\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\?page=\d+)?#m-[A-Za-z0-9_-]+$/.test(source.url||''))return;
+                    const li=document.createElement('li'),link=document.createElement('a'),meta=document.createElement('small'),quote=document.createElement('blockquote');
+                    link.href=source.url;link.target='_blank';link.rel='noopener';link.textContent='['+(index+1)+'] '+(source.title||'Untitled');
+                    meta.textContent=(source.created||'').slice(0,10)+' · '+(source.role==='user'?'You':source.role);quote.textContent=source.quote||source.text||'';
+                    li.append(link,meta,quote);list.append(li);
+                });details.append(list);content.append(details);
+            }
+            if(message.workspaceJob){const status=document.createElement('small');status.className='archive-status';const a=message.workspaceActivity;status.textContent=(message.provider||'Cyborg')+(a?.total?' · '+a.completed+'/'+a.total:'');status.title=a?.title||'';content.append(status);}
+            if(message.archiveState==='queued'){const status=document.createElement('small');status.className='archive-status';status.textContent='Waiting for Cyborg';content.append(status);}
             content.appendChild(makeMessageActions(message));
             wrapper.appendChild(avatar);
             wrapper.appendChild(content);
@@ -284,9 +320,9 @@
         const message = {
             id: newId(),
             role,
+            scope:options.scope||"",
             text: text || "",
-            imageUrl: options.imageUrl || "",
-            imageName: options.imageName || "",
+            images: options.images || [],
             actionUrl: options.actionUrl || "",
             actionLabel: options.actionLabel || "",
             kind: options.kind || "",
@@ -306,125 +342,256 @@
         message.actionUrl = options.actionUrl || "";
         message.actionLabel = options.actionLabel || "";
         message.kind = options.kind || "";
+        for(const key of ['scope','archiveSources','archiveJob','archiveState','provider','workspaceJob','workspaceReceipt','workspaceState','workspaceActivity','workspaceRequestId']){
+            if(Object.hasOwn(options,key))message[key]=options[key];
+        }
         saveHistory();
         renderMessages();
         scrollToBottom();
     }
 
     function setBusy(isBusy) {
+        state.busy = isBusy;
         const button = $("sendButton");
         if (!button) return;
         button.disabled = isBusy;
-        button.innerHTML = isBusy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Working' : '<i class="fa-solid fa-paper-plane"></i> Send';
+        button.setAttribute("aria-label", isBusy ? "Sending message" : "Send message");
+        button.innerHTML = isBusy ? '<i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i><span>Sending</span>' : '<i class="fa-solid fa-arrow-up" aria-hidden="true"></i><span>Send</span>';
+        updateSendReadiness();
     }
 
-    function updateImageLabel() {
-        const label = $("imageLabel");
-        const removeButton = $("removeImageBtn");
-        if (!label) return;
-        label.textContent = state.imageFile ? state.imageFile.name : "Attach image";
-        label.title = state.imageFile ? state.imageFile.name : "";
-        if (removeButton) removeButton.hidden = !state.imageFile;
+    let previewChain = Promise.resolve();
+
+    function updateSendReadiness() {
+        const pending = state.attachments.some(image => image.previewState !== "ready");
+        if ($("sendButton")) {$("sendButton").disabled = state.busy || pending;$("sendButton").title = pending ? "Preparing image previews" : "Send message";}
     }
 
-    function setImageFile(file) {
-        if (state.imageUrl && !state.messages.some(message => message.imageUrl === state.imageUrl)) URL.revokeObjectURL(state.imageUrl);
-        state.imageFile = file || null;
-        state.imageUrl = file ? URL.createObjectURL(file) : "";
-        if (state.imageUrl) imageUrlsToRevoke.push(state.imageUrl);
-        updateImageLabel();
+    async function prepareImagePreview(attachment) {
+        if (attachment.previewState === "converting") return;
+        if (attachment.previewTried) {attachment.previewState = "error";updateSendReadiness();return;}
+        attachment.previewTried = true;attachment.previewState = "converting";
+        attachment.controller = new AbortController();updateSendReadiness();
+        $("imagePreviews")?.querySelector(`[data-attachment-id="${attachment.id}"]`)?.classList.add("is-preparing");
+        const previousPreview = previewChain;let releasePreview;
+        previewChain = new Promise(resolve => {releasePreview = resolve;});
+        try {
+            await previousPreview;
+            if (attachment.controller.signal.aborted || !state.attachments.includes(attachment)) return;
+            const data = new FormData();data.append("preview", "1");data.append("csrf", $("chatForm").elements.csrf?.value || "");
+            data.append("image", attachment.file, attachment.name);
+            const response = await fetch($("chatForm").action, {method: "POST", body: data, signal: attachment.controller.signal});
+            if (!response.ok) {const error = await response.json().catch(() => ({}));throw Error(error.response || "Could not prepare this image.");}
+            if (!response.headers.get("Content-Type")?.startsWith("image/")) throw Error("Image preview unavailable.");
+            const blob = await response.blob();
+            if (!state.attachments.includes(attachment)) return;
+            const previous = attachment.url;attachment.url = URL.createObjectURL(blob);imageUrlsToRevoke.add(attachment.url);
+            attachment.previewState = "loading";releaseImageUrl(previous);renderAttachments();
+        } catch (error) {
+            if (error.name !== "AbortError") {attachment.previewState = "error";attachmentStatus(error.message + " Remove it or choose a PNG/JPEG copy.");}
+        } finally {
+            releasePreview();attachment.controller = null;updateSendReadiness();
+        }
     }
 
-    function clearImage() {
-        const imageInput = $("imageInput");
-        if (imageInput) imageInput.value = "";
-        setImageFile(null);
+    function attachmentStatus(text = "") {
+        const status = $("attachmentStatus");
+        if (status) { status.textContent = text;status.hidden = !text; }
+    }
+
+    function releaseImageUrl(url) {
+        if (!url?.startsWith("blob:") || state.attachments.some(image => image.url === url) ||
+            state.messages.some(message => imagesOf(message).some(image => image.url === url))) return;
+        URL.revokeObjectURL(url);imageUrlsToRevoke.delete(url);
+    }
+
+    function renderAttachments() {
+        const list = $("imagePreviews");
+        if (!list) return;
+        list.replaceChildren();list.hidden = !state.attachments.length;
+        state.attachments.forEach(attachment => {
+            const item = document.createElement("li");item.dataset.attachmentId = attachment.id;
+            if (attachment.previewState === "converting") item.classList.add("is-preparing");
+            const link = document.createElement("a");
+            link.href = attachment.url;link.target = "_blank";link.rel = "noopener";
+            link.title = attachment.name;link.setAttribute("aria-label", "Preview " + attachment.name);
+            const image = document.createElement("img");
+            image.src = attachment.url;image.alt = attachment.name;image.decoding = "async";
+            image.addEventListener("load", () => {attachment.previewState = "ready";item.classList.remove("is-preparing");updateSendReadiness();});
+            image.addEventListener("error", async () => {await prepareImagePreview(attachment);if (attachment.previewState === "error") {image.hidden = true;link.textContent = attachment.name;link.classList.add("preview-unavailable");item.classList.remove("is-preparing");}});
+            link.appendChild(image);item.appendChild(link);
+            const remove = document.createElement("button");
+            remove.type = "button";remove.className = "chat-image-remove";
+            remove.setAttribute("aria-label", "Remove " + attachment.name);
+            remove.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+            remove.addEventListener("click", () => {
+                const index = state.attachments.indexOf(attachment);attachment.controller?.abort();
+                state.attachments = state.attachments.filter(image => image.id !== attachment.id);
+                releaseImageUrl(attachment.url);renderAttachments();attachmentStatus();
+                const buttons = list.querySelectorAll("button");
+                (buttons[Math.min(index, buttons.length - 1)] || $("attachImagesBtn"))?.focus();
+            });
+            item.appendChild(remove);list.appendChild(item);
+        });
+        updateSendReadiness();
+        if ($("imageLabel")) $("imageLabel").textContent = state.attachments.length ? `${state.attachments.length} image${state.attachments.length === 1 ? "" : "s"}` : "Images";
+        $("attachImagesBtn")?.setAttribute("aria-label", "Attach images" + (state.attachments.length ? ` (${state.attachments.length} selected)` : ""));
+    }
+
+    function addImageFiles(files) {
+        let total = state.attachments.reduce((sum, image) => sum + image.file.size, 0), error = "";
+        for (const file of files) {
+            if ((!file.type.startsWith("image/") && !/\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|tiff?)$/i.test(file.name)) || /svg/i.test(file.type)) { error = "Choose image files such as PNG, JPEG or HEIC.";continue; }
+            if (state.attachments.some(image => image.file.name === file.name && image.file.size === file.size && image.file.lastModified === file.lastModified)) continue;
+            if (state.attachments.length >= MAX_IMAGES) { error = "Attach up to 8 images per message.";continue; }
+            if (!file.size) { error = "An image is empty. Choose another file.";continue; }
+            if (file.size > MAX_IMAGE_BYTES) { error = "Each image must be under 20 MB.";continue; }
+            if (total + file.size > MAX_BATCH_BYTES) { error = "Keep the images under 40 MB combined.";continue; }
+            const url = URL.createObjectURL(file);imageUrlsToRevoke.add(url);
+            state.attachments.push({id: newId(), file, url, name: file.name, previewState: "loading"});total += file.size;
+        }
+        renderAttachments();attachmentStatus(error);
+    }
+
+    function clearImages() {
+        const previous = state.attachments;state.attachments = [];
+        previous.forEach(image => {image.controller?.abort();releaseImageUrl(image.url);});
+        if ($("imageInput")) $("imageInput").value = "";
+        renderAttachments();attachmentStatus();
+    }
+
+    function applyResponse(messageId,data,requestId){
+            const receipts = Array.isArray(data.actions) ? data.actions : [], lastAction = receipts.at(-1);
+            const original = messageById(requestId);
+            if (original) {
+                const attached=imagesOf(original);
+                for(const photo of receipts.filter(a=>a.action==="diary.saved")){
+                    const stored=photo.image_urls||(photo.image_url?[photo.image_url]:[]);
+                    const numbers=Array.isArray(photo.image_numbers)?photo.image_numbers:stored.length===attached.length?attached.map((_,i)=>i+1):[];
+                    if(numbers.length!==stored.length||!stored.every(storedImageUrl))continue;
+                    numbers.forEach((number,index)=>{
+                        const image=attached[number-1];if(!image)return;
+                        const previous=image.url;image.url=stored[index];delete image.file;releaseImageUrl(previous);
+                    });
+                }
+            }
+            const receiptText = receipts.length && !data.workspace_result ? "\n\n" + receipts.map(a => "✓ " + a.action.replaceAll(".", " · ") + ": " + a.title).join("\n") : "";
+            updateMessage(messageId, (data.response || "No response.") + receiptText, {
+                scope:messageById(messageId)?.scope||(data.workspace_result||data.workspace_job?"workspace":"archive"),
+                actionUrl: data.action_url || lastAction?.url || "", actionLabel: data.action_label || (lastAction ? "View changes" : ""),
+                archiveSources: data.archive_sources || [], archiveJob: data.archive_job || "", archiveState: data.archive_state || "", provider: data.provider || "",
+                workspaceReceipt: data.workspace_job || messageById(messageId)?.workspaceJob || messageById(messageId)?.workspaceReceipt || "",
+                workspaceJob: data.workspace_job || "", workspaceState: data.workspace_state || "", workspaceActivity:data.activity||null, workspaceRequestId: requestId,
+            });
+            if(data.archive_job)pollArchive(messageId,data.archive_job);
+            if(data.workspace_job)pollWorkspace(messageId,data.workspace_job);
     }
 
     async function sendPrompt(promptText, options = {}) {
-        const message = String(promptText || "").trim();
-        const imageFile = options.imageFile || null;
-        if (!message && !imageFile) return;
-
+        const message = String(promptText || "").trim(), images = options.images || [];
+        if (state.busy || (!message && !images.length)) return;
+        const scope=isWorkspace(getPreferences().archiveMode)?"workspace":"archive";
         let userMessage;
-        if (!options.skipUserBubble) {
-            userMessage = addMessage("user", message, {
-                imageUrl: imageFile ? state.imageUrl : "",
-                imageName: imageFile ? imageFile.name : "",
-            });
-        }
-
-        const thinking = addMessage("assistant", "", { kind: "thinking" });
+        if (!options.skipUserBubble) userMessage = addMessage("user", message, {images,scope});
+        const thinking = addMessage("assistant", "", {kind: "thinking",scope});
         const formData = new FormData();
         formData.append("msg", message);
         const requestId = options.requestId || userMessage?.id || newId();
         formData.append("request_id", requestId);
         formData.append("csrf", $("chatForm").elements.csrf?.value || "");
-        formData.append("prompt", $("imagePromptInput")?.value || "Describe this image.");
+        formData.append("prompt", $("imagePromptInput")?.value || "Describe the attached images.");
         const prefs = getPreferences();
-        formData.append("include_context", prefs.includeContext);
-        formData.append("file_path", prefs.filePath);
-        formData.append("detail_level", prefs.detailLevel);
-        formData.append("response_style", prefs.responseStyle);
-        if (imageFile) formData.append("image", imageFile, imageFile.name);
-
+        formData.append("include_context", prefs.includeContext);formData.append("file_path", prefs.filePath);
+        formData.append("detail_level", prefs.detailLevel);formData.append("response_style", prefs.responseStyle);
+        formData.append("context_jobs",JSON.stringify(state.messages.filter(m=>m.role==="assistant"&&(m.workspaceJob||m.workspaceReceipt)).slice(-4).map(m=>m.workspaceJob||m.workspaceReceipt)));
+        const pendingRequests=new Set(state.messages.filter(m=>m.workspaceJob).map(m=>m.workspaceRequestId));
+        formData.append("history",JSON.stringify(state.messages.filter(m=>m.scope==="workspace"&&!pendingRequests.has(m.id)&&m.kind!=="thinking"&&m.kind!=="welcome"&&m.id!==requestId&&!m.workspaceJob).slice(-10).map(m=>({role:m.role,text:(m.text||"").slice(0,1200)}))));
+        formData.append("archive_mode",prefs.archiveMode);if(options.regenerate)formData.append("archive_refresh","1");
+        images.forEach(image => formData.append("image", image.file, image.name));
         setBusy(true);
         try {
-            const response = await fetch($("chatForm").action, { method: "POST", body: formData });
-            const data = await response.json();
+            const response = await fetch($("chatForm").action, {method: "POST", body: formData,headers:{"X-Workspace-Client":"1"}});
+            const data = await response.json().catch(() => ({response: "The upload could not finish. Try fewer or smaller images."}));
             if (!response.ok) throw new Error(data.response || "Request failed");
-            const receipts = Array.isArray(data.actions) ? data.actions : [];
-            const lastAction = receipts.at(-1);
-            const photo = receipts.find(action => action.action === "diary.saved" && /^https:\/\/server\.tailb7f57c\.ts\.net\/obsidian-images\/[0-9a-f]{64}\.(png|jpg|gif|webp|avif)$/.test(action.image_url || ""));
-            const original = messageById(requestId);
-            if (photo && original) {
-                const previous = original.imageUrl;
-                original.imageUrl = photo.image_url;
-                if (previous?.startsWith("blob:")) {
-                    URL.revokeObjectURL(previous);
-                    const index = imageUrlsToRevoke.indexOf(previous);
-                    if (index >= 0) imageUrlsToRevoke.splice(index, 1);
-                    if (state.imageUrl === previous) state.imageUrl = "";
-                }
-            }
-            const receiptText = receipts.length ? "\n\n" + receipts.map(a => "✓ " + a.action.replaceAll(".", " · ") + ": " + a.title).join("\n") : "";
-            updateMessage(thinking.id, (data.response || "No response.") + receiptText, {
-                actionUrl: data.action_url || lastAction?.url || "",
-                actionLabel: data.action_label || (lastAction ? "View changes" : ""),
-            });
+            applyResponse(thinking.id,data,requestId);
         } catch (error) {
-            updateMessage(thinking.id, error.message || "Request failed. Please check the server and try again.");
+            updateMessage(thinking.id, (error.message || "Request failed.") + " Use Regenerate to retry this message.");
         } finally {
             setBusy(false);
-            if (!options.keepImage) clearImage();
         }
     }
 
     async function regenerateFromMessage(messageId) {
+        if (state.busy) return;
         const message = messageById(messageId);
         if (!message) return;
         const promptMessage = message.role === "user" ? message : previousUserMessage(messageId);
-        if (!promptMessage || (!promptMessage.text && !promptMessage.imageName)) return;
-        let imageFile = null;
-        if (promptMessage.imageName) {
-            if (!promptMessage.imageUrl) {
-                setComposerText(promptMessage.text || "");
-                state.retryMessageId = promptMessage.id;
-                $("imageInput")?.click();
-                return;
+        if (!promptMessage || (!promptMessage.text && !imagesOf(promptMessage).length)) return;
+        const pending=state.messages.find(m=>m.workspaceJob&&m.workspaceRequestId===promptMessage.id);
+        if(pending){pollWorkspace(pending.id,pending.workspaceJob);scrollToBottom();return;}
+        const images = [];
+        try {
+            for (const image of imagesOf(promptMessage)) {
+                if (image.file) { images.push(image);continue; }
+                if (!image.url) throw Error("Reattach images");
+                const response = await fetch(storedImageUrl(image.url) ? new URL(image.url).pathname : image.url);
+                if (!response.ok) throw Error("Image unavailable");
+                const blob = await response.blob();
+                images.push({...image, file: new File([blob], image.name, {type: blob.type})});
             }
-            try {
-                const blob = await (await fetch(promptMessage.imageUrl)).blob();
-                imageFile = new File([blob], promptMessage.imageName, {type: blob.type});
-            } catch (_error) {
-                setComposerText(promptMessage.text || "");
-                state.retryMessageId = promptMessage.id;
-                $("imageInput")?.click();
-                return;
-            }
+        } catch (_error) {
+            clearImages();setComposerText(promptMessage.text || "");state.retryMessageId = promptMessage.id;
+            attachmentStatus(`Reattach ${imagesOf(promptMessage).length} image(s) to retry this message.`);
+            $("imageInput")?.click();return;
         }
-        sendPrompt(promptMessage.text, { skipUserBubble: true, requestId: promptMessage.id, imageFile });
+        await sendPrompt(promptMessage.text, {skipUserBubble: true, requestId: promptMessage.id, images,regenerate:true});
     }
+
+    async function pollWorkspace(messageId,key){
+        const timerKey="workspace:"+key;
+        if(archiveTimers.has(timerKey)||document.hidden)return;
+        const timer=setTimeout(async()=>{
+            archiveTimers.delete(timerKey);
+            if(document.hidden||messageById(messageId)?.workspaceJob!==key)return;
+            try{
+                const response=await fetch('/chat/jobs/'+encodeURIComponent(key));
+                if(response.status===404){updateMessage(messageId,'This request is no longer available.',{workspaceJob:'',workspaceState:''});return;}
+                if(response.ok){
+                    const data=await response.json();
+                    if(data.result){applyResponse(messageId,data.result,messageById(messageId)?.workspaceRequestId);return;}
+                    const current=messageById(messageId);
+                    const text=(data.cancel_requested?'Stopping after the current step…':data.activity?.step||(data.status==='running'?'Working on your request…':'Waiting for '+data.provider))+(data.progress_response?'\n\n'+data.progress_response:'');
+                    if(current&&(current.workspaceState!==data.status||current.text!==text))updateMessage(messageId,text,{workspaceState:data.status,workspaceActivity:data.activity||null});
+                }
+            }catch(_error){}
+            if(messageById(messageId)?.workspaceJob===key)pollWorkspace(messageId,key);
+        },3000);
+        archiveTimers.set(timerKey,timer);
+    }
+
+    async function cancelWorkspace(message){
+        const formData=new FormData();formData.append('csrf',$("chatForm").elements.csrf?.value||'');
+        try{
+            const response=await fetch('/chat/jobs/'+encodeURIComponent(message.workspaceJob)+'/cancel',{method:'POST',body:formData});
+            if(!response.ok)throw Error('Stop request failed');
+            const data=await response.json();
+            if(data.result)applyResponse(message.id,data.result,message.workspaceRequestId);
+            else updateMessage(message.id,'Stopping after the current step…');
+        }catch(_error){updateMessage(message.id,'Could not request a stop. The task is still active; try again.');}
+    }
+
+    async function pollArchive(messageId,key){
+        if(archiveTimers.has(key)||document.hidden)return;
+        const timer=setTimeout(async()=>{
+            archiveTimers.delete(key);if(document.hidden)return;
+            try{const response=await fetch('/admin/chat-archive/jobs/'+encodeURIComponent(key));if(!response.ok)return;
+                const data=await response.json();if(data.status==='ready'){
+                    updateMessage(messageId,data.result.response,{archiveSources:data.result.archive_sources||[],archiveJob:'',archiveState:'',provider:data.result.provider});return;
+                }if(data.status==='failed'){updateMessage(messageId,'The source changed. Ask again for current evidence.',{archiveJob:'',archiveState:''});return;}
+            }catch(_error){}if(messageById(messageId)?.archiveJob===key)pollArchive(messageId,key);
+        },5000);archiveTimers.set(key,timer);
+    }
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){archiveTimers.forEach(clearTimeout);archiveTimers.clear();}else{state.messages.filter(m=>m.archiveJob).forEach(m=>pollArchive(m.id,m.archiveJob));state.messages.filter(m=>m.workspaceJob).forEach(m=>pollWorkspace(m.id,m.workspaceJob));}});
 
     function autoResizeInput() {
         const input = $("chatInput");
@@ -436,7 +603,7 @@
     function exportChat() {
         const lines = state.messages.map((message) => {
             const who = message.role === "user" ? "You" : "Assistant";
-            return `[${who}]\n${message.text || ""}\n${message.actionUrl ? "Action: " + message.actionUrl + "\n" : ""}`;
+            return `[${who}]\n${textWithSources(message)}\n${message.actionUrl ? "Action: " + message.actionUrl + "\n" : ""}`;
         }).join("\n");
         const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
         const url = URL.createObjectURL(blob);
@@ -497,15 +664,20 @@
         updateContextUI();
     }
 
+    function isWorkspace(mode){return mode==="workspace"||mode==="workspace_google";}
+
     function updateContextUI() {
+        const archiveMode=$("archiveMode")?.value||"workspace";
+        const modeSelect=$("archiveMode");
+        if(modeSelect)modeSelect.title=(isWorkspace(archiveMode)?'Workspace':'Chat archive')+' · '+(archiveMode==='workspace_google'||archiveMode==='google'?'Google':archiveMode==='excerpts'?'Excerpts':'Cyborg');
         const path = selectedContextPath();
         const toolsEnabled = $("includeTreeContext")?.checked !== false;
         const scope = $("conversationScope");
         const composer = $("composerContext");
         const help = $("fileContextHelp");
-        if (scope) scope.textContent = path ? `Reading ${path}` : (toolsEnabled ? "Files, calendar & tasks" : "Private context off");
+        if (scope) scope.textContent = !isWorkspace(archiveMode) ? "Chat archive" : path ? `Reading ${path}` : (toolsEnabled ? "Files, calendar & tasks" : "Private context off");
         if (composer) {
-            composer.innerHTML = path
+            composer.innerHTML = !isWorkspace(archiveMode) ? `<i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Archive` : path
                 ? `<i class="fa-regular fa-file-lines" aria-hidden="true"></i> ${escapeHtml(path.split("/").pop())}`
                 : `<i class="fa-solid ${toolsEnabled ? "fa-wand-magic-sparkles" : "fa-lock"}" aria-hidden="true"></i> ${toolsEnabled ? "Automatic" : "Private context off"}`;
             composer.title = path || (toolsEnabled ? "The assistant requests only the context it needs" : "Private tools disabled");
@@ -527,6 +699,7 @@
     }
 
     window.addEventListener("beforeunload", () => {
+        state.attachments.forEach(image => image.controller?.abort());
         imageUrlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
     });
 
@@ -539,13 +712,25 @@
         renderMessages();
         scrollToBottom();
         updateContextUI();
+        state.messages.filter(m=>m.archiveJob).forEach(m=>pollArchive(m.id,m.archiveJob));
+        state.messages.filter(m=>m.workspaceJob).forEach(m=>pollWorkspace(m.id,m.workspaceJob));
+        $("archiveMode")?.addEventListener("change",updateContextUI);
 
-        imageInput?.addEventListener("change", () => setImageFile(imageInput.files?.[0] || null));
-        $("removeImageBtn")?.addEventListener("click", clearImage);
+        imageInput?.addEventListener("change", () => {addImageFiles(Array.from(imageInput.files || []));imageInput.value = "";});
+        $("attachImagesBtn")?.addEventListener("click", () => imageInput?.click());
         $("scrollBottomBtn")?.addEventListener("click", scrollToBottom);
         $("exportChatBtn")?.addEventListener("click", exportChat);
-        $("clearChatBtn")?.addEventListener("click", () => {
-            if (!confirm("Clear this chat history in this browser?")) return;
+        $("clearChatBtn")?.addEventListener("click", async () => {
+            const pending=state.messages.filter(m=>m.workspaceJob);
+            if (!confirm(pending.length?"Clear this chat and stop its active Workspace tasks? Completed changes are kept.":"Clear this chat history in this browser?")) return;
+            try{
+                for(const message of pending){
+                    const body=new FormData();body.append('csrf',$("chatForm").elements.csrf?.value||'');
+                    const response=await fetch('/chat/jobs/'+encodeURIComponent(message.workspaceJob)+'/cancel',{method:'POST',body});
+                    if(!response.ok)throw Error('Stop failed');
+                }
+            }catch(_error){alert('Could not stop active tasks. The chat was kept so you can try again.');return;}
+            archiveTimers.forEach(clearTimeout);archiveTimers.clear();
             try {
                 localStorage.removeItem(STORAGE_KEY);
             } catch (_error) {
@@ -553,14 +738,34 @@
             }
             state.messages = [];
             state.retryMessageId = "";
-            for (const url of imageUrlsToRevoke) if (url !== state.imageUrl) URL.revokeObjectURL(url);
-            const activeUrls = imageUrlsToRevoke.filter(url => url === state.imageUrl);
-            imageUrlsToRevoke.splice(0, imageUrlsToRevoke.length, ...activeUrls);
+            for (const url of imageUrlsToRevoke) if (!state.attachments.some(image => image.url === url)) {URL.revokeObjectURL(url);imageUrlsToRevoke.delete(url);}
             loadHistory();
             renderMessages();
             scrollToBottom();
         });
+        const searchToggle = $("toggleChatSearchBtn");
+        const searchToolbar = $("chatSearchToolbar");
+        function setSearchOpen(open) {
+            if (!searchToolbar || !searchToggle) return;
+            searchToolbar.hidden = !open;
+            searchToggle.setAttribute("aria-expanded", String(open));
+            if (open) {
+                $("chatSearchInput")?.focus();
+            } else {
+                if ($("chatSearchInput")) $("chatSearchInput").value = "";
+                renderMessages();
+                scrollToBottom();
+                searchToggle.focus();
+            }
+        }
+        searchToggle?.addEventListener("click", () => setSearchOpen(searchToolbar?.hidden));
         $("chatSearchInput")?.addEventListener("input", renderMessages);
+        searchToolbar?.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                setSearchOpen(false);
+            }
+        });
 
         $("fileContextPath")?.addEventListener("change", updateContextUI);
         $("fileContextSearch")?.addEventListener("input", () => {
@@ -581,8 +786,9 @@
                     setTimeout(() => $("fileContextHelp")?.classList.remove("context-attention"), 1600);
                     return;
                 }
+                if($("archiveMode"))$("archiveMode").value=button.dataset.archive||"workspace";updateContextUI();
                 setComposerText((button.dataset.prompt || button.textContent.trim()).replaceAll("{file}", path));
-                if (button.classList.contains("requires-image") && !state.imageFile) {
+                if (button.classList.contains("requires-image") && !state.attachments.length) {
                     imageInput?.click();
                 }
             });
@@ -605,48 +811,32 @@
             }
         });
 
-        document.addEventListener("paste", (event) => {
-            const imageItem = Array.from(event.clipboardData?.items || []).find((item) => item.type.startsWith("image/"));
-            if (!imageItem) return;
-            const file = imageItem.getAsFile();
-            if (file) setImageFile(new File([file], "pasted-image.png", { type: file.type }));
+        document.addEventListener("paste", event => {
+            if (!form?.contains(event.target)) return;
+            const files = Array.from(event.clipboardData?.items || []).filter(item => item.kind === "file").map(item => item.getAsFile()).filter(Boolean);
+            if (!files.length) return;
+            event.preventDefault();addImageFiles(files);
         });
+        const shell = document.querySelector(".chat-page-shell");
+        ["dragenter", "dragover"].forEach(name => shell?.addEventListener(name, event => {event.preventDefault();dropZone?.classList.add("dragging");}));
+        shell?.addEventListener("dragleave", event => {if (!shell.contains(event.relatedTarget)) dropZone?.classList.remove("dragging");});
+        shell?.addEventListener("drop", event => {event.preventDefault();dropZone?.classList.remove("dragging");addImageFiles(Array.from(event.dataTransfer?.files || []));});
 
-        ["dragenter", "dragover"].forEach((eventName) => {
-            dropZone?.addEventListener(eventName, (event) => {
-                event.preventDefault();
-                dropZone.classList.add("dragging");
-            });
-        });
-        ["dragleave", "drop"].forEach((eventName) => {
-            dropZone?.addEventListener(eventName, (event) => {
-                event.preventDefault();
-                dropZone.classList.remove("dragging");
-            });
-        });
-        dropZone?.addEventListener("drop", (event) => {
-            const image = Array.from(event.dataTransfer?.files || []).find((file) => file.type.startsWith("image/"));
-            if (image) setImageFile(image);
-        });
-
-        form?.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            const text = input ? input.value.trim() : "";
-            const imageFile = state.imageFile;
-            if (!text && !imageFile) return;
-            if (input) {
-                input.value = "";
-                autoResizeInput();
-            }
+        form?.addEventListener("submit", async event => {
+            event.preventDefault();if (state.busy) return;
+            const text = input ? input.value.trim() : "", images = [...state.attachments];
+            if (!text && !images.length) return;
+            if (images.some(image => image.previewState !== "ready")) {attachmentStatus("Wait for the previews, or remove an image that could not be read.");return;}
             const retry = messageById(state.retryMessageId);
+            const retrying = retry && text === retry.text.trim();
+            if (retrying && images.length !== imagesOf(retry).length) {attachmentStatus(`Reattach all ${imagesOf(retry).length} images to retry.`);return;}
             state.retryMessageId = "";
-            if (retry && text === retry.text.trim() && imageFile) {
-                retry.imageUrl = state.imageUrl;
-                retry.imageName = imageFile.name;
-                await sendPrompt(text, {imageFile, skipUserBubble: true, requestId: retry.id});
-            } else {
-                await sendPrompt(text, { imageFile });
-            }
+            if (input) {input.value = "";autoResizeInput();}
+            if (retrying) {retry.images = images;saveHistory();}
+            const sending = sendPrompt(text, {images, ...(retrying ? {skipUserBubble: true, requestId: retry.id, regenerate:true} : {})});
+            // Submitted images now belong to the message. Preserve any next draft added while sending.
+            state.attachments = [];imageInput.value = "";renderAttachments();attachmentStatus();
+            await sending;
         });
     });
 })();

@@ -71,6 +71,15 @@ def _cleanup_expired(root: Path) -> None:
                 continue
             path.unlink()
             path.with_suffix(".jpg").unlink(missing_ok=True)
+            for extra in root.glob(path.stem + '-*.jpg'):
+                extra.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+    # Include previews orphaned by an interrupted multi-image draft write.
+    for path in root.glob("*.jpg"):
+        try:
+            if now - path.stat().st_mtime > DRAFT_LIFETIME_SECONDS: path.unlink()
         except OSError:
             continue
 
@@ -83,30 +92,35 @@ def create_draft(username: str, candidates: list[dict], review: list[str], image
     _cleanup_expired(root)
     token = secrets.token_urlsafe(24)
     state_path, image_path = _paths(token)
-    preview = image.copy()
-    preview.thumbnail((3000, 3000))
-    if preview.mode != "RGB":
-        preview = preview.convert("RGB")
-    descriptor, temporary = tempfile.mkstemp(prefix=".calendar-image-", suffix=".jpg", dir=root)
+    images = image if isinstance(image, list) else [image]
+    if not 1 <= len(images) <= 8:
+        raise ValueError('Use up to 8 source images.')
+    written = []
     try:
-        with os.fdopen(descriptor, "wb") as handle:
-            preview.save(handle, format="JPEG", quality=88, optimize=True)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, image_path)
+        for index, source in enumerate(images):
+            destination = image_path if index == 0 else root / f"{token}-{index}.jpg"
+            with source.copy() as preview:
+                preview.thumbnail((3000, 3000))
+                if preview.mode != "RGB":
+                    converted = preview.convert("RGB")
+                else:
+                    converted = preview
+                descriptor, temporary = tempfile.mkstemp(prefix=".calendar-image-", suffix=".jpg", dir=root)
+                try:
+                    with os.fdopen(descriptor, "wb") as handle:
+                        converted.save(handle, format="JPEG", quality=88, optimize=True)
+                        handle.flush(); os.fsync(handle.fileno())
+                    os.replace(temporary, destination);written.append(destination)
+                finally:
+                    if converted is not preview: converted.close()
+                    if os.path.exists(temporary): os.unlink(temporary)
         _write_json(state_path, {
-            "username": username,
-            "created_at": time.time(),
-            "candidates": candidates,
-            "review": review,
-            "confirmed": False,
+            "username": username, "created_at": time.time(), "candidates": candidates,
+            "review": review, "confirmed": False, "image_count": len(images),
         })
     except Exception:
-        image_path.unlink(missing_ok=True)
+        for destination in written: destination.unlink(missing_ok=True)
         raise
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
     return token
 
 
@@ -118,10 +132,17 @@ def load_draft(username: str, token: str) -> dict | None:
     return _load(state_path, username)
 
 
-def draft_image_path(username: str, token: str) -> Path | None:
-    if load_draft(username, token) is None:
+def draft_image_path(username: str, token: str, index=0) -> Path | None:
+    draft = load_draft(username, token)
+    try:
+        index = int(index)
+    except (TypeError, ValueError):
+        return None
+    if draft is None or not 0 <= index < draft.get('image_count', 1):
         return None
     _, image_path = _paths(token)
+    if index:
+        image_path = image_path.with_name(f"{token}-{index}.jpg")
     return image_path if image_path.is_file() else None
 
 

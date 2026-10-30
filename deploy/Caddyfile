@@ -1,9 +1,48 @@
 {
-    auto_https off
+	auto_https off
 }
 
 http://server, http://server.tailb7f57c.ts.net, http://100.124.30.94 {
-    bind 100.124.30.94
-    encode zstd gzip
-    reverse_proxy 127.0.0.1:5000
+	bind 100.124.30.94
+	encode zstd gzip
+
+	handle /webdav* {
+		reverse_proxy 127.0.0.1:8081
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:5000
+	}
+}
+
+# Tailnet-only Quartz vault; same Caddy process, static output only.
+:8094 {
+	bind 127.0.0.1
+	# No resident Python: one short-lived grammar request, automatic LT fallback.
+	handle_path /grammar/* {
+		reverse_proxy 127.0.0.1:8096 {
+			header_up Connection close
+		}
+	}
+	handle_path /semantic-search/* {
+		reverse_proxy 127.0.0.1:8095 {
+			header_up Connection close
+		}
+	}
+	handle {
+		root * /srv/tamestorage/.tamestorage_state/quartz-site/public
+		try_files {path} {path}.html {path}/index.html
+		file_server
+	}
+}
+
+# Digital runs on Cyborg; this listener is only for Tailscale Serve.
+:8097 {
+    bind 127.0.0.1
+    uri strip_prefix /digital
+    reverse_proxy 100.66.32.22:9030 {
+        transport http {
+            dial_timeout 5s
+        }
+    }
 }

@@ -1,0 +1,19 @@
+[Unit]
+Description=One lecture semantic search request
+RequiresMountsFor=/srv/tamestorage
+
+[Service]
+User=tameszaza
+Group=tameszaza
+WorkingDirectory=/home/tameszaza/.local/lib/lecture-search
+ExecStart=/srv/tamestorage/.tamestorage_state/lecture-search/venv/bin/python /home/tameszaza/.local/lib/lecture-search/serve.py
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+MemoryMax=256M
+MemorySwapMax=0
+CPUQuota=75%
+TasksMax=24
+RuntimeMaxSec=90
+NoNewPrivileges=true
+UMask=0077

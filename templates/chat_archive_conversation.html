@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ conversation.title }} · Chat archive{% endblock %}
+{% block link %}<link href="{{ url_for('static',filename='css/chat-archive.css') }}?v=20261026" rel="stylesheet">{% endblock %}
+{% block content %}
+<section class="archive-page"><header class="page-header"><h1>{{ conversation.title or 'Untitled' }}</h1><a class="btn btn-outline-secondary" href="{{ url_for('chat_archive_page') }}">Archive</a></header>
+<section class="archive-thread" aria-label="Historical messages">{% for message in conversation.messages %}<article class="card" id="m-{{ message.id }}"><header><strong>{{ 'You' if message.role == 'user' else message.role|capitalize }}</strong><time class="text-muted" datetime="{{ message.created }}">{{ message.created[:19].replace('T',' ') }} UTC</time>{% if not message.branch %}<span class="badge text-bg-secondary">Alternate</span>{% endif %}</header><p>{{ message.text }}</p></article>{% endfor %}</section>
+<nav class="d-flex gap-2" aria-label="Messages">{% if conversation.page > 0 %}<a class="btn btn-outline-secondary" href="?page={{ conversation.page - 1 }}">Previous</a>{% endif %}{% if (conversation.page+1)*60 < conversation.total %}<a class="btn btn-outline-secondary" href="?page={{ conversation.page + 1 }}">Next</a>{% endif %}</nav></section>
+{% endblock %}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Restricted host controls for Tamestorage
+After=tailscaled.service
+Requires=tailscaled.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/libexec/tamestorage-host-control
+Restart=on-failure
+RestartSec=3
+RuntimeDirectory=tamestorage-control
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

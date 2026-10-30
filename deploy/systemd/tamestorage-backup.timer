@@ -1,0 +1,11 @@
+[Unit]
+Description=Run TameStorage mirror backup every 6 hours
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=6h
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

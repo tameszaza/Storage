@@ -1,0 +1,31 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.6-slim-rootless@sha256:6eb4e96a7cbdb8a5d6779aa26dce2cb97dcea65b486856b9b2280f73a1d0adf4
+    container_name: uptime-kuma
+    restart: unless-stopped
+    network_mode: host
+    init: true
+    environment:
+      UPTIME_KUMA_HOST: 127.0.0.1
+      UPTIME_KUMA_PORT: '3001'
+      UPTIME_KUMA_DB_TYPE: sqlite
+      NODE_OPTIONS: --max-old-space-size=192
+      TZ: Asia/Singapore
+    volumes:
+      - type: bind
+        source: /srv/docker/uptime-kuma/data
+        target: /app/data
+        bind:
+          create_host_path: false
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'

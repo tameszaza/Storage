@@ -394,7 +394,7 @@ class AssistantToolsTests(unittest.TestCase):
         app.config.update(self.app.config)
         app.add_url_rule('/review/<token>', 'calendar_import_review', calendar_import_review, methods=['GET', 'POST'])
         app.add_url_rule('/review/<token>/image', 'calendar_import_image', calendar_import_image)
-        client = app.test_client()
+        client = app.test_client();client.environ_base["HTTP_X_WORKSPACE_CLIENT"]="1"
         with client.session_transaction() as stored:
             stored['logged_in'] = True
             stored['username'] = 'bob'
@@ -415,44 +415,41 @@ class AssistantToolsTests(unittest.TestCase):
             self.assertEqual(client.post(f'/review/{token}', data=payload).status_code, 303)
             self.assertEqual(len(planner.list_items('alice')['events']), 1)
 
-    def test_chat_returns_calendar_review_action_without_writing_event(self):
+    def test_chat_queues_two_calendar_readings_then_returns_review_without_writing_event(self):
         from routes.ai import chat
-        app = Flask(__name__)
-        app.config.update(self.app.config)
-        app.add_url_rule('/chat', 'chat', chat, methods=['POST'])
-        client = app.test_client()
-        with client.session_transaction() as stored:
-            stored['logged_in'] = True
-            stored['username'] = 'alice'
-
-        def staged_image(*args, **kwargs):
-            g.assistant_review_url = '/chat/calendar-import/review-token'
-            g.assistant_review_label = 'Review dates'
-            return 'Nothing has been added yet.', []
-
-        with patch('routes.ai.ask_image', side_effect=staged_image), patch(
-            'routes.ai.build_ai_context', return_value='',
-        ), patch('routes.ai.initial_history', return_value=[]):
-            response = client.post('/chat', data={
-                'msg': 'Add the dates to my calendar',
-                'image': (io.BytesIO(b'image-bytes'), 'schedule.png'),
-            })
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json['action_url'], '/chat/calendar-import/review-token')
-        self.assertEqual(response.json['action_label'], 'Review dates')
-        self.assertEqual(planner.list_items('alice')['events'], [])
+        from lib.workspace_store import Store
+        from lib.workspace_agent import step
+        app=Flask(__name__);app.config.update(self.app.config)
+        app.config['WORKSPACE_AGENT_ROOT']=self.root/'agent'
+        app.add_url_rule('/chat','chat',chat,methods=['POST'])
+        app.add_url_rule('/chat/calendar-import/<token>','calendar_import_review',lambda token:'review')
+        client=app.test_client();client.environ_base["HTTP_X_WORKSPACE_CLIENT"]="1"
+        with client.session_transaction() as stored:stored.update(logged_in=True,username='alice',assistant_csrf='token')
+        image=io.BytesIO();Image.new('RGB',(8,8),'red').save(image,'PNG')
+        with patch('lib.ai_client.build_ai_context',return_value=''):
+            response=client.post('/chat',data={'msg':'Add the dates in this image to my calendar','csrf':'token','request_id':'calendar-images','image':(io.BytesIO(image.getvalue()),'schedule.png')})
+        self.assertEqual(response.status_code,200)
+        row={'title':'Quiz','date':'2026-11-10','date_evidence':'10 Nov 2026','all_day':True,'start_time':'','end_time':'','time_evidence':''}
+        with app.app_context(),patch('lib.workspace_agent.generate',side_effect=[{'events':[row]},{'events':[row]}]) as model:
+            for _ in range(3):step(app.config['WORKSPACE_AGENT_ROOT'])
+        with Store(app.config['WORKSPACE_AGENT_ROOT']) as queue:job=queue.get(response.json['workspace_job'],'alice')
+        self.assertEqual(job['status'],'ready',job)
+        self.assertEqual(job['result']['action_label'],'Review dates');self.assertEqual(model.call_count,2)
+        self.assertEqual(planner.list_items('alice')['events'],[])
 
     def test_chat_photo_calendar_prompt_needs_an_attached_image(self):
         from routes.ai import chat
         app = Flask(__name__)
         app.config.update(self.app.config)
         app.add_url_rule('/chat', 'chat', chat, methods=['POST'])
-        client = app.test_client()
+        client = app.test_client();client.environ_base["HTTP_X_WORKSPACE_CLIENT"]="1"
         with client.session_transaction() as stored:
             stored['logged_in'] = True
             stored['username'] = 'alice'
+            stored['assistant_csrf']='token'
         response = client.post('/chat', data={
             'msg': 'Add the dates in this image to my calendar after I review them.',
+            'csrf':'token','request_id':'no-photo',
         })
         self.assertEqual(response.status_code, 200)
         self.assertIn('Attach the schedule image first', response.json['response'])

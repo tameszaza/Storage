@@ -5,6 +5,7 @@ import math
 from contextlib import nullcontext
 import searchable_pdf
 import helper_client
+from image_ocr_quality import POLICY as PASTED_OCR_POLICY, result as image_ocr_result
 from pathlib import Path
 
 DATA=Path('/srv/tamestorage/.tamestorage_state/lecture-search')
@@ -20,7 +21,6 @@ MODEL_REVISION='bf8b056651a2c21b8d2565580b8569da283cab23'
 OCR_VERSION='tesseract5-eng-2400-v1'
 IMAGE_OCR_POLICY='raster100k-sparse11-3600-v1'
 ATTACHMENTS=Path('/srv/tamestorage/uploads/Admin/Obsidian/Attachments')
-PASTED_OCR_POLICY='tesseract5-eng-sparse11-3600-v1'
 OCR_COMMENT=re.compile(r'(?:\n\n)?<!-- tames-image-ocr:[a-f0-9]{64}\.[a-z]+\n[\s\S]*?\n-->')
 IMAGE_LINK=re.compile(r'https://(?:server\.tailb7f57c\.ts\.net|100\.124\.30\.94)(?::443)?/obsidian-images/([a-f0-9]{64}\.(?:png|jpg|jpeg|gif|webp|avif))\b')
 
@@ -169,6 +169,19 @@ def document_pages(source):
             if buffer.strip():yield page,buffer
     finally:Path(name).unlink(missing_ok=True)
 
+def local_inventory(file,path,fp,total):
+    # Reuse bounded Poppler batches/checkpoints, never rescan a large book at once.
+    from pdf_inventory import scan
+    directory=searchable_pdf.prepare(path,fp)
+    cache=directory/'inventory.json'
+    def run(args,timeout,log,stderr):
+        subprocess.run(args,stdout=log,stderr=stderr,timeout=timeout,
+                       check=True,preexec_fn=extraction_limit)
+    while True:
+        result=scan(file,total,run,DATA,cache=cache)
+        if result['complete']:return set(result['pages'])
+
+
 def queue_images(db,path,source):
     """One Poppler image inventory per unchanged PDF/policy; preserve completed OCR."""
     fp=source['fp']
@@ -176,23 +189,10 @@ def queue_images(db,path,source):
     if scanned==(fp,IMAGE_OCR_POLICY):return 0
     pages=set();failed=0
     try:
-        if helper_client.enabled():
-            total=db.execute('SELECT page_count FROM docs WHERE path=?',(path,)).fetchone()[0]
-            pages=helper_client.pdf_inventory(source['file'],path,fp,total)
-        else:
-            fd,name=tempfile.mkstemp(prefix='extract-',suffix='.txt',dir=DATA);os.close(fd)
-            try:
-                with open(name,'wb') as output:
-                    r=subprocess.run(['/usr/bin/pdfimages','-list',str(source['file'])],stdout=output,
-                                     stderr=subprocess.DEVNULL,timeout=90,preexec_fn=extraction_limit)
-                if r.returncode:raise RuntimeError('Image inventory failed')
-                with open(name) as stream:
-                    for line in stream:
-                        fields=line.split()
-                        if len(fields)<5 or fields[2]!='image':continue
-                        page,width,height=int(fields[0]),int(fields[3]),int(fields[4])
-                        if min(width,height)>=100 and width*height>=100000:pages.add(page)
-            finally:Path(name).unlink(missing_ok=True)
+        total=db.execute('SELECT page_count FROM docs WHERE path=?',(path,)).fetchone()[0]
+        pages=helper_client.background_call(
+            lambda:helper_client.pdf_inventory(source['file'],path,fp,total),
+            lambda:local_inventory(source['file'],path,fp,total))
         if fingerprint(source['file'])!=fp:raise RuntimeError('Source changed during image inventory')
         for number in pages:
             db.execute("UPDATE pages SET method='native-image' WHERE path=? AND page=? AND method='native' AND trim(text)!=''",(path,number))
@@ -227,7 +227,7 @@ def image_refs_current(db,path):
     if row[0]!=signature:return False
     for name,fp,policy,status in refs:
         file=image_file(name)
-        if not file or fingerprint(file)!=fp or policy!=PASTED_OCR_POLICY or status=='pending':return False
+        if not file or fingerprint(file)!=fp or policy!=PASTED_OCR_POLICY or status in ('pending','pending-force'):return False
     return bool(refs)
 
 def sync_image_refs(db,current):
@@ -251,8 +251,11 @@ def sync_image_refs(db,current):
     # Keep recognized text if an image is temporarily unlinked; reuse on relinking.
     for (name,) in db.execute('SELECT DISTINCT name FROM image_refs').fetchall():
         file=image_file(name);fp=fingerprint(file) if file else 'missing'
-        cached=db.execute('SELECT fingerprint,policy FROM image_ocr WHERE name=?',(name,)).fetchone()
-        if cached!=(fp,PASTED_OCR_POLICY):
+        if file:adopt_reconnected_image(db,name,file,fp)
+        cached=db.execute('SELECT fingerprint,policy,status FROM image_ocr WHERE name=?',(name,)).fetchone()
+        if cached and cached[0]==fp and cached[2] in ('skipped','forced'):
+            db.execute('UPDATE image_ocr SET policy=? WHERE name=?',(PASTED_OCR_POLICY,name))
+        elif not cached or cached[:2]!=(fp,PASTED_OCR_POLICY):
             db.execute("INSERT OR REPLACE INTO image_ocr VALUES(?,?,?,'',?)",(name,fp,PASTED_OCR_POLICY,'pending' if file else 'missing'))
     for (path,) in db.execute('SELECT DISTINCT path FROM image_refs').fetchall():
         doc=db.execute('SELECT fingerprint FROM docs WHERE path=?',(path,)).fetchone()
@@ -260,7 +263,7 @@ def sync_image_refs(db,current):
         signature,refs=image_signature(db,path)
         cached=db.execute('SELECT signature FROM image_notes WHERE path=?',(path,)).fetchone()[0]
         page=db.execute('SELECT indexed FROM pages WHERE path=? AND page=0',(path,)).fetchone()
-        if signature!=cached or not page or not page[0] or any(r[3]=='pending' for r in refs):
+        if signature!=cached or not page or not page[0] or any(r[3] in ('pending','pending-force') for r in refs):
             db.execute('INSERT OR REPLACE INTO ocr_jobs VALUES(?,?)',(path,doc[0]))
     for path in notes:
         if not db.execute('SELECT 1 FROM image_refs WHERE path=? LIMIT 1',(path,)).fetchone():
@@ -269,8 +272,11 @@ def sync_image_refs(db,current):
             db.execute('DELETE FROM ocr_jobs WHERE path=?',(path,))
     db.commit()
 
-def ocr_pasted_image(file):
-    if helper_client.enabled():return helper_client.image(file)
+def ocr_pasted_image(file,force=False):
+    return helper_client.background_call(lambda:helper_client.image(file,force=force),
+                                         lambda:ocr_pasted_image_local(file,force))
+
+def ocr_pasted_image_local(file,force=False):
     """Existing ImageMagick/Tesseract, one bounded first-frame raster on NAS."""
     with tempfile.TemporaryDirectory(prefix='ocr-',dir=DATA) as temporary:
         raster=str(Path(temporary)/'image.png');base=str(Path(temporary)/'text')
@@ -280,19 +286,30 @@ def ocr_pasted_image(file):
           '-resize','3600x3600>','-background','white','-alpha','remove','-alpha','off',raster],
           env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=120)
         if converted.returncode:raise RuntimeError('Pasted image rendering failed')
-        recognized=subprocess.run(['/usr/bin/tesseract',raster,base,'-l','eng','--oem','1','--psm','11'],
+        recognized=subprocess.run(['/usr/bin/tesseract',raster,base,'-l','eng','--oem','1','--psm','11','txt','tsv'],
           stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=120)
         if recognized.returncode:raise RuntimeError('Pasted image OCR failed')
-        with open(base+'.txt',encoding='utf8') as stream:return stream.read(100000)
+        return image_ocr_result(base)['rawText' if force else 'text']
+
+def dirty_image_parents(db,name):
+    # Remove stale search passages immediately; existing worker rebuilds other image text.
+    parents=[r[0] for r in db.execute('SELECT path FROM image_refs WHERE name=?',(name,))]
+    for path in parents:
+        db.execute('DELETE FROM chunks WHERE path=? AND page=0',(path,))
+        db.execute('DELETE FROM pages WHERE path=? AND page=0',(path,))
+        db.execute("UPDATE image_notes SET signature='' WHERE path=?",(path,))
+        db.execute('INSERT OR REPLACE INTO ocr_jobs SELECT path,fingerprint FROM docs WHERE path=?',(path,))
+    db.commit()
+    if parents:(DATA/'ocr-pending').touch()
 
 def image_text(body):
-    """Reuse the existing OCR cache for hidden note comments. No embedding model."""
+    """Existing private OCR cache, including explicit skip/retry. No model imports."""
     available()
     names=body.get('names')
     if not isinstance(names,list) or not 1<=len(names)<=32 or any(not isinstance(n,str) or not re.fullmatch(r'[a-f0-9]{64}\.(?:png|jpg|jpeg|gif|webp|avif)',n) for n in names):
         raise ValueError('Use up to32 server image filenames')
-    recognize=body.get('recognize',False)
-    if not isinstance(recognize,bool) or (recognize and len(names)!=1):raise ValueError('Recognize one image at a time')
+    recognize=body.get('recognize',False);action=body.get('action')
+    if not isinstance(recognize,bool) or action not in (None,'skip','retry') or ((recognize or action) and len(names)!=1):raise ValueError('Recognize or change one image at a time')
     results=[]
     with sqlite3.connect(str(DATA/'index.sqlite'),timeout=15) as db:
         db.execute('PRAGMA cache_size=-2048');db.execute('PRAGMA mmap_size=0')
@@ -301,28 +318,37 @@ def image_text(body):
             if not file:
                 results.append({'name':name,'status':'missing','text':''});continue
             fp=fingerprint(file)
+            adopt_reconnected_image(db,name,file,fp)
             def cached():
                 row=db.execute('SELECT fingerprint,policy,status,text FROM image_ocr WHERE name=?',(name,)).fetchone()
                 return row if row and row[:2]==(fp,PASTED_OCR_POLICY) else None
-            row=cached()
-            if recognize and (not row or row[2] not in ('ready','no-text')):
+            row=cached();terminal=('ready','forced','no-text','skipped')
+            if action or (recognize and (not row or row[2] not in terminal)):
                 with open(DATA/'ocr.lock','a') as guard:
+                    # Tiny explicit cache changes may wait for the current bounded job;
+                    # automatic reads never block behind OCR or create a second worker.
                     try:fcntl.flock(guard,fcntl.LOCK_EX|fcntl.LOCK_NB)
                     except BlockingIOError:
-                        results.append({'name':name,'status':'pending','text':''});continue
+                        results.append({'name':name,'status':'busy' if action else 'pending','text':''});continue
                     row=cached()
-                    if not row or row[2] not in ('ready','no-text'):
+                    if action:
+                        state='skipped' if action=='skip' else 'pending-force'
+                        db.execute("INSERT OR REPLACE INTO image_ocr VALUES(?,?,?,'',?)",(name,fp,PASTED_OCR_POLICY,state))
+                        dirty_image_parents(db,name);db.commit();row=cached()
+                    if recognize and (not row or row[2] not in terminal):
                         try:
-                            text=ocr_pasted_image(file)
+                            forced=bool(row and row[2]=='pending-force')
+                            text=ocr_pasted_image(file,force=forced)
                             if not file.is_file() or fingerprint(file)!=fp:raise RuntimeError('Image changed')
-                            state='ready' if text.strip() else 'no-text'
-                            db.execute('INSERT OR REPLACE INTO image_ocr VALUES(?,?,?,?,?)',(name,fp,PASTED_OCR_POLICY,text,state));db.commit()
+                            state=('forced' if forced else 'ready') if text.strip() else 'no-text'
+                            db.execute('INSERT OR REPLACE INTO image_ocr VALUES(?,?,?,?,?)',(name,fp,PASTED_OCR_POLICY,text,state))
+                            dirty_image_parents(db,name);db.commit()
                         except helper_client.Paused:
                             helper_client.defer('ocr');results.append({'name':name,'status':'pending','text':''});continue
                         except Exception:
                             db.execute("INSERT OR REPLACE INTO image_ocr VALUES(?,?,?,'','error')",(name,fp,PASTED_OCR_POLICY));db.commit()
                         row=cached()
-            results.append({'name':name,'status':row[2] if row else 'pending','text':row[3] if row and row[2]=='ready' else ''})
+            results.append({'name':name,'status':row[2] if row else 'pending','text':row[3] if row and row[2] in ('ready','forced') else ''})
     return {'images':results}
 
 
@@ -332,12 +358,12 @@ def ocr_image_note(db,path,note_fp):
     parts=[]
     for name,fp,policy,state in image_signature(db,path)[1]:
         file=image_file(name)
-        if state=='pending' and file and fingerprint(file)==fp:
+        if state in ('pending','pending-force') and file and fingerprint(file)==fp:
             try:
-                text=ocr_pasted_image(file)
+                text=ocr_pasted_image(file,force=state=='pending-force')
                 if not file.is_file() or fingerprint(file)!=fp:return
                 db.execute('UPDATE image_ocr SET text=?,status=? WHERE name=? AND fingerprint=?',
-                           (text,'ready' if text.strip() else 'no-text',name,fp))
+                           (text,('forced' if state=='pending-force' else 'ready') if text.strip() else 'no-text',name,fp))
                 db.commit()
                 print(json.dumps({'pasted_image_ocr':name,'status':'ready' if text.strip() else 'no-text'}),flush=True)
             except helper_client.Paused:raise
@@ -367,10 +393,37 @@ def lock(block=True):
     except BlockingIOError:f.close();raise RuntimeError('Indexer/search busy; retry shortly or use direct reading')
     return f
 
-def index_filenames(db):
+def adopt_reconnected_sources(db,current,old):
+    adopted=0
+    for path,source in current.items():
+        previous=old.get(path)
+        if 'file' not in source or not previous or not searchable_pdf.same_source_after_reconnect(source['file'],previous,source['fp']):continue
+        fp=source['fp']
+        # Publish geometry identity first. An interrupted adoption is idempotent;
+        # cached page text/layers/vectors are never discarded for device renumbering.
+        if (searchable_pdf.folder(path)/'source.json').is_file():searchable_pdf.prepare(path,fp)
+        for table in ('docs','ocr_jobs','raster_scans'):
+            db.execute('UPDATE '+table+' SET fingerprint=? WHERE path=? AND fingerprint=?',(fp,path,previous))
+        old[path]=fp;adopted+=1
+    db.commit()
+    if adopted:print(json.dumps({'reconnected_sources_reused':adopted}),flush=True)
+
+def adopt_reconnected_image(db,name,file,fp):
+    row=db.execute('SELECT fingerprint FROM image_ocr WHERE name=?',(name,)).fetchone()
+    if not row or not searchable_pdf.same_source_after_reconnect(file,row[0],fp):return
+    parents=[]
+    for (path,) in db.execute('SELECT path FROM image_refs WHERE name=?',(name,)).fetchall():
+        saved=db.execute('SELECT signature FROM image_notes WHERE path=?',(path,)).fetchone()
+        if saved and saved[0]==image_signature(db,path)[0]:parents.append(path)
+    db.execute('UPDATE image_ocr SET fingerprint=? WHERE name=? AND fingerprint=?',(fp,name,row[0]))
+    for path in parents:
+        db.execute('UPDATE image_notes SET signature=? WHERE path=?',(image_signature(db,path)[0],path))
+    db.commit()
+
+
+def index_filenames(db,model=None):
     """One cached title vector per path; body edits never re-embed an unchanged name."""
     missing=list(db.execute("SELECT path FROM docs WHERE NOT EXISTS (SELECT 1 FROM chunks WHERE chunks.path=docs.path AND page=-1)"))
-    model=None
     for offset in range(0,len(missing),32):
         batch=[row[0] for row in missing[offset:offset+32]]
         if model is None:model=encoder()
@@ -393,6 +446,7 @@ def index():
             marker=(EXPORT.stat().st_mtime_ns,(DATA/'pdf-changes').stat().st_mtime_ns)
             current=sources()
             old=dict(db.execute('SELECT path,fingerprint FROM docs'))
+            adopt_reconnected_sources(db,current,old)
             # Academic lectures first on the initial pass; every visible source follows.
             for path,s in sorted(current.items(),key=lambda x:('NTU/' not in x[0],x[0])):
                 if old.get(path)==s['fp']:
@@ -457,7 +511,7 @@ def index():
             db.execute("INSERT OR REPLACE INTO meta VALUES('last_update',?)",(str(int(time.time())),));db.commit()
             end=(EXPORT.stat().st_mtime_ns,(DATA/'pdf-changes').stat().st_mtime_ns)
             if end==marker:break
-        index_filenames(db)
+        index_filenames(db,model=model)
         helper_client.sync_vectors(db)
         db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
         if db.execute('SELECT 1 FROM ocr_jobs LIMIT 1').fetchone():(DATA/'ocr-pending').touch()
@@ -591,7 +645,7 @@ def status(refresh=False):
                 cached=json.loads(snapshot.read_text())
                 if cached.get('model')==MODEL and isinstance(cached.get('searchablePDFs'),dict):
                     cached['ocrQueuedFiles']=db.execute('SELECT count(*) FROM ocr_jobs').fetchone()[0]
-                    for key,sql in [('pastedImages','SELECT count(*) FROM image_ocr'),('pastedImagesOCRReady',"SELECT count(*) FROM image_ocr WHERE status='ready'"),('pastedImagesOCRFailed',"SELECT count(*) FROM image_ocr WHERE status='error'")]:cached[key]=db.execute(sql).fetchone()[0]
+                    for key,sql in [('pastedImages','SELECT count(*) FROM image_ocr'),('pastedImagesOCRReady',"SELECT count(*) FROM image_ocr WHERE status IN ('ready','forced')"),('pastedImagesOCRFailed',"SELECT count(*) FROM image_ocr WHERE status='error'")]:cached[key]=db.execute(sql).fetchone()[0]
                     return cached
             except (OSError,ValueError):pass
         result={'documents':db.execute('SELECT count(*) FROM docs').fetchone()[0],
@@ -603,7 +657,7 @@ def status(refresh=False):
                 'imageInventoryFailedFiles':[r[0] for r in db.execute('SELECT path FROM raster_scans WHERE failed=1 LIMIT 20')],
                 'ocrFailedPages':db.execute("SELECT count(*) FROM pages WHERE method IN ('ocr-failed','native+ocr-failed')").fetchone()[0],
                 'pastedImages':db.execute('SELECT count(*) FROM image_ocr').fetchone()[0] if table_exists(db,'image_ocr') else 0,
-                'pastedImagesOCRReady':db.execute("SELECT count(*) FROM image_ocr WHERE status='ready'").fetchone()[0] if table_exists(db,'image_ocr') else 0,
+                'pastedImagesOCRReady':db.execute("SELECT count(*) FROM image_ocr WHERE status IN ('ready','forced')").fetchone()[0] if table_exists(db,'image_ocr') else 0,
                 'pastedImagesOCRFailed':db.execute("SELECT count(*) FROM image_ocr WHERE status='error'").fetchone()[0] if table_exists(db,'image_ocr') else 0,
                 'searchablePDFs':searchable_pdf.summary(),
                 'lastUpdate':dict(db.execute('SELECT key,value FROM meta')).get('last_update'), 'model':MODEL}
@@ -731,7 +785,7 @@ if __name__=='__main__':
     if sys.argv[1] in ('index','ocr'):
         try:index() if sys.argv[1]=='index' else ocr()
         except helper_client.Paused:
-            helper_client.defer('index' if sys.argv[1]=='index' else 'ocr');print('Waiting for Cyborg / Server tasks On',flush=True);sys.exit(75)
+            helper_client.defer('index' if sys.argv[1]=='index' else 'ocr');print('Background work deferred; checkpoints preserved',flush=True);sys.exit(75)
     elif sys.argv[1]=='ocr-file':
         available();path=sys.argv[2]
         if not path.startswith('PDF Library/') or not safe(path):raise ValueError('Use a library PDF path')

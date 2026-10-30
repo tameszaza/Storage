@@ -7,6 +7,7 @@ from pathlib import Path
 
 from flask import abort, current_app, g, jsonify, redirect, render_template, request, send_file, session, url_for
 
+from lib.assistant_images import read_uploads, browser_preview, ImageInputError
 from lib.activity import log_activity
 from lib.assistant_calendar_drafts import confirm_draft, draft_image_path, load_draft
 from lib.assistant_agenda import direct_temporal_answer, calendar_clock
@@ -310,86 +311,39 @@ def _store_direct_chat_turn(message: str, response: str) -> None:
 @login_required
 def chat():
     # Browser requests must originate from this application now that chat can write.
-    origin = request.headers.get("Origin")
-    if origin and origin.rstrip("/") != request.host_url.rstrip("/"):
+    from routes.workspace_agent import assistant_origin_allowed
+    if not assistant_origin_allowed():
         return jsonify({"response": "Please send this request from the assistant page."}), 403
     history = session.get("conversation_history") or initial_history(session.get("username"))
     msg = request.form.get("msg", "").strip()
-    image = request.files.get("image")
+    preview_only = request.form.get("preview") == "1"
+    if preview_only:
+        token, supplied = session.get("assistant_csrf", ""), request.form.get("csrf", "")
+        if not token or not supplied.isascii() or not secrets.compare_digest(token, supplied):
+            return jsonify({"response": "Reload the assistant before attaching this image."}), 403
+    try:
+        images = read_uploads(request.files.getlist("image"))
+        if preview_only:
+            if len(images) != 1: raise ImageInputError('Preview one image at a time.')
+            import io
+            data, mimetype = browser_preview(images[0])
+            response = send_file(io.BytesIO(data), mimetype=mimetype, download_name="preview.jpg")
+            response.headers["Cache-Control"] = "private, no-store"
+            return response
+    except (ImageInputError, OverflowError) as exc:
+        return jsonify({"response": str(exc)}), 413 if isinstance(exc, OverflowError) else 400
     prompt = request.form.get("prompt", "Describe this image.").strip() or "Describe this image."
 
-    if (msg and not (image and image.filename) and calendar_write_requested(msg)
-            and re.search(r"\b(?:image|photo|picture|screenshot)\b", msg, re.IGNORECASE)):
-        return jsonify({"response": "Attach the schedule image first. No calendar dates were added."})
+    archive_mode = request.form.get("archive_mode", "workspace")
+    if archive_mode not in ("workspace", "workspace_google"):
+        if images:
+            return jsonify(response="Use a text question for the chat archive."), 400
+        from routes.chat_archive import respond
+        return respond(msg, archive_mode)
 
-    include_context = request.form.get("include_context", "1") == "1"
-
-    if msg and not image:
-        command_result = handle_file_command(msg) if include_context else None
-        if command_result and command_result.get("handled"):
-            return jsonify(command_result)
-
-    file_path = request.form.get("file_path", "").strip()
-    detail_level = request.form.get("detail_level", "balanced").strip() or "balanced"
-    response_style = request.form.get("response_style", "practical").strip() or "practical"
-    extra_context = build_ai_context(
-        username=session.get("username"),
-        include_tree=include_context,
-        file_path=file_path,
-        detail_level=detail_level,
-        response_style=response_style,
-    )
-
-    image_bytes = None
-    if image and image.filename:
-        from routes.obsidian_images import LIMIT
-        image_bytes = image.read(LIMIT + 1)
-        if len(image_bytes) > LIMIT:
-            return jsonify({"response": "Please use an image under 20 MB."}), 413
-    csrf = session.get("assistant_csrf", "")
-    supplied_csrf = request.form.get("csrf", "")
-    if include_context and session.get("username") == "Admin" and csrf and supplied_csrf.isascii() and secrets.compare_digest(csrf, supplied_csrf):
-        request_id = request.form.get("request_id", "")
-        if not re.fullmatch(r"[A-Za-z0-9.-]{1,128}", request_id):
-            request_id = secrets.token_hex(16)
-        g.diary_context = dict(request_id=request_id, clock=calendar_clock(), image_bytes=image_bytes)
-
-    try:
-        if image and image.filename:
-            response_text, history = ask_image(
-                history,
-                image_bytes,
-                prompt,
-                msg,
-                extra_context=extra_context,
-                username=session.get("username"),
-                allow_tools=include_context,
-            )
-        elif msg:
-            response_text, history = ask_text(
-                history,
-                msg,
-                username=session.get("username"),
-                extra_context=extra_context,
-                allow_tools=include_context,
-            )
-        else:
-            return jsonify({"response": "No valid input provided."}), 400
-    except RuntimeError as exc:
-        actions = getattr(g, "assistant_actions", [])
-        return jsonify({"response": "The assistant could not finish its reply. See completed actions below." if actions else str(exc), "actions": actions}), 200 if actions else 503
-    except Exception:
-        current_app.logger.exception("Assistant request failed")
-        actions = getattr(g, "assistant_actions", [])
-        return jsonify({"response": "The assistant could not finish its reply. See completed actions below." if actions else "The assistant service is temporarily unavailable. Please try again.", "actions": actions}), 200 if actions else 503
-
-    session["conversation_history"] = compact_session_history(history)
-    return jsonify({
-        "response": response_text,
-        "actions": getattr(g, "assistant_actions", []),
-        "action_url": getattr(g, "assistant_review_url", ""),
-        "action_label": getattr(g, "assistant_review_label", ""),
-    })
+    from routes.workspace_agent import enqueue
+    return enqueue(msg, "google" if archive_mode == "workspace_google" else "cyborg", images,
+                   request.form.get("include_context", "1") == "1")
 
 
 @login_required
@@ -449,7 +403,7 @@ def calendar_import_review(token):
 
 @login_required
 def calendar_import_image(token):
-    image = draft_image_path(_current_user(), token)
+    image = draft_image_path(_current_user(), token, request.args.get("image", "0"))
     if image is None:
         abort(404)
     response = send_file(image, mimetype="image/jpeg", conditional=True)

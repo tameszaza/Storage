@@ -1,0 +1,20 @@
+[Unit]
+Description=Incremental lecture semantic indexing
+RequiresMountsFor=/srv/tamestorage
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=tameszaza
+Group=tameszaza
+WorkingDirectory=/home/tameszaza/.local/lib/lecture-search
+ExecStart=/srv/tamestorage/.tamestorage_state/lecture-search/venv/bin/python /home/tameszaza/.local/lib/lecture-search/search.py index
+ExecStopPost=/usr/bin/find /srv/tamestorage/.tamestorage_state/lecture-search -maxdepth 1 -type f -name extract-*.txt -delete
+MemoryMax=256M
+CPUQuota=75%
+Nice=15
+IOSchedulingClass=idle
+TasksMax=24
+TimeoutStartSec=infinity
+NoNewPrivileges=true
+UMask=0077

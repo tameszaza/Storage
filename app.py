@@ -41,6 +41,9 @@ def create_app(config_class=Config):
 
     @app.after_request
     def refresh_search_after_writes(response):
+        # Chat only queues Workspace work or reads the archive. File changes invalidate in the worker.
+        if request.endpoint == 'chat':
+            return response
         if should_invalidate_file_inventory(request.endpoint, request.method, response.status_code):
             invalidate_search_cache()
         return response

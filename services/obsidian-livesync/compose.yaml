@@ -1,0 +1,20 @@
+name: obsidian-livesync
+services:
+  couchdb:
+    image: couchdb:3.5
+    container_name: livesync-couchdb
+    restart: unless-stopped
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:?}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:?}
+    volumes:
+      - /srv/tamestorage/.tamestorage_state/obsidian-livesync/data:/opt/couchdb/data
+      - ./config/livesync.ini:/opt/couchdb/etc/local.ini
+    ports:
+      - 127.0.0.1:5984:5984
+    healthcheck:
+      test: [CMD-SHELL, 'curl -sf -u ${COUCHDB_USER}:${COUCHDB_PASSWORD} http://localhost:5984/_session | grep -q ok']
+      interval: 30s
+      timeout: 5s
+      retries: 4
+      start_period: 20s

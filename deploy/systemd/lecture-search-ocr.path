@@ -1,0 +1,10 @@
+[Unit]
+Description=Start PDF OCR only when the index queues missing-text pages
+RequiresMountsFor=/srv/tamestorage
+
+[Path]
+PathExists=/srv/tamestorage/.tamestorage_state/lecture-search/ocr-pending
+Unit=lecture-search-ocr.service
+
+[Install]
+WantedBy=multi-user.target

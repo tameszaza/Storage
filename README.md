@@ -1,105 +1,37 @@
-# Tamestorage NAS
+# Tamestorage and the Tames network mesh
 
-Private Flask NAS dashboard and browser file manager for the Ubuntu server.
-The app runs in Docker behind Caddy and is exposed only on the server's
-Tailscale address.
+Source and deployment mechanisms for the personal storage website, Obsidian/Goodnotes pipeline, media workers, monitoring, Mac controls and room automation. Updated from the running main server and this Mac on **2026-10-30**.
 
-## Running layout
+Start with [the mechanism guide](docs/MESH.md) and [the source map](docs/SOURCE-MAP.md). This repository contains application source and configuration templates. Documents, PDFs, music, model weights, databases, live credentials and private keys are separate runtime data.
 
-- Web UI: `http://server` or `http://100.124.30.94`
-- Web container: `tamestorage`, bound to host `127.0.0.1:5000`
-- Playlist worker: `tamestorage-playlist-worker`
-- Primary USB 3 disk: `/srv/tamestorage`
-- Browser/SMB files: `/srv/tamestorage/uploads`
-- USB 2 backup disk: `/srv/tamestorage-backup`
-- Navidrome music: `/srv/music`
-- SMB share over Tailscale: `smb://server/Storage`
-- Faster SMB share on the home LAN: `smb://192.168.0.2/Storage`
+| Component | Source / configuration | Runtime |
+|---|---|---|
+| Website, Assistant, diary logging, file storage | [app.py](app.py), [routes](routes), [lib](lib), [templates](templates), [static](static) | Main server Docker |
+| Calendar, video and music sync | [calendar_worker.py](calendar_worker.py), [video_worker.py](video_worker.py), [playlist_worker.py](playlist_worker.py) | Separate workers in [compose.yaml](compose.yaml) |
+| Goodnotes statistics | [services/goodnotes-stats](services/goodnotes-stats) | Separate low-priority container |
+| Goodnotes WebDAV, backup/provenance/cleanup | [services/webdav](services/webdav), [services/goodnotes-watch](services/goodnotes-watch) | Apache container + host watcher |
+| Obsidian PDF pointers and publication | [services/goodnotes-links](services/goodnotes-links) | Native host service |
+| PDF/image OCR, lexical/vector search, invisible PDF text | [services/lecture-search](services/lecture-search) | Socket activation + queued host jobs |
+| Quartz site export/build/publication | [services/quartz-site](services/quartz-site) | Host watcher; local or Cyborg build |
+| Cyborg CPU helpers and admission/storage | [deploy/cyborg-helper](deploy/cyborg-helper) | Cyborg Docker, external disk |
+| Grammar and optional AI checks | [services/languagetool](services/languagetool), [services/cyborg-grammar-gateway](services/cyborg-grammar-gateway) | Native LanguageTool container + socket gateway |
+| Transcription dispatch and inbox | [services/tamestorage-transcription](services/tamestorage-transcription) | Durable main-server queue; Cyborg worker |
+| Admin controls, settings and live task console | [routes/services.py](routes/services.py), [routes/settings.py](routes/settings.py), [routes/activity.py](routes/activity.py), [deploy/host](deploy/host) | Restricted host broker |
+| Uptime Kuma, Navidrome, LiveSync | [services](services) | Separate upstream containers |
+| Mac VPN, Cyborg switches, display/audio helpers | [clients/macos/ntu-vpn](clients/macos/ntu-vpn) | Native macOS app |
+| Custom Obsidian clients | [clients/obsidian](clients/obsidian) | Desktop/iPad plugins; no private settings |
+| Phone/aircon automation | [aircon.py](aircon.py), [ac_control.py](ac_control.py), [ac_weekly.py](ac_weekly.py), [termux-boot.sh](termux-boot.sh) | Existing phone source; live phone version not revalidated |
 
-Caddy listens only on the Tailscale IPv4 address. Samba binds only to loopback
-and the server's `192.168.0.2` Ethernet address. Tailscale Serve securely
-forwards tailnet port 445 to loopback because Samba cannot directly bind its
-listener to the non-broadcast TUN interface. UFW allows direct SMB only from
-the trusted `192.168.0.0/24` LAN. Use the LAN address at home to avoid Tailscale
-encryption overhead on the old two-core CPU; use the MagicDNS name everywhere
-else.
+## Configuration and operation
 
-## Music playlist sync
+[compose.yaml](compose.yaml) keeps the main website, calendar/music/video workers and statistics container separate. Other existing Docker stacks have their own compose files under `services/`. Secrets and machine parameters are supplied by private environment/configuration files; safe examples and defaults are committed. The web stack currently reads `/etc/tamestorage.env`; statistics reads `/etc/tamestorage-goodnotes-stats.env` from its [.env.example](services/goodnotes-stats/.env.example). Native services have their own documented config paths and systemd units.
 
-Log in as `Admin` and open **Music sync** in the sidebar. The page can:
+Inspect the configuration before deploying: this is the existing mesh, with host paths, read-only mounts and restricted broker dependencies, not a turnkey anonymous public cloud deployment. `docker compose config --quiet` validates the selected host's environment before a targeted `up -d --no-deps SERVICE`. Never put production environment files or state into Git. See [deployment documentation](deploy) and [systemd units](deploy/systemd).
 
-- add any HTTP/HTTPS playlist URL;
-- run an immediate quick sync;
-- choose a sync interval in hours (0 means manual-only; up to 720 hours);
-- pause or remove playlist entries without deleting downloaded songs;
-- display the live and historical yt-dlp output for each playlist.
+The Server tasks switch in the Mac app controls Cyborg admission. Essential OCR/index/web-build work falls back to the main server when Cyborg is unavailable or admission is off. AI inference is not moved to the small main server. Goodnotes statistics yields to critical work and reuses completed page results.
 
-Each source has a private archive and managed directory, so later checks only
-download newly added entries. Output is organized as:
+The native Finder maintenance connection is `smb://server/Server-root` (saved through Cmd+K). It uses the existing authenticated Samba service and ordinary Unix permissions; root-owned maintenance still needs SSH/sudo. [Share configuration](deploy/samba/tamestorage-maintenance.conf).
 
-```text
-/srv/music/Managed Playlists/<name> [<source id>]/<index> - <title> [<video id>].<extension>
-/srv/music/Playlists/<name>.m3u
-```
+## Source availability
 
-Navidrome mounts `/srv/music` read-only and imports the maintained M3U file on
-its normal scan cycle. The worker validates a complete remote snapshot before
-it considers removal. A normal removal needs two identical successful checks
-at least five minutes apart; an empty or 50%+ drop needs three. Any connection,
-snapshot, extraction, or download error keeps all existing files and playlist
-entries. Only files inside that source's managed directory can be deleted.
-
-The image includes Deno and yt-dlp's EJS components so current YouTube
-JavaScript challenges can be solved inside the read-only worker container.
-
-## Docker operations
-
-```bash
-cd /srv/docker/tamestorage
-sudo docker compose ps
-sudo docker compose logs -f web playlist-worker
-sudo docker compose up -d --build
-```
-
-The source deployment copy is `/srv/docker/tamestorage`. Runtime state is kept
-on the primary USB disk, outside the image and containers.
-
-At boot, systemd attempts both UUID-identified USB mounts before Docker. Docker
-bind mounts are configured not to create missing source directories, preventing
-uploads from silently landing on the internal disk if the primary USB disk is
-absent. Caddy waits for Tailscale, Samba waits for the network, and all three
-Docker applications use `restart: unless-stopped`.
-
-## Backup
-
-`tamestorage-backup.timer` runs every six hours. The guarded backup script
-checks both expected filesystem UUIDs before using rsync to mirror the complete
-primary disk to the backup disk. Deleted primary files are deleted from the
-mirror on its next run.
-
-```bash
-systemctl list-timers tamestorage-backup.timer
-sudo systemctl start tamestorage-backup.service
-cat /srv/tamestorage-backup/.nas-last-success
-```
-
-## Deployment files
-
-- `deploy/install-server.sh`: mounts disks and installs Caddy, Samba, backup,
-  Tailscale Serve, firewall, and environment configuration.
-- `deploy/install-docker.sh`: installs/rebuilds the web app and worker in Docker.
-- `deploy/tamestorage-backup`: UUID-guarded mirror script.
-- `compose.yaml`: container runtime configuration.
-
-Public registration and the old phone-only air-conditioner, camera, sound,
-voice, planner, feedback, and AI features are not included in this deployment.
-
-
-## Admin transcription
-
-Admin → Transcribe a recording uploads to the private Cyborg transcription queue and saves full plaintext in Admin/Transcripts. See [the maintained transcription manual](docs/TRANSCRIPTION.md) for model choices, retention, recovery and on-demand service controls.
-
-
-## Activity console
-
-Admin Center → Activity shows current Server/Cyborg worker stages and existing queues. It is a server web page at `/admin/activity`, with admin-only read-only snapshots and no Mac monitoring process. See [Activity](docs/ACTIVITY.md) and the corrected [Goodnotes import/upload workflow](docs/GOODNOTES-DOWNLOAD.md).
+Main-server and Mac files above were read from their installed source locations. Cyborg's maintained CPU-helper/deployment sources are included. Cyborg was in Windows during this update; its Linux-only native AI/GPU/speaker/transcription worker implementation could not be refreshed. Do not treat documentation or old deployment copies as a freshly verified dump of those unavailable files. See [the source map](docs/SOURCE-MAP.md) for this boundary and third-party upstream links.

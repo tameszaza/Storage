@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@vrtmrz/livesync-commonlib": "0.1.19",
+    "node": "22.23.3"
+  }
+}

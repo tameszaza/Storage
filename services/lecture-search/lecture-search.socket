@@ -1,0 +1,12 @@
+[Unit]
+Description=On-demand lecture semantic search listener
+
+[Socket]
+ListenStream=127.0.0.1:8095
+Accept=yes
+MaxConnections=2
+Backlog=16
+NoDelay=true
+
+[Install]
+WantedBy=sockets.target

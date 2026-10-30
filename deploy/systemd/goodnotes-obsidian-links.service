@@ -1,0 +1,25 @@
+[Unit]
+Description=Goodnotes event-triggered Obsidian PDF link catalog
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+Group=root
+Environment=HOME=/home/tameszaza
+WorkingDirectory=/home/tameszaza/.local/lib/goodnotes-links
+ExecStart=/usr/bin/python3 /usr/local/lib/goodnotes-watch/watch.py
+Restart=on-failure
+RestartSec=60
+Nice=10
+IOSchedulingClass=idle
+MemoryMax=384M
+CPUQuota=25%
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_SETUID CAP_SETGID
+
+[Install]
+WantedBy=multi-user.target

@@ -65,7 +65,7 @@
                 <a class="sidebar-link {% if request.endpoint == 'chat_page' %}active{% endif %}" href="{{ url_for('chat_page') }}"><i class="fa-solid fa-wand-magic-sparkles"></i><span>AI assistant</span></a>
                 {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint and request.endpoint.startswith('music_sync') %}active{% endif %}" href="{{ url_for('music_sync_page') }}"><i class="fa-solid fa-music"></i><span>Music sync</span></a>{% endif %}
                 {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint == 'disk_dashboard' %}active{% endif %}" href="{{ url_for('disk_dashboard') }}"><i class="fa-solid fa-hard-drive"></i><span>Disk space</span></a>{% endif %}
-                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint in ('admin','admin_activity','goodnotes_import_review') or (request.endpoint or '').startswith('transcription_') %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
+                {% if session.get('username') == 'Admin' %}<a class="sidebar-link {% if request.endpoint in ('admin','admin_activity','goodnotes_import_review') or (request.endpoint or '').startswith('transcription_') or (request.endpoint or '').startswith('chat_archive') %}active{% endif %}" href="{{ url_for('admin') }}"><i class="fa-solid fa-gauge-high"></i><span>Admin center</span></a>{% endif %}
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-storage">

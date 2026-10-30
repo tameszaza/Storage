@@ -14,6 +14,7 @@ import time
 from urllib.parse import quote, urlsplit
 
 ALLOWED={
+ 'tamestorage-goodnotes-stats':'Goodnotes statistics',
  'tamestorage':'Tamestorage', 'tamestorage-playlist-worker':'Music sync',
  'tamestorage-calendar-worker':'Calendar sync', 'tamestorage-video-worker':'Video downloads',
  'tamestorage-calendar':'Calendar', 'tamestorage-webdav':'Goodnotes WebDAV',
@@ -21,7 +22,7 @@ ALLOWED={
  'languagetool':'LanguageTool','navidrome':'Navidrome','uptime-kuma':'Uptime Kuma',
  'tamestorage-control-check':'Control verification',
 }
-NAS={'tamestorage','tamestorage-playlist-worker','tamestorage-calendar-worker',
+NAS={'tamestorage-goodnotes-stats','tamestorage','tamestorage-playlist-worker','tamestorage-calendar-worker',
      'tamestorage-video-worker','tamestorage-calendar','tamestorage-webdav','livesync-couchdb'}
 REMOTE={'cyborg-helper':'Cyborg helpers','cyborg-digital':'Digital circuit simulator'}
 REMOTE_IDENTITY=Path('/home/tameszaza/.config/cyborg-services/control_ed25519')

@@ -1,0 +1,24 @@
+[Unit]
+Description=One-time missing-text PDF page OCR and incremental embedding
+RequiresMountsFor=/srv/tamestorage
+After=lecture-search-index.service
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=60
+User=tameszaza
+Group=tameszaza
+WorkingDirectory=/home/tameszaza/.local/lib/lecture-search
+ExecStart=/srv/tamestorage/.tamestorage_state/lecture-search/venv/bin/python /home/tameszaza/.local/lib/lecture-search/search.py ocr
+ExecStopPost=/usr/bin/find /srv/tamestorage/.tamestorage_state/lecture-search -maxdepth 1 -type d -name ocr-* -exec rm -rf {} +
+MemoryMax=256M
+CPUQuota=100%
+Nice=15
+IOSchedulingClass=idle
+TasksMax=24
+TimeoutStartSec=infinity
+NoNewPrivileges=true
+UMask=0077

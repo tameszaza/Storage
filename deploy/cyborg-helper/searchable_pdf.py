@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import shutil
+import stat
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -19,6 +20,20 @@ METHODS = ('ocr', 'ocr-empty', 'native+ocr', 'native+ocr-empty', 'native-image')
 def fingerprint(file):
     s = file.stat()
     return f'{s.st_dev}:{s.st_ino}:{s.st_size}:{s.st_mtime_ns}'
+
+
+PRIMARY_DEVICE=Path('/dev/disk/by-uuid/4dcef454-5a20-484b-b00e-fe9a136f82b9')
+def same_source_after_reconnect(file,previous,current):
+    # st_dev is a Linux attachment number, not persistent disk identity. Permit
+    # device-only adoption solely on the exact primary filesystem UUID; unchanged
+    # inode, size and nanosecond mtime remain mandatory. No content read/hash.
+    try:
+        old=previous.split(':');new=current.split(':')
+        if len(old)!=4 or len(new)!=4 or old[0]==new[0] or old[1:]!=new[1:]:return False
+        device=PRIMARY_DEVICE.stat();source=Path(file).stat()
+        return (stat.S_ISBLK(device.st_mode) and device.st_rdev==source.st_dev==int(new[0])
+                and current==fingerprint(Path(file)))
+    except (OSError,ValueError,AttributeError,TypeError):return False
 
 
 def folder(path):
@@ -42,14 +57,21 @@ def atomic_json(file, data):
 
 def prepare(path, fp):
     directory = folder(path)
+    if directory.is_symlink():raise ValueError('Invalid PDF cache directory')
     wanted = {'path': path, 'fingerprint': fp, 'policy': POLICY}
-    if read_json(directory / 'source.json') != wanted:
-        if directory.is_symlink():
-            raise ValueError('Invalid PDF cache directory')
-        if directory.exists():
-            shutil.rmtree(directory)
-        directory.mkdir(parents=True, mode=0o700)
-        atomic_json(directory / 'source.json', wanted)
+    previous=read_json(directory/'source.json')
+    if previous != wanted:
+        file=Path('/srv/tamestorage/uploads/Goodnotes')/path.removeprefix('PDF Library/')
+        if (previous.get('path')==path and previous.get('policy')==POLICY and
+                same_source_after_reconnect(file,previous.get('fingerprint'),fp)):
+            manifest=read_json(directory/'manifest.json')
+            if manifest.get('path')==path and manifest.get('fingerprint')==previous['fingerprint'] and manifest.get('policy')==POLICY:
+                manifest['fingerprint']=fp;atomic_json(directory/'manifest.json',manifest)
+            atomic_json(directory/'source.json',wanted)
+        else:
+            if directory.exists():shutil.rmtree(directory)
+            directory.mkdir(parents=True,mode=0o700)
+            atomic_json(directory/'source.json',wanted)
     return directory
 
 
@@ -86,16 +108,28 @@ def recognize_page(file, path, fp, number, mixed):
         raise RuntimeError('Cached PDF OCR page failure; explicit retry required')
     try:import helper_client
     except ImportError:helper_client=None
-    if helper_client and helper_client.enabled():
-        result=helper_client.pdf_page(file,path,fp,number,mixed)
-        if fingerprint(file)!=fp:raise RuntimeError('PDF changed during OCR')
-        text=str(result['text'])[:2000000]
-        if text.strip():
-            raw=base64.b64decode(result['layer'],validate=True)
-            if not raw.startswith(b'%PDF-') or len(raw)>12*1024*1024:raise ValueError('Invalid OCR layer')
-            temporary=layer.with_suffix('.next');temporary.write_bytes(raw);os.replace(temporary,layer)
-        atomic_json(checkpoint,{'status':'ready' if text.strip() else 'empty','text':text})
-        return text
+    if helper_client and helper_client.background_remote():
+        try:
+            result=helper_client.pdf_page(file,path,fp,number,mixed)
+            if fingerprint(file)!=fp:raise RuntimeError('PDF changed during OCR')
+            text=str(result['text'])[:2000000]
+            if text.strip():
+                raw=base64.b64decode(result['layer'],validate=True)
+                if not raw.startswith(b'%PDF-') or len(raw)>12*1024*1024:raise ValueError('Invalid OCR layer')
+                temporary=layer.with_suffix('.next');temporary.write_bytes(raw);os.replace(temporary,layer)
+            atomic_json(checkpoint,{'status':'ready' if text.strip() else 'empty','text':text})
+            return text
+        except helper_client.Paused:
+            helper_client.local_background()
+    if helper_client:
+        return helper_client.local_call(lambda:recognize_page_local(file,path,fp,number,mixed))
+    return recognize_page_local(file,path,fp,number,mixed)
+
+
+def recognize_page_local(file,path,fp,number,mixed):
+    if fingerprint(file)!=fp:raise RuntimeError('PDF changed before local OCR')
+    directory=prepare(path,fp)
+    checkpoint=directory/f'{number}.json';layer=directory/f'{number}.pdf'
     import pikepdf
     from PIL import Image
     with tempfile.TemporaryDirectory(prefix='ocr-', dir=DATA) as temporary:

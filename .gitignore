@@ -36,3 +36,17 @@ server.log.*
 *.p12
 .tamestorage_state/
 .settings-validate-*
+
+# Private mesh state is never publication source.
+**/.env
+**/*.env
+**/data.json
+**/*.sqlite*
+**/*.db
+**/node_modules/
+**/venv/
+**/__pycache__/
+**/*.key
+**/*_ed25519
+source-manifest.json
+!**/.env.example

@@ -1,0 +1,25 @@
+[Unit]
+Description=Dispatch queued Tamestorage transcription jobs to Cyborg
+After=network-online.target
+Wants=network-online.target
+ConditionPathIsMountPoint=/srv/tamestorage
+
+[Service]
+Type=simple
+User=tameszaza
+Group=tameszaza
+ExecCondition=/usr/bin/findmnt -rn -M /srv/tamestorage -S UUID=4dcef454-5a20-484b-b00e-fe9a136f82b9
+ExecStart=/usr/bin/python3 -B /home/tameszaza/.local/lib/tamestorage-transcription/dispatch.py
+Restart=on-failure
+RestartSec=60
+Nice=10
+MemoryMax=128M
+MemorySwapMax=0
+TasksMax=32
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/tamestorage/.tamestorage_state/transcription "/srv/music/Managed Playlists" /srv/tamestorage/uploads/temp/Transcription
+UMask=0077
+

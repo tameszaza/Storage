@@ -13,23 +13,22 @@ class ClientTests(unittest.TestCase):
   with patch.object(h,'CONFIG',self.root/'missing'):self.assertFalse(h.enabled())
  def test_defer_persists_and_uses_existing_wake(self):
   h.defer('ocr');h.defer('index');self.assertEqual(json.loads(h.PENDING.read_text()),{'ocr':True,'index':True});self.assertTrue(h.WAKE.exists());self.assertTrue(h.pending())
- def test_offline_keeps_pending(self):
+ def test_offline_wakes_primary_without_starting_cyborg(self):
   h.defer('ocr')
-  with patch.object(h,'ensure',side_effect=h.Paused()):
-   with self.assertRaises(h.Paused):h.resume_pending()
-  self.assertTrue(h.pending())
- def test_busy_keeps_pending(self):
+  with patch.object(h,'background_remote',return_value=False),patch.object(h,'ensure') as ensure:self.assertFalse(h.resume_pending());ensure.assert_not_called()
+  self.assertFalse(h.pending());self.assertTrue((self.root/'pdf-changes').exists())
+ def test_busy_helper_does_not_hold_primary_queue(self):
   h.defer('index')
-  with patch.object(h,'ensure'),patch.object(h,'request',return_value={'accepting':True,'busy':True}):self.assertTrue(h.resume_pending())
-  self.assertTrue(h.pending())
+  with patch.object(h,'background_remote',return_value=False):self.assertFalse(h.resume_pending())
+  self.assertFalse(h.pending());self.assertTrue((self.root/'pdf-changes').exists())
  def test_resume_wakes_real_index_and_clears_only_marker(self):
   h.defer('ocr')
-  with patch.object(h,'ensure'),patch.object(h,'request',return_value={'accepting':True,'busy':False}):self.assertFalse(h.resume_pending())
+  with patch.object(h,'background_remote',return_value=True):self.assertFalse(h.resume_pending())
   self.assertFalse(h.pending());self.assertTrue((self.root/'pdf-changes').exists())
  def test_embedding_size_and_dimensions_validated(self):
   raw=b'\0'*1024
-  with patch.object(h,'request',return_value={'vectors':base64.b64encode(raw).decode(),'dimensions':256,'count':1}):self.assertEqual(h.Encoder().encode(['test'])[0].astype('float32').tobytes(),raw)
-  with patch.object(h,'request',return_value={'vectors':'AA==','dimensions':256,'count':1}):
+  with patch.object(h,'background_remote',return_value=True),patch.object(h,'request',return_value={'vectors':base64.b64encode(raw).decode(),'dimensions':256,'count':1}):self.assertEqual(h.Encoder().encode(['test'])[0].astype('float32').tobytes(),raw)
+  with patch.object(h,'background_remote',return_value=True),patch.object(h,'request',return_value={'vectors':'AA==','dimensions':256,'count':1}):
    with self.assertRaises(ValueError):h.Encoder().encode(['test'])
  def test_source_upload_is_reused(self):
   with patch.object(h,'request',return_value={'ready':True}) as request:

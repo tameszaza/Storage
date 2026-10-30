@@ -4,19 +4,20 @@ import base64,contextlib,hashlib,hmac,http.server,json,os,re,shutil,signal,sqlit
 from pathlib import Path
 WORK=Path('/work');SOURCES=WORK/'sources';JOBS=WORK/'jobs';BUSY=threading.Lock();MODEL=None;STOP=threading.Event();CURRENT={'kind':None,'started':None};CHILDREN=set()
 TOKEN=json.loads(Path('/run/helper.json').read_text())['token']
-def vector_db():
+def vector_db(archive=False):
  import sqlite_vec
- db=sqlite3.connect(WORK/'vectors.sqlite');db.enable_load_extension(True);sqlite_vec.load(db);db.enable_load_extension(False)
+ db=sqlite3.connect(WORK/('archive-vectors.sqlite' if archive else 'vectors.sqlite'));db.enable_load_extension(True);sqlite_vec.load(db);db.enable_load_extension(False)
  db.execute('PRAGMA cache_size=-65536');db.execute('PRAGMA mmap_size=268435456')
  db.executescript('CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT);CREATE TABLE IF NOT EXISTS chunks(path TEXT,id INTEGER,embedding BLOB,PRIMARY KEY(path,id));')
  return db
-def vector_epoch():
- if not (WORK/'vectors.sqlite').exists():return None
- with sqlite3.connect(WORK/'vectors.sqlite') as db:
+def vector_epoch(archive=False):
+ file=WORK/('archive-vectors.sqlite' if archive else 'vectors.sqlite')
+ if not file.exists():return None
+ with sqlite3.connect(file) as db:
   r=db.execute("SELECT value FROM meta WHERE key='epoch'").fetchone();return r[0] if r else None
 
-def vectors(file):
- with file.open() as stream,vector_db() as db:
+def vectors(file,archive=False):
+ with file.open() as stream,vector_db(archive) as db:
   header=json.loads(stream.readline(8192));epoch=header.get('epoch');path=header.get('path')
   if not isinstance(epoch,str) or not re.fullmatch('[a-f0-9]{32}',epoch) or not isinstance(path,str) or not path or len(path)>2048:raise ValueError('Invalid vector source')
   # A derived mirror only: replace one changed document atomically.
@@ -33,9 +34,9 @@ def vectors(file):
    db.execute('INSERT INTO chunks VALUES(?,?,?)',(path,value[0],raw));count+=1
   db.commit();return {'count':count,'epoch':epoch}
 
-def semantic_search(body):
+def semantic_search(body,archive=False):
  text=body.get('query');prefix=body.get('folder','');epoch=body.get('epoch')
- if not isinstance(text,str) or not 1<=len(text)<=1500 or not isinstance(prefix,str) or len(prefix)>2048 or epoch!=vector_epoch():raise InterruptedError('Vector mirror pending')
+ if not isinstance(text,str) or not 1<=len(text)<=1500 or not isinstance(prefix,str) or len(prefix)>2048 or epoch!=vector_epoch(archive):raise InterruptedError('Vector mirror pending')
  pattern=prefix.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')+'%'
  filename_ids=body.get('filenameIds',[])
  if not isinstance(filename_ids,list) or len(filename_ids)>20000 or any(type(i) is not int for i in filename_ids):raise ValueError('Invalid filename identifiers')
@@ -43,7 +44,7 @@ def semantic_search(body):
  if not isinstance(excluded,list) or len(excluded)>100 or any(not isinstance(p,str) or len(p)>1000 for p in excluded):raise ValueError('Invalid exclusions')
  raw=base64.b64decode(embed({'texts':[text]})['vectors'])
  skip=(' AND path NOT IN ('+','.join('?' for _ in excluded)+')') if excluded else ''
- with vector_db() as db:
+ with vector_db(archive) as db:
   if filename_ids:
    slots=','.join('?' for _ in filename_ids)
    rows=db.execute("SELECT id,path,embedding,vec_distance_cosine(embedding,?) AS distance FROM chunks WHERE path LIKE ? ESCAPE '\\' AND id NOT IN ("+slots+")"+skip+" ORDER BY distance LIMIT 24",(raw,pattern,*filename_ids,*excluded)).fetchall()
@@ -90,8 +91,9 @@ def image(input_file):
   # Cyborg has spare RAM; do not spill large JPEG decoder caches onto the server NAS.
   env=os.environ;env['MAGICK_TEMPORARY_PATH']=directory
   run(['/usr/bin/convert','-limit','thread','4','-limit','memory','512MiB','-limit','map','1GiB','-limit','disk','2GiB','-define','jpeg:size=3600x3600',str(input_file)+'[0]','-auto-orient','-resize','3600x3600>','-background','white','-alpha','remove','-alpha','off',str(base)+'.png'],timeout=120)
-  run(['/usr/bin/tesseract',str(base)+'.png',str(base),'-l','eng','--oem','1','--psm','11'],timeout=120)
-  return {'text':Path(str(base)+'.txt').read_text()[:100000]}
+  run(['/usr/bin/tesseract',str(base)+'.png',str(base),'-l','eng','--oem','1','--psm','11','txt','tsv'],timeout=120)
+  from image_ocr_quality import result
+  return result(base)
 
 def prune_sources(keep):
     # Bound the external reusable cache; no scheduled sweep and no primary data.
@@ -165,7 +167,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   raw=json.dumps(value).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.send_header('Connection','close');self.end_headers();self.wfile.write(raw);self.close_connection=True
  def auth(self):return hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+TOKEN)
  def do_GET(self):
-  if self.path=='/health':return self.reply(200,{'ready':True,'accepting':admitted(),'busy':BUSY.locked(),'job':CURRENT['kind'],'vector_epoch':vector_epoch()})
+  if self.path=='/health':return self.reply(200,{'ready':True,'accepting':admitted(),'busy':BUSY.locked(),'job':CURRENT['kind'],'vector_epoch':vector_epoch(),'archive_epoch':vector_epoch(True)})
   if not self.auth():return self.reply(401,{'error':'Unauthorized'})
   m=re.fullmatch('/sources/([a-f0-9]{64})',self.path)
   if m:return self.reply(200,{'ready':(SOURCES/(m[1]+'.pdf')).is_file()})
@@ -177,7 +179,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   input_path=output=None
   try:
    source=re.fullmatch('/sources/([a-f0-9]{64})',self.path)
-   if not source and self.path not in ['/jobs/image','/jobs/pdf','/jobs/embed','/jobs/quartz','/jobs/vectors','/jobs/search']:return self.reply(404,{'error':'Not found'})
+   if not source and self.path not in ['/jobs/image','/jobs/pdf','/jobs/embed','/jobs/quartz','/jobs/vectors','/jobs/search','/jobs/archive-vectors','/jobs/archive-search']:return self.reply(404,{'error':'Not found'})
    size=int(self.headers.get('Content-Length','0'));maximum=2*1024**3 if source else 512*1024*1024 if self.path=='/jobs/vectors' else 32*1024*1024
    if not 0<size<=maximum:raise ValueError('Invalid request size')
    fd,name=tempfile.mkstemp(dir=JOBS,prefix='input-');input_path=Path(name)
@@ -198,6 +200,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
    elif kind=='embed':value=embed(json.loads(input_path.read_text()))
    elif kind=='vectors':value=vectors(input_path)
    elif kind=='search':value=semantic_search(json.loads(input_path.read_text()))
+   elif kind=='archive-vectors':value=vectors(input_path,True)
+   elif kind=='archive-search':value=semantic_search(json.loads(input_path.read_text()),True)
    else:
     output=quartz(input_path);self.send_response(200);self.send_header('Content-Type','application/gzip');self.send_header('Content-Length',str(output.stat().st_size));self.send_header('Connection','close');self.end_headers()
     with output.open('rb') as stream:shutil.copyfileobj(stream,self.wfile,64*1024)

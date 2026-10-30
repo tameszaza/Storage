@@ -1,0 +1,89 @@
+{
+  "observed": "2026-10-30",
+  "images": [
+    {
+      "container": "tamestorage",
+      "image": "tamestorage:latest",
+      "image_id": "sha256:485030b2fdd00f10b146b2f86aea22565b2b3daf28e38e3a7e471b69e3b690fe",
+      "registry_digests": [
+        "tamestorage@sha256:485030b2fdd00f10b146b2f86aea22565b2b3daf28e38e3a7e471b69e3b690fe"
+      ]
+    },
+    {
+      "container": "tamestorage-goodnotes-stats",
+      "image": "tamestorage-goodnotes-stats:1",
+      "image_id": "sha256:df2e6529b11ae9aaacc7f04a1edd6a39d33144b0c4ebbb82e95c4087ae106c33",
+      "registry_digests": [
+        "tamestorage-goodnotes-stats@sha256:df2e6529b11ae9aaacc7f04a1edd6a39d33144b0c4ebbb82e95c4087ae106c33"
+      ]
+    },
+    {
+      "container": "languagetool",
+      "image": "erikvl87/languagetool:latest",
+      "image_id": "sha256:ef8fa12cbd485166c9ceeb7139d76d56d07707a624da6bb1fc1fbb5411750527",
+      "registry_digests": [
+        "erikvl87/languagetool@sha256:ef8fa12cbd485166c9ceeb7139d76d56d07707a624da6bb1fc1fbb5411750527"
+      ]
+    },
+    {
+      "container": "tamestorage-webdav",
+      "image": "httpd@sha256:a30cd4cd57f3f3c3be9b2d16384d2488839996bb14c67df2b51f1ecbb3e584a1",
+      "image_id": "sha256:a30cd4cd57f3f3c3be9b2d16384d2488839996bb14c67df2b51f1ecbb3e584a1",
+      "registry_digests": [
+        "httpd@sha256:a30cd4cd57f3f3c3be9b2d16384d2488839996bb14c67df2b51f1ecbb3e584a1"
+      ]
+    },
+    {
+      "container": "tamestorage-calendar-worker",
+      "image": "tamestorage:latest",
+      "image_id": "sha256:8a118ace656328ac0f97c6c00f8cb1a36f26326dbe2a09e607496068027105ca",
+      "registry_digests": []
+    },
+    {
+      "container": "uptime-kuma",
+      "image": "louislam/uptime-kuma:2.5.6-slim-rootless@sha256:6eb4e96a7cbdb8a5d6779aa26dce2cb97dcea65b486856b9b2280f73a1d0adf4",
+      "image_id": "sha256:6eb4e96a7cbdb8a5d6779aa26dce2cb97dcea65b486856b9b2280f73a1d0adf4",
+      "registry_digests": [
+        "louislam/uptime-kuma@sha256:6eb4e96a7cbdb8a5d6779aa26dce2cb97dcea65b486856b9b2280f73a1d0adf4"
+      ]
+    },
+    {
+      "container": "tamestorage-playlist-worker",
+      "image": "tamestorage:latest",
+      "image_id": "sha256:34c421e78e5a5cb40f1061e2a675527fd5773a841f8dc80db112f4153c45d8c5",
+      "registry_digests": []
+    },
+    {
+      "container": "livesync-couchdb",
+      "image": "couchdb:3.5",
+      "image_id": "sha256:8cf5f8442585c346d2717ff0ad95605731d2f19f67b8367840baa8d3b24ebc31",
+      "registry_digests": [
+        "couchdb@sha256:8cf5f8442585c346d2717ff0ad95605731d2f19f67b8367840baa8d3b24ebc31"
+      ]
+    },
+    {
+      "container": "navidrome",
+      "image": "deluan/navidrome:latest",
+      "image_id": "sha256:9012939114fbb1bb641b81cf96dec5ded15f0aafefe8d47a511d7cb919658e40",
+      "registry_digests": [
+        "deluan/navidrome@sha256:9012939114fbb1bb641b81cf96dec5ded15f0aafefe8d47a511d7cb919658e40"
+      ]
+    },
+    {
+      "container": "tamestorage-calendar",
+      "image": "ghcr.io/kozea/radicale:stable",
+      "image_id": "sha256:0d60d544710bda0fa83bfdea685db731b6cbf74e12d7f22b4997e9cff3a50468",
+      "registry_digests": [
+        "ghcr.io/kozea/radicale@sha256:0d60d544710bda0fa83bfdea685db731b6cbf74e12d7f22b4997e9cff3a50468"
+      ]
+    },
+    {
+      "container": "tamestorage-video-worker",
+      "image": "tamestorage-video:latest",
+      "image_id": "sha256:f1ddd67c31db8d9080a1b6aa5674fe6f0ef55b8588fa7c597e986e17aff91065",
+      "registry_digests": [
+        "tamestorage-video@sha256:f1ddd67c31db8d9080a1b6aa5674fe6f0ef55b8588fa7c597e986e17aff91065"
+      ]
+    }
+  ]
+}

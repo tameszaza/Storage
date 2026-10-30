@@ -19,10 +19,10 @@ def parse_inventory(stream,first,last):
  if not header:raise ValueError('Incomplete image inventory output')
  return sorted(pages)
 
-def scan(file,total,run,jobs):
+def scan(file,total,run,jobs,cache=None):
  file=Path(file)
  if type(total) is not int or not 1<=total<=20000:raise ValueError('Invalid PDF length')
- stat=file.stat();fp=[stat.st_size,stat.st_mtime_ns];cache=file.with_suffix('.inventory.json')
+ stat=file.stat();fp=[stat.st_size,stat.st_mtime_ns];cache=Path(cache) if cache is not None else file.with_suffix('.inventory.json')
  state={'fingerprint':fp,'policy':POLICY,'total':total,'through':0,'pages':[]}
  try:
   saved=json.loads(cache.read_text())

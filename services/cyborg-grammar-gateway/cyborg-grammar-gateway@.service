@@ -1,0 +1,17 @@
+[Unit]
+Description=One LanguageTool plus optional Cyborg AI request
+[Service]
+User=tameszaza
+Group=tameszaza
+WorkingDirectory=/home/tameszaza/.local/lib/cyborg-grammar-gateway
+ExecStart=/usr/bin/python3 /home/tameszaza/.local/lib/cyborg-grammar-gateway/gateway.py
+StandardInput=socket
+StandardOutput=journal
+StandardError=journal
+MemoryMax=64M
+MemorySwapMax=0
+CPUQuota=50%
+TasksMax=8
+RuntimeMaxSec=95
+NoNewPrivileges=true
+UMask=0077

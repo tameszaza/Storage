@@ -1,0 +1,11 @@
+[Unit]
+Description=Reindex lectures only after source-change events
+RequiresMountsFor=/srv/tamestorage
+
+[Path]
+PathChanged=/srv/tamestorage/.tamestorage_state/quartz-site/export.json
+PathChanged=/srv/tamestorage/.tamestorage_state/lecture-search/pdf-changes
+Unit=lecture-search-index.service
+
+[Install]
+WantedBy=multi-user.target

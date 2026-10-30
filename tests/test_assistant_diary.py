@@ -3,7 +3,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from flask import Flask, g, session
 from PIL import Image
@@ -78,22 +79,86 @@ class ChatAuthorityTests(unittest.TestCase):
         from routes.ai import chat
         self.app = Flask(__name__); self.app.secret_key = 'fixture'
         self.app.add_url_rule('/chat', view_func=chat, methods=['POST'])
-        self.client = self.app.test_client()
+        self.client = self.app.test_client();self.client.environ_base["HTTP_X_WORKSPACE_CLIENT"]="1"
         with self.client.session_transaction() as session:
             session.update(logged_in=True, username='Admin', assistant_csrf='fixture-token')
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.app.config.update(WORKSPACE_AGENT_ROOT=Path(self.tmp.name)/'assistant',ICS_CALENDAR_CONFIG_PATH=str(Path(self.tmp.name)/'ics.json'),APP_TIMEZONE='Asia/Singapore')
 
-    def test_diary_tools_require_page_csrf_and_workspace_context(self):
-        for csrf, context, allowed in [('fixture-token','1',True), ('wrong','1',False), ('ผิด','1',False), ('fixture-token','0',False)]:
-            observed = []
-            def respond(*args, **kwargs):
-                observed.append(bool(getattr(g, 'diary_context', None))); return 'Reply', []
-            with patch('routes.ai.calendar_clock', return_value={'today':'2026-10-22','local_datetime':'2026-10-22T23:59:00+08:00'}), patch('routes.ai.build_ai_context', return_value=''), patch('routes.ai.handle_file_command', return_value=None), patch('routes.ai.ask_text', side_effect=respond):
-                response = self.client.post('/chat', data=dict(msg='Log this for me',csrf=csrf,include_context=context,request_id='same-id'))
-            self.assertEqual(response.status_code,200); self.assertEqual(observed,[allowed])
-
+    def test_queued_diary_requires_csrf_and_preserves_context_setting(self):
+        from lib.workspace_store import Store
+        for index,(csrf,context,expected) in enumerate([('fixture-token','1',200),('wrong','1',403),('ผิด','1',403),('fixture-token','0',200)]):
+            with patch('lib.ai_client.build_ai_context',return_value=''):
+                response=self.client.post('/chat',data=dict(msg='Log this for me',csrf=csrf,include_context=context,request_id='message-'+str(index)))
+            self.assertEqual(response.status_code,expected)
+            if expected==200:
+                with Store(self.app.config['WORKSPACE_AGENT_ROOT']) as queue:
+                    row=queue.db.execute('SELECT payload FROM jobs WHERE id=?',(response.json['workspace_job'],)).fetchone()
+                    self.assertEqual(json.loads(row[0])['include_context'],context=='1')
     def test_cross_origin_cannot_save(self):
         response = self.client.post('/chat', data={'msg':'Log this'}, headers={'Origin':'https://other.invalid'})
         self.assertEqual(response.status_code,403)
+
+
+class PhotoLogGenerationTests(unittest.TestCase):
+    def setUp(self):
+        self.app = Flask(__name__)
+        self.app.config['GEMINI_MODEL'] = 'fixture-model'
+        self.ctx = self.app.test_request_context('/')
+        self.ctx.push(); self.addCleanup(self.ctx.pop)
+        buffer = io.BytesIO(); Image.new('RGB', (8, 8), 'red').save(buffer, 'PNG')
+        self.image = buffer.getvalue()
+        self.generate = Mock(return_value=SimpleNamespace(text='Fixture response'))
+        self.client = SimpleNamespace(models=SimpleNamespace(generate_content=self.generate))
+
+    def test_richer_photo_settings_require_authorized_diary_context(self):
+        from lib.ai_client import ask_image
+        for username, allowed, context in [('Admin',True,True), ('Admin',False,True),
+                                           ('alice',True,True), ('Admin',True,False)]:
+            if context:
+                g.diary_context = {'request_id': 'fixture'}
+            elif hasattr(g, 'diary_context'):
+                del g.diary_context
+            with self.subTest(username=username, tools=allowed, context=context), \
+                 patch('lib.ai_client.get_client', return_value=self.client), \
+                 patch('lib.ai_client.build_workspace_tools', return_value=[]):
+                ask_image([], self.image, 'Describe this image.', username=username, allow_tools=allowed)
+                config = self.generate.call_args.kwargs['config']
+                if username == 'Admin' and allowed and context:
+                    self.assertEqual(config.temperature, 0.45)
+                    self.assertEqual(config.max_output_tokens, 8192)
+                    self.assertIn(diary.PHOTO_LOG_WRITING_GUIDANCE, config.system_instruction)
+                    tool = diary.build_diary_tools('Admin')[0]
+                    self.assertIn(diary.PHOTO_LOG_WRITING_GUIDANCE, tool.__doc__)
+                else:
+                    self.assertEqual(config.temperature, 0.2)
+                    self.assertIsNone(config.max_output_tokens)
+                    self.assertNotIn(diary.PHOTO_LOG_WRITING_GUIDANCE, config.system_instruction)
+
+    def test_ordinary_text_keeps_generation_settings(self):
+        from lib.ai_client import ask_text
+        g.diary_context = {'request_id': 'fixture'}
+        with patch('lib.ai_client.get_client', return_value=self.client), \
+             patch('lib.ai_client.build_workspace_tools', return_value=[]):
+            ask_text([], 'What tasks are due?', username='Admin')
+        config = self.generate.call_args.kwargs['config']
+        self.assertEqual(config.temperature, 0.2)
+        self.assertIsNone(config.max_output_tokens)
+
+    def test_schedule_image_retains_two_deterministic_json_passes(self):
+        from lib.ai_client import ask_image
+        self.generate.return_value = SimpleNamespace(text='{"events": []}')
+        g.diary_context = {'request_id': 'fixture'}
+        with patch('lib.ai_client.get_client', return_value=self.client), \
+             patch('lib.ai_client.calendar_clock', return_value={'timezone': 'Asia/Singapore'}):
+            ask_image([], self.image, 'Describe this image.',
+                      'Add the quiz dates in this image to my calendar', username='Admin')
+        self.assertEqual(self.generate.call_count, 2)
+        for call in self.generate.call_args_list:
+            config = call.kwargs['config']
+            self.assertEqual(config.temperature, 0)
+            self.assertEqual(config.response_mime_type, 'application/json')
+            self.assertIsNone(config.max_output_tokens)
 
 
 if __name__ == '__main__': unittest.main()

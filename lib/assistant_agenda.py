@@ -267,9 +267,10 @@ def read_task_range(
         if not isinstance(item, dict):
             continue
         completed = bool(item.get("completed"))
-        if not completed and not str(item.get("due_date") or ""):
+        canceled = bool(item.get("canceled"))
+        if not completed and not canceled and not str(item.get("due_date") or ""):
             undated_open_count += 1
-        if normalized_state == "open" and completed:
+        if normalized_state == "open" and (completed or canceled):
             continue
         if normalized_state == "done" and not completed:
             continue
@@ -289,8 +290,10 @@ def read_task_range(
 
         tasks.append(
             {
+                "id": str(item.get("id") or ""),
                 "title": str(item.get("title") or "Untitled task"),
                 "completed": completed,
+                "canceled": canceled,
                 "due_date": raw_due,
                 "due_time": str(item.get("due_time") or ""),
                 "priority": str(item.get("priority") or "none"),

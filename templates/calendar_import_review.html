@@ -24,8 +24,13 @@
         {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
         <div class="calendar-review-layout">
             <section class="calendar-review-source" aria-label="Source image">
-                <div class="calendar-review-section-head"><h2>Source photo</h2><a href="{{ url_for('calendar_import_image', token=token) }}" target="_blank" rel="noopener">Open full size <i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i></a></div>
-                <img src="{{ url_for('calendar_import_image', token=token) }}" alt="The schedule photo sent to the assistant">
+                <h2>Source photos</h2>
+                {% for index in range(draft.get('image_count', 1)) %}
+                <figure>
+                    <a href="{{ url_for('calendar_import_image', token=token, image=index) }}" target="_blank" rel="noopener" aria-label="Open image {{ index + 1 }} full size"><img src="{{ url_for('calendar_import_image', token=token, image=index) }}" alt="Schedule image {{ index + 1 }} sent to the assistant"></a>
+                    {% if draft.get('image_count', 1) > 1 %}<figcaption>Image {{ index + 1 }}</figcaption>{% endif %}
+                </figure>
+                {% endfor %}
             </section>
             <form class="calendar-review-form" method="post" action="{{ url_for('calendar_import_review', token=token) }}">
                 <input type="hidden" name="csrf" value="{{ csrf }}">

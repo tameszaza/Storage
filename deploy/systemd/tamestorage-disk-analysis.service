@@ -1,0 +1,17 @@
+[Unit]
+Description=On-demand read-only disk analysis for Tamestorage
+After=local-fs.target tamestorage-host-control.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/lib/tamestorage-disk-analysis.py
+Restart=on-failure
+Nice=15
+IOSchedulingClass=idle
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/run/tamestorage-control
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

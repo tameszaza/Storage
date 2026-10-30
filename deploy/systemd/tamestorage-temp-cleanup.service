@@ -1,0 +1,10 @@
+[Unit]
+Description=Remove items from Tamestorage Temp after 24 hours
+RequiresMountsFor=/srv/tamestorage
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tamestorage-temp-cleanup
+Nice=15
+IOSchedulingClass=idle

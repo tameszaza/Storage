@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Tamestorage Temp expiry every 6 hours
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=6h
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

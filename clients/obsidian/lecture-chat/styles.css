@@ -1,0 +1,113 @@
+.lecture-chat {display:flex;flex-direction:column;height:100%;gap:12px;padding:16px 12px!important;}
+.lecture-chat [hidden] {display:none!important;}
+.lecture-chat .lc-header {display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.lecture-chat .lc-title {font-size:var(--font-ui-small);font-weight:600;flex:1;}
+.lecture-chat .lc-info {display:flex;color:var(--text-faint);}
+.lecture-chat .lc-info svg {width:14px;height:14px;}
+.lecture-chat .lc-icon {display:flex;align-items:center;justify-content:center;width:30px;height:30px;padding:6px;box-shadow:none;background:transparent;border:0;border-radius:8px;color:var(--text-muted);flex-shrink:0;cursor:pointer;}
+.lecture-chat .lc-icon:hover {background:var(--background-modifier-hover);color:var(--text-normal);}
+.lecture-chat .lc-icon:focus-visible,.lecture-chat .lc-source-picker:focus-visible {outline:2px solid var(--interactive-accent);outline-offset:2px;}
+.lecture-chat .lc-icon svg {width:17px;height:17px;}
+.lecture-chat .lc-source-row {display:flex;align-items:center;gap:2px;flex-shrink:0;min-width:0;}
+.lecture-chat .lc-source-picker {display:flex;align-items:center;gap:8px;min-width:0;flex:1;padding:9px 10px;height:36px;border:1px solid var(--background-modifier-border);border-radius:8px;box-shadow:none;background:var(--background-secondary);font-size:var(--font-ui-small);cursor:pointer;}
+.lecture-chat .lc-source {flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lecture-chat .lc-source-icon,.lecture-chat .lc-chevron {display:flex;color:var(--text-muted);flex-shrink:0;}
+.lecture-chat .lc-source-icon svg {width:15px;height:15px;}
+.lecture-chat .lc-chevron svg {width:12px;height:12px;}
+.lecture-chat .lc-options {font-size:var(--font-ui-small);color:var(--text-muted);flex-shrink:0;}
+.lecture-chat .lc-options summary {display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;width:fit-content;padding:2px 4px;}
+.lecture-chat .lc-options summary::-webkit-details-marker {display:none;}
+.lecture-chat .lc-options summary svg {width:13px;height:13px;}
+.lecture-chat .lc-options[open] summary {margin-bottom:10px;}
+.lecture-chat .lc-range {display:flex;align-items:center;gap:12px;padding:0 4px;}
+.lecture-chat .lc-range input {flex:1;min-width:0;height:28px;font-size:inherit;}
+.lecture-chat .lc-annotations {display:flex;align-items:center;gap:8px;padding:10px 4px 2px;}
+.lecture-chat .lc-annotations input {margin:0;}
+.lecture-chat .lc-messages {flex:1;min-height:60px;overflow:auto;user-select:text;padding:0 4px;line-height:1.55;}
+.lecture-chat .lc-empty {height:100%;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-faint);font-size:var(--font-ui-small);}
+.lecture-chat .lc-empty-icon svg {width:28px;height:28px;stroke-width:1.25;}
+.lecture-chat .lc-message {overflow-wrap:anywhere;margin:14px 0;}
+.lecture-chat .lc-user {width:fit-content;max-width:92%;margin-left:auto;background:var(--background-secondary);padding:8px 12px;border-radius:12px 12px 3px 12px;}
+.lecture-chat .lc-assistant {padding:4px 0 12px;}
+.lecture-chat .lc-message p {margin:8px 0;}
+.lecture-chat .lc-message p:first-child {margin-top:0;}
+.lecture-chat .lc-message p:last-child {margin-bottom:0;}
+.lecture-chat .lc-message pre {
+  position:relative;
+  overflow-x:auto;
+  padding:12px 44px 12px 12px;
+  border-radius:8px;
+  background:var(--code-background);
+}
+.lecture-chat .lc-message pre > code {display:block;padding:0;background:transparent;}
+.lecture-chat .lc-message pre .copy-code-button {
+  position:absolute;
+  top:6px;
+  right:6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:26px;
+  height:26px;
+  padding:5px;
+  margin:0;
+  border:0;
+  border-radius:6px;
+  box-shadow:none;
+  background:transparent;
+  color:var(--text-muted);
+  opacity:.65;
+}
+.lecture-chat .lc-message pre .copy-code-button svg {width:15px;height:15px;}
+.lecture-chat .lc-message pre:hover .copy-code-button,
+.lecture-chat .lc-message pre .copy-code-button:focus-visible {opacity:1;}
+.lecture-chat .lc-message pre .copy-code-button:hover {background:var(--background-modifier-hover);}
+.lecture-chat .lc-composer {flex-shrink:0;border:1px solid var(--background-modifier-border);border-radius:12px;background:var(--background-primary);padding:10px;}
+.lecture-chat .lc-composer:focus-within {border-color:var(--interactive-accent);}
+.lecture-chat .lc-status {font-size:var(--font-ui-smaller);color:var(--text-muted);overflow-wrap:anywhere;padding:0 2px 8px;}
+.lecture-chat .lc-status:empty {display:none;}
+.lecture-chat .lc-question {resize:vertical;min-height:56px;height:64px;max-height:180px;display:block;width:100%;padding:2px;border:0!important;box-shadow:none!important;outline:none!important;background:transparent;font:inherit;line-height:1.5;}
+.lecture-chat .lc-question::placeholder {color:var(--text-faint);}
+.lecture-chat .lc-actions {display:flex;justify-content:flex-end;padding-top:4px;}
+.lecture-chat .lc-send {background:var(--interactive-accent);color:var(--text-on-accent);border-radius:9px;}
+.lecture-chat .lc-send:hover {background:var(--interactive-accent-hover);color:var(--text-on-accent);}
+.lecture-chat .lc-stop {background:var(--background-modifier-hover);color:var(--text-normal);}
+.lecture-chat .lc-stop svg {width:12px;height:12px;fill:currentColor;}
+.lecture-chat .lc-icon.is-active {color:var(--text-accent);background:var(--background-modifier-hover);}
+.lecture-chat .lc-context {font-size:var(--font-ui-smaller);color:var(--text-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;flex-shrink:0;}
+.lecture-chat .lc-context:empty {display:none;}
+.lecture-chat .lc-actions {align-items:center;gap:8px;}
+.lecture-chat .lc-context {flex:1;min-width:0;display:block;white-space:nowrap;text-overflow:ellipsis;font-size:11px;}
+.lecture-chat .lc-context:empty {display:block;}
+.lecture-chat .lc-model {max-width:104px;min-width:0;height:26px;padding:2px 18px 2px 6px;font-size:11px;border:0;box-shadow:none;background-color:transparent;color:var(--text-muted);cursor:pointer;}
+.lecture-chat .lc-model:hover {background-color:var(--background-modifier-hover);}
+
+/* Server search joins the native result count instead of adding another row. */
+.search-results-result-count .lecture-semantic-search-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  color: var(--text-muted);
+  cursor: default;
+}
+.lecture-semantic-search-status[hidden] { display: none !important; }
+.lecture-semantic-search-status svg {
+  width: 14px;
+  height: 14px;
+  background: transparent !important;
+  box-shadow: none;
+}
+.lecture-semantic-search-status[data-mode="complete"] { color: var(--interactive-accent); }
+.lecture-semantic-search-status.is-pending svg { animation: lc-search-spin 1s linear infinite; }
+@keyframes lc-search-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .lecture-semantic-search-status.is-pending svg { animation: none; }
+}
+
+.is-mobile .lecture-chat .lc-icon { min-width: 34px; min-height: 34px; }
+.is-mobile .lecture-chat .lc-model { height: 34px; }
+.is-mobile .lecture-chat .lc-question { font-size: 16px; }
